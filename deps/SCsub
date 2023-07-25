@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+Import("env")
+
+def build_lexy(env):
+    env.Append(CPPDEFINES=["LEXY_HAS_UNICODE_DATABASE=1"])
+    lexy_env = env.Clone()
+
+    # Require C++20
+    if lexy_env.get("is_msvc", False):
+        lexy_env.Append(CXXFLAGS=["/std:c++20"])
+
+        lexy_env.Append(CXXFLAGS=["/WX", "/W3", "/D", "_CRT_SECURE_NO_WARNINGS"])
+        if not lexy_env.get("use_clang_cl"):
+            lexy_env.Append(CXXFLAGS=["/wd5105"])
+    else:
+        lexy_env.Append(CXXFLAGS=["-std=c++20"])
+
+        lexy_env.Append(CXXFLAGS=["-pedantic-errors", "-Werror", "-Wall", "-Wextra", "-Wconversion", "-Wsign-conversion"])
+        if lexy_env.get("use_llvm"):
+            lexy_env.Append(CXXFLAGS=["-Wno-shift-op-parentheses", "-Wno-parentheses-equality"])
+        else:
+            lexy_env.Append(CXXFLAGS=[
+                "-Wno-parentheses", "-Wno-unused-local-typedefs", "-Wno-array-bounds", "-Wno-maybe-uninitialized", "-Wno-restrict"
+            ])
+
+    paths = ["lexy/include", "lexy/src"]
+    lexy_env.Append(CPPPATH=[[lexy_env.Dir(p) for p in paths]])
+    sources = env.GlobRecursive("*.cpp", paths)
+    env.lexy_sources = sources
+    library_name = "liblexy_file" + env["LIBSUFFIX"]
+    library = lexy_env.StaticLibrary(target="lexy/src/" + library_name, source=sources)
+    Default(library)
+
+    env.Append(CPPPATH=[env.Dir("lexy/include")])
+    if env.get("is_msvc", False):
+        env.Append(CXXFLAGS=["/external:I", env.Dir("lexy/include"), "/external:W0"])
+    else:
+        env.Append(CXXFLAGS=["-isystem", env.Dir("lexy/include")])
+    env.Append(CXXFLAGS=[""])
+    env.Append(LIBPATH=[env.Dir("lexy/src")])
+    env.Append(LIBS=[library_name])
+
+
+build_lexy(env)
