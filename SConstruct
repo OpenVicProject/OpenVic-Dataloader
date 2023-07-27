@@ -213,6 +213,8 @@ env.GlobRecursive = GlobRecursive
 
 SConscript("deps/SCsub")
 
+env.openvic_dataloader = {}
+
 # For the reference:
 # - CCFLAGS are compilation flags shared between C and C++
 # - CFLAGS are for C-specific compilation flags
@@ -245,10 +247,12 @@ if env["build_ovdl_library"]:
     library = env.StaticLibrary(target=env.File("bin/%s" % library_name), source=sources)
     Default(library)
 
-env.Append(LIBPATH=[env.Dir("bin")])
+    env.openvic_dataloader["LIBPATH"] = [env.Dir("bin")]
+    env.openvic_dataloader["LIBS"] = [library_name]
+    env.openvic_dataloader["INCPATH"] = [env.Dir("include")]
 
-if library != None or os.path.exists("bin/%s" % library_name):
-    env.Append(LIBS=[library_name])
+    env.Append(LIBPATH=env.openvic_dataloader["LIBPATH"])
+    env.Append(LIBS=env.openvic_dataloader["LIBS"])
 
 headless_program = None
 env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
