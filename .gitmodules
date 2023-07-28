@@ -1,3 +1,4 @@
 [submodule "deps/lexy"]
 	path = deps/lexy
 	url = https://github.com/foonathan/lexy
+	ignore = dirty

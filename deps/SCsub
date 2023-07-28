@@ -21,7 +21,7 @@ def build_lexy(env):
             lexy_env.Append(CXXFLAGS=["-Wno-shift-op-parentheses", "-Wno-parentheses-equality"])
         else:
             lexy_env.Append(CXXFLAGS=[
-                "-Wno-parentheses", "-Wno-unused-local-typedefs", "-Wno-array-bounds", "-Wno-maybe-uninitialized", "-Wno-restrict"
+                "-Wno-parentheses", "-Wno-unused-local-typedefs", "-Wno-array-bounds" #, "-Wno-maybe-uninitialized", "-Wno-restrict"
             ])
 
     paths = ["lexy/include", "lexy/src"]
