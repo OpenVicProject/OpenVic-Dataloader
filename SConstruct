@@ -262,11 +262,12 @@ if env["build_ovdl_headless"]:
     headless_env = env.Clone()
     headless_path = ["src/headless"]
     headless_env.Append(CPPDEFINES=["OPENVIC_DATALOADER_HEADLESS"])
+    headless_env.Append(CPPDEFINES=["OPENVIC_DATALOADER_PRINT_NODES"])
     headless_env.Append(CPPPATH=[headless_env.Dir(headless_path)])
     headless_env.headless_sources = GlobRecursive("*.cpp", headless_path)
     if not env["build_ovdl_library"]:
         headless_env.headless_sources += sources
-    headless_program = env.Program(
+    headless_program = headless_env.Program(
         target="bin/%s" % headless_name,
         source=headless_env.headless_sources,
         PROGSUFFIX=".headless" + env["PROGSUFFIX"]
