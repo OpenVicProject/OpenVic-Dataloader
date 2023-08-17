@@ -5,9 +5,10 @@
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <string>
 #include <vector>
 
+#include <openvic-dataloader/ParseError.hpp>
+#include <openvic-dataloader/ParseWarning.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 namespace ovdl::v2script {
@@ -16,20 +17,6 @@ namespace ovdl::v2script {
 
 	class Parser {
 	public:
-		struct Error {
-			const enum class Type : unsigned char {
-				Recoverable,
-				Fatal
-			} type;
-			const std::string message;
-			const int error_value;
-		};
-
-		struct Warning {
-			const std::string message;
-			const int warning_value;
-		};
-
 		Parser();
 
 		static Parser from_buffer(const char* data, std::size_t size);
@@ -51,8 +38,8 @@ namespace ovdl::v2script {
 		bool has_fatal_error() const;
 		bool has_warning() const;
 
-		const std::vector<Error>& get_errors() const;
-		const std::vector<Warning>& get_warnings() const;
+		const std::vector<ParseError>& get_errors() const;
+		const std::vector<ParseWarning>& get_warnings() const;
 
 		const FileNode* get_file_node() const;
 
@@ -62,8 +49,8 @@ namespace ovdl::v2script {
 		~Parser();
 
 	private:
-		std::vector<Error> _errors;
-		std::vector<Warning> _warnings;
+		std::vector<ParseError> _errors;
+		std::vector<ParseWarning> _warnings;
 
 		class BufferHandler;
 		friend class BufferHandler;
@@ -74,6 +61,6 @@ namespace ovdl::v2script {
 		bool _has_fatal_error = false;
 
 		template<typename... Args>
-		inline void _run_load_func(std::optional<Error> (BufferHandler::*func)(Args...), Args... args);
+		inline void _run_load_func(std::optional<ParseError> (BufferHandler::*func)(Args...), Args... args);
 	};
 }

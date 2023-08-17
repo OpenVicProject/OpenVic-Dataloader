@@ -4,13 +4,13 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "SimpleGrammar.hpp"
 #include "detail/DetectUtf8.hpp"
 #include "detail/Errors.hpp"
+#include "detail/LexyReportError.hpp"
 #include "detail/NullBuff.hpp"
 #include "detail/Warnings.hpp"
 #include <lexy/action/parse.hpp>
@@ -19,7 +19,8 @@
 #include <lexy/input/file.hpp>
 #include <lexy/lexeme.hpp>
 #include <lexy/visualize.hpp>
-#include <lexy_ext/report_error.hpp>
+#include <openvic-dataloader/ParseError.hpp>
+#include <openvic-dataloader/ParseWarning.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 using namespace ovdl::v2script;
@@ -32,17 +33,17 @@ public:
 		return _buffer.size() != 0;
 	}
 
-	std::optional<Error> load_buffer(const char* data, std::size_t size) {
+	std::optional<ParseError> load_buffer(const char* data, std::size_t size) {
 		_buffer = lexy::buffer(data, size);
 		return std::nullopt;
 	}
 
-	std::optional<Error> load_buffer(const char* start, const char* end) {
+	std::optional<ParseError> load_buffer(const char* start, const char* end) {
 		_buffer = lexy::buffer(start, end);
 		return std::nullopt;
 	}
 
-	std::optional<Error> load_file(const char* path) {
+	std::optional<ParseError> load_file(const char* path) {
 		auto file = lexy::read_file(path);
 		if (!file) {
 			return errors::make_no_file_error(path);
@@ -57,11 +58,10 @@ public:
 	}
 
 	template<typename Node, typename ErrorCallback>
-	std::optional<std::vector<Error>> parse(const ErrorCallback& callback) {
+	std::optional<std::vector<ParseError>> parse(const ErrorCallback& callback) {
 		auto result = lexy::parse<Node>(_buffer, callback);
 		if (!result) {
-			std::vector<Error> errors;
-			return errors;
+			return result.errors();
 		}
 		// This is mighty frustrating
 		_root = std::unique_ptr<ast::Node>(result.value());
@@ -117,12 +117,12 @@ Parser Parser::from_file(const char* path) {
 /// @param args
 ///
 template<typename... Args>
-inline void Parser::_run_load_func(std::optional<Error> (BufferHandler::*func)(Args...), Args... args) {
+inline void Parser::_run_load_func(std::optional<ParseError> (BufferHandler::*func)(Args...), Args... args) {
 	_warnings.clear();
 	_errors.clear();
 	_has_fatal_error = false;
 	if (auto error = (_buffer_handler.get()->*func)(args...); error) {
-		_has_fatal_error = error.value().type == Error::Type::Fatal;
+		_has_fatal_error = error.value().type == ParseError::Type::Fatal;
 		_errors.push_back(error.value());
 		_error_stream.get() << "Error: " << _errors.back().message << '\n';
 	}
@@ -185,13 +185,12 @@ bool Parser::simple_parse() {
 		_warnings.push_back(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<grammar::File>(lexy_ext::report_error.path(_file_path).to(ostream_output_iterator { _error_stream }));
+	auto errors = _buffer_handler->parse<grammar::File>(ovdl::detail::ReporError.path(_file_path).to(ostream_output_iterator { _error_stream }));
 	if (errors) {
 		_errors.reserve(errors->size());
 		for (auto& err : errors.value()) {
-			_has_fatal_error |= err.type == Error::Type::Fatal;
+			_has_fatal_error |= err.type == ParseError::Type::Fatal;
 			_errors.push_back(err);
-			_error_stream.get() << "Error: " << err.message << '\n';
 		}
 		return false;
 	}
@@ -211,11 +210,11 @@ bool Parser::has_warning() const {
 	return !_warnings.empty();
 }
 
-const std::vector<Parser::Error>& Parser::get_errors() const {
+const std::vector<ovdl::ParseError>& Parser::get_errors() const {
 	return _errors;
 }
 
-const std::vector<Parser::Warning>& Parser::get_warnings() const {
+const std::vector<ovdl::ParseWarning>& Parser::get_warnings() const {
 	return _warnings;
 }
 
