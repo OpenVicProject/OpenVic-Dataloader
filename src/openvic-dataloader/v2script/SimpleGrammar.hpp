@@ -1,3 +1,5 @@
+#pragma once
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -55,6 +57,18 @@ namespace ovdl::v2script::grammar {
 		}();
 
 		static constexpr auto value = lexy::as_string<std::string> >> lexy::new_<ast::StringNode, ast::NodePtr>;
+	};
+
+	struct SimpleAssignmentStatement {
+		static constexpr auto rule =
+			lexy::dsl::p<Identifier> >>
+			lexy::dsl::equal_sign +
+				(lexy::dsl::p<Identifier> | lexy::dsl::p<StringExpression> | lexy::dsl::recurse_branch<StatementListBlock>);
+
+		static constexpr auto value = lexy::callback<ast::NodePtr>(
+			[](auto name, auto&& initalizer) {
+				return make_node_ptr<ast::AssignNode>(LEXY_MOV(name), LEXY_MOV(initalizer));
+			});
 	};
 
 	struct AssignmentStatement {

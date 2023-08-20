@@ -167,6 +167,33 @@ namespace ovdl::v2script::ast {
 			}
 		})
 	};
+
+	struct EventNode final : public Node {
+		enum class Type {
+			Country,
+			Province
+		} _type;
+		std::vector<NodeUPtr> _statements;
+		explicit EventNode(Type type, std::vector<NodePtr> statements)
+			: _type(type),
+			  _statements(make_node_ptr_vector(statements)) {
+		}
+
+		OVDL_TYPE_DEFINE_SELF;
+		OVDL_RT_TYPE_DEF;
+
+		OVDL_PRINT_FUNC_DEF({
+			switch (_type) {
+				case Type::Country: stream << "country_event"; break;
+				case Type::Province: stream << "province_event"; break;
+			}
+			stream << " = {";
+			for (auto& statement : _statements) {
+				statement->print(stream);
+			}
+			stream << "}";
+		})
+	};
 }
 
 #undef OVDL_PRINT_FUNC_DECL
