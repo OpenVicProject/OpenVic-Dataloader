@@ -11,9 +11,10 @@ namespace ovdl::v2script::grammar {
 	struct AiModifierStatement {
 		static constexpr auto rule =
 			modifier_keyword >>
-			lexy::dsl::curly_bracketed.list(
-				(factor_keyword >> lexy::dsl::p<Identifier>) |
-				lexy::dsl::p<TriggerStatement>);
+			(lexy::dsl::equal_sign +
+				lexy::dsl::curly_bracketed.list(
+					(factor_keyword >> lexy::dsl::p<Identifier>) |
+					lexy::dsl::p<TriggerStatement>));
 	};
 
 	struct AiBehaviorList {

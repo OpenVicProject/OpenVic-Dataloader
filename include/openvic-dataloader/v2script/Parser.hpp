@@ -33,6 +33,7 @@ namespace ovdl::v2script {
 		void set_error_log_to(std::basic_ostream<char>& stream);
 
 		bool simple_parse();
+		bool event_parse();
 
 		bool has_error() const;
 		bool has_fatal_error() const;

@@ -77,38 +77,46 @@ namespace ovdl::v2script::ast {
 		std::vector<NodeUPtr> result;
 		result.reserve(ptrs.size());
 		for (auto&& p : ptrs) {
+			if (p == nullptr) continue;
 			result.push_back(NodeUPtr(p));
 		}
 		return result;
 	}
 
-	struct IdentifierNode final : public Node {
+	struct AbstractStringNode : public Node {
 		std::string _name;
-		explicit IdentifierNode(std::string name)
-			: _name(std::move(name)) {
-		}
-
+		explicit AbstractStringNode(std::string&& name) : _name(std::move(name)) {}
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
 		OVDL_PRINT_FUNC_DEF({
 			stream << _name.c_str();
 		})
 	};
 
-	struct StringNode final : public Node {
-		std::string _name;
-		explicit StringNode(std::string name)
-			: _name(std::move(name)) {
-		}
+#define OVDL_AST_STRING_NODE(NAME)                                                 \
+	struct NAME final : public AbstractStringNode {                                \
+		explicit NAME(std::string&& name) : AbstractStringNode(std::move(name)) {} \
+		OVDL_TYPE_DEFINE_SELF;                                                     \
+		OVDL_RT_TYPE_DEF;                                                          \
+		OVDL_PRINT_FUNC_DEF({                                                      \
+			stream << _name.c_str();                                               \
+		})                                                                         \
+	}
 
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
+	OVDL_AST_STRING_NODE(IdentifierNode);
+	OVDL_AST_STRING_NODE(FactorNode);
+	OVDL_AST_STRING_NODE(MonthNode);
+	OVDL_AST_STRING_NODE(NameNode);
+	OVDL_AST_STRING_NODE(StringNode);
+	OVDL_AST_STRING_NODE(FireOnlyNode);
 
-		OVDL_PRINT_FUNC_DEF({
-			stream << '"' << _name.c_str() << '"';
-		})
-	};
+	OVDL_AST_STRING_NODE(IdNode);
+	OVDL_AST_STRING_NODE(TitleNode);
+	OVDL_AST_STRING_NODE(DescNode);
+	OVDL_AST_STRING_NODE(PictureNode);
+	OVDL_AST_STRING_NODE(IsTriggeredNode);
+
+#undef OVDL_AST_STRING_NODE
 
 	struct AssignNode final : public Node {
 		std::string _name;
@@ -129,15 +137,11 @@ namespace ovdl::v2script::ast {
 		})
 	};
 
-	struct ListNode final : public Node {
+	struct AbstractListNode : public Node {
 		std::vector<NodeUPtr> _statements;
-		explicit ListNode(std::vector<NodePtr> statements = std::vector<NodePtr> {})
-			: _statements(make_node_ptr_vector(statements)) {
-		}
-
+		AbstractListNode(std::vector<NodeUPtr>&& statements) : _statements(std::move(statements)) {}
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
 		OVDL_PRINT_FUNC_DEF({
 			stream << '{';
 			for (int i = 0; i < _statements.size(); i++) {
@@ -149,6 +153,30 @@ namespace ovdl::v2script::ast {
 			stream << '}';
 		})
 	};
+
+#define OVDL_AST_LIST_NODE(NAME)                                                                                                         \
+	struct NAME final : public AbstractListNode {                                                                                        \
+		explicit NAME(std::vector<NodePtr> statements = std::vector<NodePtr> {}) : AbstractListNode(make_node_ptr_vector(statements)) {} \
+		OVDL_TYPE_DEFINE_SELF;                                                                                                           \
+		OVDL_RT_TYPE_DEF;                                                                                                                \
+		OVDL_PRINT_FUNC_DEF({                                                                                                            \
+			stream << '{';                                                                                                               \
+			for (int i = 0; i < _statements.size(); i++) {                                                                               \
+				auto& statement = _statements[i];                                                                                        \
+				statement->print(stream);                                                                                                \
+				if (i + 1 != _statements.size())                                                                                         \
+					stream << ' ';                                                                                                       \
+			}                                                                                                                            \
+			stream << '}';                                                                                                               \
+		})                                                                                                                               \
+	}
+
+	OVDL_AST_LIST_NODE(ListNode);
+	OVDL_AST_LIST_NODE(MtthModifierNode);
+	OVDL_AST_LIST_NODE(MtthNode);
+	OVDL_AST_LIST_NODE(EventOptionNode);
+
+#undef OVDL_AST_LIST_NODE
 
 	struct FileNode final : public Node {
 		std::vector<NodeUPtr> _statements;
@@ -174,7 +202,7 @@ namespace ovdl::v2script::ast {
 			Province
 		} _type;
 		std::vector<NodeUPtr> _statements;
-		explicit EventNode(Type type, std::vector<NodePtr> statements)
+		explicit EventNode(Type type, std::vector<NodePtr> statements = {})
 			: _type(type),
 			  _statements(make_node_ptr_vector(statements)) {
 		}
@@ -194,6 +222,70 @@ namespace ovdl::v2script::ast {
 			stream << "}";
 		})
 	};
+
+	struct EventMtthModifierNode final : public Node {
+		NodeUPtr _factor_value;
+		std::vector<NodeUPtr> _statements;
+		EventMtthModifierNode() {}
+
+		OVDL_TYPE_DEFINE_SELF;
+		OVDL_RT_TYPE_DEF;
+
+		OVDL_PRINT_FUNC_DEF({
+			stream << "factor = ";
+			_factor_value->print(stream);
+			stream << ' ';
+			for (auto& statement : _statements) {
+				statement->print(stream);
+			}
+		})
+	};
+
+	// Packed single case
+	struct ExecutionNode final : public Node {
+		enum class Type {
+			Effect,
+			Trigger
+		} _type;
+		std::string _name;
+		NodeUPtr _initializer;
+		explicit ExecutionNode(Type type, NodePtr name, NodePtr init)
+			: _type(type),
+			  _initializer(std::move(init)) {
+			if (name->is_type<IdentifierNode>()) {
+				_name = cast_node_ptr<IdentifierNode>(name)._name;
+			}
+		}
+
+		OVDL_TYPE_DEFINE_SELF;
+		OVDL_RT_TYPE_DEF;
+
+		OVDL_PRINT_FUNC_DEF({
+			stream << _name.c_str() << " = ";
+			_initializer->print(stream);
+		})
+	};
+
+	struct ExecutionListNode final : public Node {
+		ExecutionNode::Type _type;
+		std::vector<NodeUPtr> _statements;
+		explicit ExecutionListNode(ExecutionNode::Type type, std::vector<NodePtr> statements)
+			: _type(type),
+			  _statements(make_node_ptr_vector(statements)) {
+		}
+
+		OVDL_TYPE_DEFINE_SELF;
+		OVDL_RT_TYPE_DEF;
+
+		OVDL_PRINT_FUNC_DEF({
+			stream << "{";
+			for (auto& statement : _statements) {
+				statement->print(stream);
+			}
+			stream << "}";
+		})
+	};
+
 }
 
 #undef OVDL_PRINT_FUNC_DECL

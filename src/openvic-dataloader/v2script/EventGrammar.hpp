@@ -17,25 +17,27 @@ namespace ovdl::v2script::grammar {
 	//////////////////
 	// Macros
 	//////////////////
-// Produces <KW_NAME>_keyword
-#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME) \
-	static constexpr auto KW_NAME##_keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>)
+// Produces <KW_NAME>_rule and <KW_NAME>_p
+#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME)                                                    \
+	struct KW_NAME##_rule {                                                                     \
+		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
+		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                          \
+		static constexpr auto value = lexy::noop;                                               \
+	};                                                                                          \
+	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule>
 
-// Produces <KW_NAME>_keyword and <KW_NAME>_flag and <KW_NAME>_too_many_error
-#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                                     \
-	static constexpr auto KW_NAME##_keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
-	static constexpr auto KW_NAME##_flag = lexy::dsl::context_flag<struct KW_NAME##_context>;         \
-	struct KW_NAME##_too_many_error {                                                                 \
-		static constexpr auto name = "expected left side " #KW_NAME " to be found once";              \
-	}
-
-// Produces <KW_NAME>_statement
-#define OVDL_GRAMMAR_KEYWORD_STATEMENT(KW_NAME, ...) \
-	constexpr auto KW_NAME##_statement = KW_NAME##_keyword >> (lexy::dsl::equal_sign + (__VA_ARGS__))
-
-// Produces <KW_NAME>_statement
-#define OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(KW_NAME, ...) \
-	constexpr auto KW_NAME##_statement = KW_NAME##_keyword >> ((lexy::dsl::must(KW_NAME##_flag.is_reset()).error<KW_NAME##_too_many_error> + KW_NAME##_flag.set()) + lexy::dsl::equal_sign + (__VA_ARGS__))
+// Produces <KW_NAME>_rule and <KW_NAME>_p and <KW_NAME>_rule::flag and <KW_NAME>_rule::too_many_error
+#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                               \
+	struct KW_NAME##_rule {                                                                     \
+		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
+		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                          \
+		static constexpr auto value = lexy::noop;                                               \
+		static constexpr auto flag = lexy::dsl::context_flag<struct KW_NAME##_context>;         \
+		struct too_many_error {                                                                 \
+			static constexpr auto name = "expected left side " #KW_NAME " to be found once";    \
+		};                                                                                      \
+	};                                                                                          \
+	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule> >> (lexy::dsl::must(KW_NAME##_rule::flag.is_reset()).error<KW_NAME##_rule::too_many_error> + KW_NAME##_rule::flag.set())
 	//////////////////
 	// Macros
 	//////////////////
@@ -43,35 +45,72 @@ namespace ovdl::v2script::grammar {
 											  .map<LEXY_SYMBOL("country_event")>(ast::EventNode::Type::Country)
 											  .map<LEXY_SYMBOL("province_event")>(ast::EventNode::Type::Province);
 
-	struct EventMeanTimeToHappenModifierStatement {
+	struct EventFactor {
+		static constexpr auto rule = factor_keyword >> lexy::dsl::equal_sign + lexy::dsl::p<Identifier>;
+		static constexpr auto value = lexy::forward<ast::NodePtr>;
+	};
+
+	struct EventMtthModifierStatement {
 		static constexpr auto rule =
 			modifier_keyword >>
 			lexy::dsl::curly_bracketed.list(
-				(factor_keyword >> lexy::dsl::p<Identifier>) |
+				lexy::dsl::p<EventFactor> |
 				lexy::dsl::p<TriggerStatement>);
+
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto&& list) {
+					return make_node_ptr<ast::MtthModifierNode>(LEXY_MOV(list));
+				});
 	};
 
-	struct EventMeanTimeToHappenStatement {
-		static constexpr auto months_keyword = LEXY_KEYWORD("months", lexy::dsl::inline_<Identifier>);
+	struct EventMtthStatement {
+		OVDL_GRAMMAR_KEYWORD_DEFINE(months);
 
 		static constexpr auto rule = lexy::dsl::list(
-			(months_keyword >> lexy::dsl::p<Identifier>) |
-			lexy::dsl::p<EventMeanTimeToHappenModifierStatement>);
+			(months_p >> lexy::dsl::p<Identifier>) |
+			lexy::dsl::p<EventMtthModifierStatement>);
+
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto&& list) {
+					return ast::make_node_ptr<ast::MtthNode>(LEXY_MOV(list));
+				});
 	};
 
 	struct EventOptionList {
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(name);
+		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(ai_chance);
 
 		static constexpr auto rule = [] {
-			constexpr auto create_flags = name_flag.create();
+			constexpr auto create_flags = name_rule::flag.create() + ai_chance_rule::flag.create();
 
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(name, lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
+			constexpr auto name_statement = name_p >> (lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
+			constexpr auto ai_chance_statement = ai_chance_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<EventFactor>);
 
-			return create_flags + lexy::dsl::list(name_statement | lexy::dsl::p<EffectStatement>);
+			return create_flags + lexy::dsl::list(name_statement | ai_chance_statement | lexy::dsl::p<EffectList>);
 		}();
+
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto&& list) {
+					return ast::make_node_ptr<ast::EventOptionNode>(LEXY_MOV(list));
+				});
 	};
 
 	struct EventStatement {
+
+		template<auto Production, typename AstNode>
+		struct _StringStatement {
+			static constexpr auto rule = Production >> (lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
+			static constexpr auto value = lexy::forward<ast::NodePtr>;
+		};
+		template<auto Production, typename AstNode>
+		static constexpr auto StringStatement = lexy::dsl::p<_StringStatement<Production, AstNode>>;
+
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(id);
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(title);
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(desc);
@@ -84,31 +123,33 @@ namespace ovdl::v2script::grammar {
 		OVDL_GRAMMAR_KEYWORD_DEFINE(option);
 
 		static constexpr auto rule = [] {
+			constexpr auto symbol_value = lexy::dsl::symbol<event_symbols>(lexy::dsl::inline_<Identifier>);
+
 			constexpr auto create_flags =
-				id_flag.create() +
-				title_flag.create() +
-				desc_flag.create() +
-				picture_flag.create() +
-				is_triggered_only_flag.create() +
-				fire_only_once_flag.create() +
-				immediate_flag.create() +
-				mean_time_to_happen_flag.create();
+				id_rule::flag.create() +
+				title_rule::flag.create() +
+				desc_rule::flag.create() +
+				picture_rule::flag.create() +
+				is_triggered_only_rule::flag.create() +
+				fire_only_once_rule::flag.create() +
+				immediate_rule::flag.create() +
+				mean_time_to_happen_rule::flag.create();
 
 			constexpr auto string_value = lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>;
 
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(id, string_value);
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(title, string_value);
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(desc, string_value);
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(picture, string_value);
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(is_triggered_only, string_value);
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(fire_only_once, string_value);
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(immediate, lexy::dsl::curly_bracketed.opt(lexy::dsl::p<EffectList>));
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(mean_time_to_happen, lexy::dsl::curly_bracketed(lexy::dsl::p<EventMeanTimeToHappenStatement>));
+			constexpr auto id_statement = StringStatement<id_p, ast::IdNode>;
+			constexpr auto title_statement = StringStatement<title_p, ast::TitleNode>;
+			constexpr auto desc_statement = StringStatement<desc_p, ast::DescNode>;
+			constexpr auto picture_statement = StringStatement<picture_p, ast::PictureNode>;
+			constexpr auto is_triggered_only_statement = StringStatement<is_triggered_only_p, ast::IsTriggeredNode>;
+			constexpr auto fire_only_once_statement = StringStatement<fire_only_once_p, ast::FireOnlyNode>;
+			constexpr auto immediate_statement = immediate_p >> lexy::dsl::p<EffectBlock>;
+			constexpr auto mean_time_to_happen_statement = mean_time_to_happen_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<EventMtthStatement>);
 
-			OVDL_GRAMMAR_KEYWORD_STATEMENT(trigger, lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>));
-			OVDL_GRAMMAR_KEYWORD_STATEMENT(option, lexy::dsl::curly_bracketed(lexy::dsl::p<EventOptionList>));
+			constexpr auto trigger_statement = trigger_p >> lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>);
+			constexpr auto option_statement = option_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<EventOptionList>);
 
-			return lexy::dsl::symbol<event_symbols>(lexy::dsl::inline_<Identifier>) >>
+			return symbol_value >>
 				   (create_flags + lexy::dsl::equal_sign +
 					   lexy::dsl::curly_bracketed.opt_list(
 						   id_statement |
@@ -124,7 +165,15 @@ namespace ovdl::v2script::grammar {
 						   lexy::dsl::p<SimpleAssignmentStatement>));
 		}();
 
-		static constexpr auto value = lexy::callback<ast::NodePtr>([](auto name, lexy::nullopt = {}) { return LEXY_MOV(name); }, [](auto name, auto&& initalizer) { return make_node_ptr<ast::AssignNode>(LEXY_MOV(name), LEXY_MOV(initalizer)); });
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto& type, auto&& list) {
+					return ast::make_node_ptr<ast::EventNode>(type, LEXY_MOV(list));
+				},
+				[](auto& type, lexy::nullopt = {}) {
+					return ast::make_node_ptr<ast::EventNode>(type);
+				});
 	};
 
 	struct EventFile {

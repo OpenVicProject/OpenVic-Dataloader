@@ -12,7 +12,9 @@
 #include "detail/Errors.hpp"
 #include "detail/LexyReportError.hpp"
 #include "detail/NullBuff.hpp"
+#include "detail/OStreamOutputIterator.hpp"
 #include "detail/Warnings.hpp"
+#include "v2script/EventGrammar.hpp"
 #include <lexy/action/parse.hpp>
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
@@ -165,27 +167,33 @@ bool Parser::simple_parse() {
 		return false;
 	}
 
-	struct ostream_output_iterator {
-		std::reference_wrapper<std::ostream> _stream;
+	if (_buffer_handler->is_exclusive_utf8()) {
+		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	}
 
-		auto operator*() const noexcept {
-			return *this;
+	auto errors = _buffer_handler->parse<grammar::File>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputItertaor { _error_stream }));
+	if (errors) {
+		_errors.reserve(errors->size());
+		for (auto& err : errors.value()) {
+			_has_fatal_error |= err.type == ParseError::Type::Fatal;
+			_errors.push_back(err);
 		}
-		auto operator++(int) const noexcept {
-			return *this;
-		}
+		return false;
+	}
+	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
+	return true;
+}
 
-		ostream_output_iterator& operator=(char c) {
-			_stream.get().put(c);
-			return *this;
-		}
-	};
+bool Parser::event_parse() {
+	if (!_buffer_handler->is_valid()) {
+		return false;
+	}
 
 	if (_buffer_handler->is_exclusive_utf8()) {
 		_warnings.push_back(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<grammar::File>(ovdl::detail::ReporError.path(_file_path).to(ostream_output_iterator { _error_stream }));
+	auto errors = _buffer_handler->parse<grammar::EventFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputItertaor { _error_stream }));
 	if (errors) {
 		_errors.reserve(errors->size());
 		for (auto& err : errors.value()) {

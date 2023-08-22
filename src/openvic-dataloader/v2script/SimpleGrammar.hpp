@@ -90,9 +90,8 @@ namespace ovdl::v2script::grammar {
 
 	struct StatementListBlock {
 		static constexpr auto rule =
-			lexy::dsl::curly_bracketed.open() >>
-			lexy::dsl::opt(lexy::dsl::list(lexy::dsl::p<AssignmentStatement>)) + lexy::dsl::opt(lexy::dsl::semicolon) +
-				lexy::dsl::curly_bracketed.close();
+			lexy::dsl::curly_bracketed(
+				lexy::dsl::opt(lexy::dsl::list(lexy::dsl::p<AssignmentStatement>)) + lexy::dsl::opt(lexy::dsl::semicolon));
 
 		static constexpr auto value =
 			lexy::as_list<std::vector<ast::NodePtr>> >>
