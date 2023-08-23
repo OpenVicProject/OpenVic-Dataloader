@@ -4,9 +4,6 @@
 import os
 import platform
 import sys
-import subprocess
-from glob import glob
-from pathlib import Path
 
 import SCons
 
@@ -29,6 +26,9 @@ else:
     raise ValueError("Could not detect platform automatically, please specify with platform=<platform>")
 
 is_standalone = SCons.Script.sconscript_reading == 1
+
+TOOLPATH = ["tools"]
+BINDIR = "bin"
 
 try:
     Import("env")
@@ -96,7 +96,7 @@ opts.Add(
 # Add platform options
 tools = {}
 for pl in set(platforms) - set(unsupported_known_platforms):
-    tool = Tool(pl, toolpath=["tools"])
+    tool = Tool(pl, toolpath=TOOLPATH)
     if hasattr(tool, "options"):
         tool.options(opts)
     tools[pl] = tool
@@ -135,7 +135,7 @@ opts.Add(BoolVariable("intermediate_delete", "Enables automatically deleting una
 opts.Add(BoolVariable("progress", "Show a progress indicator during compilation", True))
 
 # Targets flags tool (optimizations, debug symbols)
-target_tool = Tool("targets", toolpath=["tools"])
+target_tool = Tool("targets", toolpath=TOOLPATH)
 target_tool.options(opts)
 
 # Custom options and profile flags.
@@ -171,7 +171,7 @@ if env["arch"] == "":
             print("Unsupported CPU architecture: " + host_machine)
             Exit()
 
-tool = Tool(env["platform"], toolpath=["tools"])
+tool = Tool(env["platform"], toolpath=TOOLPATH)
 
 if tool is None or not tool.exists(env):
     raise ValueError("Required toolchain not found for platform " + env["platform"])
@@ -224,9 +224,10 @@ env.openvic_dataloader = {}
 # - LINKFLAGS are for linking flags
 
 # tweak this if you want to use different folders, or more folders, to store your source code in.
-paths = ["include", "src/openvic-dataloader"]
-env.Append(CPPPATH=[[env.Dir(p) for p in paths]])
-sources = GlobRecursive("*.cpp", paths)
+source_path = "src/openvic-dataloader"
+include_path = "include"
+env.Append(CPPPATH=[[env.Dir(p) for p in [source_path, include_path]]])
+sources = GlobRecursive("*.cpp", [source_path])
 env.dataloader_sources = sources
 
 suffix = ".{}.{}".format(env["platform"], env["target"])
@@ -244,15 +245,15 @@ env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
 library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
 
 if env["build_ovdl_library"]:
-    library = env.StaticLibrary(target=env.File("bin/%s" % library_name), source=sources)
+    library = env.StaticLibrary(target=env.File(os.path.join(BINDIR, library_name)), source=sources)
     Default(library)
 
-    env.openvic_dataloader["LIBPATH"] = [env.Dir("bin")]
-    env.openvic_dataloader["LIBS"] = [library_name]
-    env.openvic_dataloader["INCPATH"] = [env.Dir("include")]
+    env.Append(LIBPATH=[env.Dir(BINDIR)])
+    env.Append(LIBS=[library_name])
 
-    env.Append(LIBPATH=env.openvic_dataloader["LIBPATH"])
-    env.Append(LIBS=env.openvic_dataloader["LIBS"])
+    env.openvic_dataloader["LIBPATH"] = env["LIBPATH"]
+    env.openvic_dataloader["LIBS"] = env["LIBS"]
+    env.openvic_dataloader["INCPATH"] = [env.Dir(include_path)]
 
 headless_program = None
 env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
@@ -262,13 +263,12 @@ if env["build_ovdl_headless"]:
     headless_env = env.Clone()
     headless_path = ["src/headless"]
     headless_env.Append(CPPDEFINES=["OPENVIC_DATALOADER_HEADLESS"])
-    headless_env.Append(CPPDEFINES=["OPENVIC_DATALOADER_PRINT_NODES"])
     headless_env.Append(CPPPATH=[headless_env.Dir(headless_path)])
     headless_env.headless_sources = GlobRecursive("*.cpp", headless_path)
     if not env["build_ovdl_library"]:
         headless_env.headless_sources += sources
     headless_program = headless_env.Program(
-        target="bin/%s" % headless_name,
+        target=os.path.join(BINDIR, headless_name),
         source=headless_env.headless_sources,
         PROGSUFFIX=".headless" + env["PROGSUFFIX"]
     )

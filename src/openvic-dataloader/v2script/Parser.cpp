@@ -23,6 +23,7 @@
 #include <openvic-dataloader/ParseWarning.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
+using namespace ovdl;
 using namespace ovdl::v2script;
 
 ///	BufferHandler ///
@@ -86,7 +87,7 @@ Parser::Parser()
 }
 
 Parser::Parser(Parser&&) = default;
-Parser& Parser::operator=(Parser&& value) = default;
+Parser& Parser::operator=(Parser&&) = default;
 Parser::~Parser() = default;
 
 Parser Parser::from_buffer(const char* data, std::size_t size) {
@@ -99,7 +100,17 @@ Parser Parser::from_buffer(const char* start, const char* end) {
 	return std::move(result.load_from_buffer(start, end));
 }
 
+Parser Parser::from_string(const std::string_view string) {
+	Parser result;
+	return std::move(result.load_from_string(string));
+}
+
 Parser Parser::from_file(const char* path) {
+	Parser result;
+	return std::move(result.load_from_file(path));
+}
+
+Parser Parser::from_file(const std::filesystem::path& path) {
 	Parser result;
 	return std::move(result.load_from_file(path));
 }
@@ -138,10 +149,18 @@ Parser& Parser::load_from_buffer(const char* start, const char* end) {
 	return *this;
 }
 
+Parser& Parser::load_from_string(const std::string_view string) {
+	return load_from_buffer(string.data(), string.size());
+}
+
 Parser& Parser::load_from_file(const char* path) {
 	_file_path = path;
 	_run_load_func(&BufferHandler::load_file, path);
 	return *this;
+}
+
+Parser& Parser::load_from_file(const std::filesystem::path& path) {
+	return load_from_file(path.string().c_str());
 }
 
 void Parser::set_error_log_to_null() {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -10,29 +11,26 @@
 #include <openvic-dataloader/detail/SelfType.hpp>
 #include <openvic-dataloader/detail/TypeName.hpp>
 
-#ifdef OPENVIC_DATALOADER_PRINT_NODES
-#include <iostream>
-
-#define OVDL_PRINT_FUNC_DECL virtual void print(std::ostream& stream) const = 0
-#define OVDL_PRINT_FUNC_DEF(...) \
-	void print(std::ostream& stream) const override __VA_ARGS__
-#else
-#define OVDL_PRINT_FUNC_DECL
-#define OVDL_PRINT_FUNC_DEF(...)
-#endif
+#define OVDL_PRINT_FUNC_DEF std::ostream& print(std::ostream& stream, size_t indent) const override
 
 // defines get_type_static and get_type for string type naming
-#define OVDL_RT_TYPE_DEF                                                                              \
+#define OVDL_RT_TYPE_DEF \
 	static constexpr std::string_view get_type_static() { return ::ovdl::detail::type_name<type>(); } \
 	constexpr std::string_view get_type() const override { return ::ovdl::detail::type_name<std::decay_t<decltype(*this)>>(); }
 
 // defines type for self-class referencing
-#define OVDL_TYPE_DEFINE_SELF                                                                                \
-	struct _self_type_tag {};                                                                                \
+#define OVDL_TYPE_DEFINE_SELF \
+	struct _self_type_tag {}; \
 	constexpr auto _self_type_helper()->decltype(::ovdl::detail::Writer<_self_type_tag, decltype(this)> {}); \
 	using type = ::ovdl::detail::Read<_self_type_tag>;
 
 namespace ovdl::v2script::ast {
+
+	struct Node;
+	using NodePtr = Node*;
+	using NodeCPtr = const Node*;
+	using NodeUPtr = std::unique_ptr<Node>;
+
 	struct Node {
 		Node(const Node&) = delete;
 		Node& operator=(const Node&) = delete;
@@ -41,7 +39,9 @@ namespace ovdl::v2script::ast {
 		Node& operator=(Node&&) = default;
 		virtual ~Node() = default;
 
-		OVDL_PRINT_FUNC_DECL;
+		virtual std::ostream& print(std::ostream& stream, size_t indent) const = 0;
+		static std::ostream& print_ptr(std::ostream& stream, NodeCPtr node, size_t indent);
+		explicit operator std::string() const;
 
 		static constexpr std::string_view get_type_static() { return detail::type_name<Node>(); }
 		constexpr virtual std::string_view get_type() const = 0;
@@ -52,8 +52,12 @@ namespace ovdl::v2script::ast {
 		}
 	};
 
-	using NodePtr = Node*;
-	using NodeUPtr = std::unique_ptr<Node>;
+	inline std::ostream& operator<<(std::ostream& stream, Node const& node) {
+		return node.print(stream, 0);
+	}
+	inline std::ostream& operator<<(std::ostream& stream, NodeCPtr node) {
+		return Node::print_ptr(stream, node, 0);
+	}
 
 	template<class T, class... Args>
 	NodePtr make_node_ptr(Args&&... args) {
@@ -73,99 +77,62 @@ namespace ovdl::v2script::ast {
 		}
 	}
 
-	constexpr std::vector<NodeUPtr> make_node_ptr_vector(const std::vector<NodePtr>& ptrs) {
-		std::vector<NodeUPtr> result;
-		result.reserve(ptrs.size());
-		for (auto&& p : ptrs) {
-			result.push_back(NodeUPtr(p));
+	template<typename To, typename From>
+	const To& cast_node_cptr(const From& from) {
+		if constexpr (std::is_pointer_v<NodePtr>) {
+			return *static_cast<const To*>(from);
+		} else {
+			return *static_cast<const To*>(from.get());
 		}
-		return result;
 	}
+
+	void copy_into_node_ptr_vector(const std::vector<NodePtr>& source, std::vector<NodeUPtr>& dest);
 
 	struct IdentifierNode final : public Node {
 		std::string _name;
-		explicit IdentifierNode(std::string name)
-			: _name(std::move(name)) {
-		}
+		explicit IdentifierNode(std::string name);
 
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
-		OVDL_PRINT_FUNC_DEF({
-			stream << _name.c_str();
-		})
+		OVDL_PRINT_FUNC_DEF;
 	};
 
 	struct StringNode final : public Node {
 		std::string _name;
-		explicit StringNode(std::string name)
-			: _name(std::move(name)) {
-		}
+		explicit StringNode(std::string name);
 
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
-		OVDL_PRINT_FUNC_DEF({
-			stream << '"' << _name.c_str() << '"';
-		})
+		OVDL_PRINT_FUNC_DEF;
 	};
 
 	struct AssignNode final : public Node {
 		std::string _name;
 		NodeUPtr _initializer;
-		explicit AssignNode(NodePtr name, NodePtr init)
-			: _initializer(std::move(init)) {
-			if (name->is_type<IdentifierNode>()) {
-				_name = cast_node_ptr<IdentifierNode>(name)._name;
-			}
-		}
+		explicit AssignNode(NodeCPtr name, NodePtr init);
 
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
-		OVDL_PRINT_FUNC_DEF({
-			stream << _name.c_str() << " = ";
-			_initializer->print(stream);
-		})
+		OVDL_PRINT_FUNC_DEF;
 	};
 
 	struct ListNode final : public Node {
 		std::vector<NodeUPtr> _statements;
-		explicit ListNode(std::vector<NodePtr> statements = std::vector<NodePtr> {})
-			: _statements(make_node_ptr_vector(statements)) {
-		}
+		explicit ListNode(std::vector<NodePtr> statements = std::vector<NodePtr> {});
 
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
-		OVDL_PRINT_FUNC_DEF({
-			stream << '{';
-			for (int i = 0; i < _statements.size(); i++) {
-				auto& statement = _statements[i];
-				statement->print(stream);
-				if (i + 1 != _statements.size())
-					stream << ' ';
-			}
-			stream << '}';
-		})
+		OVDL_PRINT_FUNC_DEF;
 	};
 
 	struct FileNode final : public Node {
 		std::vector<NodeUPtr> _statements;
-		FileNode() {}
-		explicit FileNode(std::vector<NodePtr> statements)
-			: _statements(make_node_ptr_vector(statements)) {
-		}
+		FileNode() = default;
+		explicit FileNode(std::vector<NodePtr> statements);
 
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
-
-		OVDL_PRINT_FUNC_DEF({
-			for (auto& statement : _statements) {
-				statement->print(stream);
-				stream << "\n===========\n";
-			}
-		})
+		OVDL_PRINT_FUNC_DEF;
 	};
 }
 

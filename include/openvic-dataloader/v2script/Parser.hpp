@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -21,11 +22,15 @@ namespace ovdl::v2script {
 
 		static Parser from_buffer(const char* data, std::size_t size);
 		static Parser from_buffer(const char* start, const char* end);
+		static Parser from_string(const std::string_view string);
 		static Parser from_file(const char* path);
+		static Parser from_file(const std::filesystem::path& path);
 
 		Parser& load_from_buffer(const char* data, std::size_t size);
 		Parser& load_from_buffer(const char* start, const char* end);
+		Parser& load_from_string(const std::string_view string);
 		Parser& load_from_file(const char* path);
+		Parser& load_from_file(const std::filesystem::path& path);
 
 		void set_error_log_to_null();
 		void set_error_log_to_stderr();
@@ -53,7 +58,6 @@ namespace ovdl::v2script {
 		std::vector<ParseWarning> _warnings;
 
 		class BufferHandler;
-		friend class BufferHandler;
 		std::unique_ptr<BufferHandler> _buffer_handler;
 		std::unique_ptr<FileNode> _file_node;
 		std::reference_wrapper<std::ostream> _error_stream;

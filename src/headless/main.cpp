@@ -27,9 +27,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-#ifdef OPENVIC_DATALOADER_PRINT_NODES
-	parser.get_file_node()->print(std::cout);
-#endif
+	std::cout << parser.get_file_node() << std::endl;
 
 	return 0;
 }

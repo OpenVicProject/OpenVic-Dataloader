@@ -9,7 +9,7 @@ namespace ovdl::detail {
 
 	template<std::size_t... Idxs>
 	constexpr auto substring_as_array(std::string_view str, std::index_sequence<Idxs...>) {
-		return std::array { str[Idxs]..., '\n' };
+		return std::array { str[Idxs]... };
 	}
 
 	template<typename T>
