@@ -172,9 +172,11 @@ namespace ovdl::v2script::ast {
 	}
 
 	OVDL_AST_LIST_NODE(ListNode);
-	OVDL_AST_LIST_NODE(MtthModifierNode);
+	OVDL_AST_LIST_NODE(ModifierNode);
 	OVDL_AST_LIST_NODE(MtthNode);
 	OVDL_AST_LIST_NODE(EventOptionNode);
+	OVDL_AST_LIST_NODE(BehaviorListNode);
+	OVDL_AST_LIST_NODE(DecisionListNode);
 
 #undef OVDL_AST_LIST_NODE
 
@@ -216,6 +218,26 @@ namespace ovdl::v2script::ast {
 				case Type::Province: stream << "province_event"; break;
 			}
 			stream << " = {";
+			for (auto& statement : _statements) {
+				statement->print(stream);
+			}
+			stream << "}";
+		})
+	};
+
+	struct DecisionNode final : public Node {
+		NodeUPtr _name;
+		std::vector<NodeUPtr> _statements;
+		explicit DecisionNode(NodePtr name, std::vector<NodePtr> statements = {})
+			: _name(name),
+			  _statements(make_node_ptr_vector(statements)) {
+		}
+
+		OVDL_TYPE_DEFINE_SELF;
+		OVDL_RT_TYPE_DEF;
+
+		OVDL_PRINT_FUNC_DEF({
+			stream << "decision = {";
 			for (auto& statement : _statements) {
 				statement->print(stream);
 			}

@@ -14,6 +14,7 @@
 #include "detail/NullBuff.hpp"
 #include "detail/OStreamOutputIterator.hpp"
 #include "detail/Warnings.hpp"
+#include "v2script/DecisionGrammar.hpp"
 #include "v2script/EventGrammar.hpp"
 #include <lexy/action/parse.hpp>
 #include <lexy/encoding.hpp>
@@ -194,6 +195,28 @@ bool Parser::event_parse() {
 	}
 
 	auto errors = _buffer_handler->parse<grammar::EventFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputItertaor { _error_stream }));
+	if (errors) {
+		_errors.reserve(errors->size());
+		for (auto& err : errors.value()) {
+			_has_fatal_error |= err.type == ParseError::Type::Fatal;
+			_errors.push_back(err);
+		}
+		return false;
+	}
+	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
+	return true;
+}
+
+bool Parser::decision_parse() {
+	if (!_buffer_handler->is_valid()) {
+		return false;
+	}
+
+	if (_buffer_handler->is_exclusive_utf8()) {
+		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	}
+
+	auto errors = _buffer_handler->parse<grammar::DecisionFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputItertaor { _error_stream }));
 	if (errors) {
 		_errors.reserve(errors->size());
 		for (auto& err : errors.value()) {

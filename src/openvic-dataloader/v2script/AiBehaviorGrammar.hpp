@@ -1,23 +1,32 @@
 #pragma once
 
+#include "ModifierGrammar.hpp"
 #include "SimpleGrammar.hpp"
 #include "TriggerGrammar.hpp"
 #include <lexy/dsl.hpp>
+#include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 namespace ovdl::v2script::grammar {
-	constexpr auto modifier_keyword = LEXY_KEYWORD("modifier", lexy::dsl::inline_<Identifier>);
-	constexpr auto factor_keyword = LEXY_KEYWORD("factor", lexy::dsl::inline_<Identifier>);
+	struct AiBehaviorList {
+		static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<FactorStatement> | lexy::dsl::p<ModifierStatement>);
 
-	struct AiModifierStatement {
-		static constexpr auto rule =
-			modifier_keyword >>
-			(lexy::dsl::equal_sign +
-				lexy::dsl::curly_bracketed.list(
-					(factor_keyword >> lexy::dsl::p<Identifier>) |
-					lexy::dsl::p<TriggerStatement>));
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto&& list) {
+					return ast::make_node_ptr<ast::BehaviorListNode>(LEXY_MOV(list));
+				});
 	};
 
-	struct AiBehaviorList {
-		static constexpr auto rule = lexy::dsl::list((factor_keyword >> lexy::dsl::p<Identifier>) | lexy::dsl::p<AiModifierStatement>);
+	struct AiBehaviorBlock {
+		static constexpr auto rule = lexy::dsl::curly_bracketed.opt(lexy::dsl::p<AiBehaviorList>);
+
+		static constexpr auto value = lexy::callback<ast::NodePtr>(
+			[](auto&& list) {
+				return LEXY_MOV(list);
+			},
+			[](lexy::nullopt = {}) {
+				return nullptr;
+			});
 	};
 }

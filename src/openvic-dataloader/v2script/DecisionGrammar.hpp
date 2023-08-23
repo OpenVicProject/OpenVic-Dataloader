@@ -9,7 +9,10 @@
 #include "SimpleGrammar.hpp"
 #include "TriggerGrammar.hpp"
 #include <lexy/callback.hpp>
+#include <lexy/callback/adapter.hpp>
+#include <lexy/callback/container.hpp>
 #include <lexy/dsl.hpp>
+#include <lexy/dsl/option.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 // Decision Grammar Definitions //
@@ -17,30 +20,39 @@ namespace ovdl::v2script::grammar {
 	//////////////////
 	// Macros
 	//////////////////
-// Produces <KW_NAME>_keyword
-#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME) \
-	static constexpr auto KW_NAME##_keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>)
+// Produces <KW_NAME>_rule and <KW_NAME>_p
+#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME)                                                    \
+	struct KW_NAME##_rule {                                                                     \
+		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
+		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                          \
+		static constexpr auto value = lexy::noop;                                               \
+	};                                                                                          \
+	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule>
 
-// Produces <KW_NAME>_keyword and <KW_NAME>_flag and <KW_NAME>_too_many_error
-#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                                     \
-	static constexpr auto KW_NAME##_keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
-	static constexpr auto KW_NAME##_flag = lexy::dsl::context_flag<struct KW_NAME##_context>;         \
-	struct KW_NAME##_too_many_error {                                                                 \
-		static constexpr auto name = "expected left side " #KW_NAME " to be found once";              \
-	}
-
-// Produces <KW_NAME>_statement
-#define OVDL_GRAMMAR_KEYWORD_STATEMENT(KW_NAME, ...) \
-	constexpr auto KW_NAME##_statement = KW_NAME##_keyword >> (lexy::dsl::equal_sign + (__VA_ARGS__))
-
-// Produces <KW_NAME>_statement
-#define OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(KW_NAME, ...) \
-	constexpr auto KW_NAME##_statement = KW_NAME##_keyword >> ((lexy::dsl::must(KW_NAME##_flag.is_reset()).error<KW_NAME##_too_many_error> + KW_NAME##_flag.set()) + lexy::dsl::equal_sign + (__VA_ARGS__))
+// Produces <KW_NAME>_rule and <KW_NAME>_p and <KW_NAME>_rule::flag and <KW_NAME>_rule::too_many_error
+#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                               \
+	struct KW_NAME##_rule {                                                                     \
+		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
+		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                          \
+		static constexpr auto value = lexy::noop;                                               \
+		static constexpr auto flag = lexy::dsl::context_flag<struct KW_NAME##_context>;         \
+		struct too_many_error {                                                                 \
+			static constexpr auto name = "expected left side " #KW_NAME " to be found once";    \
+		};                                                                                      \
+	};                                                                                          \
+	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule> >> (lexy::dsl::must(KW_NAME##_rule::flag.is_reset()).error<KW_NAME##_rule::too_many_error> + KW_NAME##_rule::flag.set())
 	//////////////////
 	// Macros
 	//////////////////
-
 	struct DecisionStatement {
+		template<auto Production, typename AstNode>
+		struct _StringStatement {
+			static constexpr auto rule = Production >> (lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
+			static constexpr auto value = lexy::forward<ast::NodePtr>;
+		};
+		template<auto Production, typename AstNode>
+		static constexpr auto StringStatement = lexy::dsl::p<_StringStatement<Production, AstNode>>;
+
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(potential);
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(allow);
 		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(effect);
@@ -48,16 +60,15 @@ namespace ovdl::v2script::grammar {
 
 		static constexpr auto rule = [] {
 			constexpr auto create_flags =
-				potential_flag.create() +
-				allow_flag.create() +
-				effect_flag.create() +
-				ai_will_do_flag.create();
-			constexpr auto check_flag = [](auto flag) { return flag.is_reset() + flag.set(); };
+				potential_rule::flag.create() +
+				allow_rule::flag.create() +
+				effect_rule::flag.create() +
+				ai_will_do_rule::flag.create();
 
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(potential, lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>));
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(allow, lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>));
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(effect, lexy::dsl::curly_bracketed(lexy::dsl::p<EffectList>));
-			OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT(ai_will_do, lexy::dsl::curly_bracketed(lexy::dsl::p<AiBehaviorList>));
+			constexpr auto potential_statement = potential_p >> lexy::dsl::p<TriggerBlock>;
+			constexpr auto allow_statement = allow_p >> lexy::dsl::p<TriggerBlock>;
+			constexpr auto effect_statement = effect_p >> lexy::dsl::p<TriggerBlock>;
+			constexpr auto ai_will_do_statement = ai_will_do_p >> lexy::dsl::p<AiBehaviorBlock>;
 
 			return lexy::dsl::p<Identifier> >>
 				   (create_flags + lexy::dsl::equal_sign +
@@ -69,16 +80,41 @@ namespace ovdl::v2script::grammar {
 						   lexy::dsl::p<SimpleAssignmentStatement>));
 		}();
 
-		static constexpr auto value = lexy::callback<ast::NodePtr>([](auto name, lexy::nullopt = {}) { return LEXY_MOV(name); }, [](auto name, auto&& initalizer) { return make_node_ptr<ast::AssignNode>(LEXY_MOV(name), LEXY_MOV(initalizer)); });
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto&& name, auto&& list) {
+					return ast::make_node_ptr<ast::DecisionNode>(LEXY_MOV(name), LEXY_MOV(list));
+				},
+				[](auto&& name, lexy::nullopt = {}) {
+					return ast::make_node_ptr<ast::DecisionNode>(LEXY_MOV(name));
+				});
+	};
+
+	struct DecisionList {
+		static constexpr auto rule =
+			LEXY_KEYWORD("political_decisions", lexy::dsl::inline_<Identifier>) >>
+			(lexy::dsl::equal_sign + lexy::dsl::curly_bracketed.opt_list(lexy::dsl::p<DecisionStatement>));
+
+		static constexpr auto value =
+			lexy::as_list<std::vector<ast::NodePtr>> >>
+			lexy::callback<ast::NodePtr>(
+				[](auto&& list) {
+					return ast::make_node_ptr<ast::DecisionListNode>(LEXY_MOV(list));
+				},
+				[](lexy::nullopt = {}) {
+					return nullptr;
+				});
 	};
 
 	struct DecisionFile {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::terminator(lexy::dsl::eof).list(																									  //
-			(LEXY_KEYWORD("political_decisions", lexy::dsl::inline_<Identifier>) >> (lexy::dsl::equal_sign + lexy::dsl::curly_bracketed.opt_list(lexy::dsl::p<DecisionStatement>))) | //
-			lexy::dsl::p<SimpleAssignmentStatement>);
+		static constexpr auto rule =
+			lexy::dsl::terminator(lexy::dsl::eof).list( //
+				lexy::dsl::p<DecisionList> |			//
+				lexy::dsl::p<SimpleAssignmentStatement>);
 
 		static constexpr auto value = lexy::as_list<std::vector<ast::NodePtr>> >> lexy::new_<ast::FileNode, ast::NodePtr>;
 	};

@@ -6,6 +6,7 @@
 
 #include "AiBehaviorGrammar.hpp"
 #include "EffectGrammar.hpp"
+#include "ModifierGrammar.hpp"
 #include "SimpleGrammar.hpp"
 #include "TriggerGrammar.hpp"
 #include <lexy/callback.hpp>
@@ -45,32 +46,12 @@ namespace ovdl::v2script::grammar {
 											  .map<LEXY_SYMBOL("country_event")>(ast::EventNode::Type::Country)
 											  .map<LEXY_SYMBOL("province_event")>(ast::EventNode::Type::Province);
 
-	struct EventFactor {
-		static constexpr auto rule = factor_keyword >> lexy::dsl::equal_sign + lexy::dsl::p<Identifier>;
-		static constexpr auto value = lexy::forward<ast::NodePtr>;
-	};
-
-	struct EventMtthModifierStatement {
-		static constexpr auto rule =
-			modifier_keyword >>
-			lexy::dsl::curly_bracketed.list(
-				lexy::dsl::p<EventFactor> |
-				lexy::dsl::p<TriggerStatement>);
-
-		static constexpr auto value =
-			lexy::as_list<std::vector<ast::NodePtr>> >>
-			lexy::callback<ast::NodePtr>(
-				[](auto&& list) {
-					return make_node_ptr<ast::MtthModifierNode>(LEXY_MOV(list));
-				});
-	};
-
 	struct EventMtthStatement {
 		OVDL_GRAMMAR_KEYWORD_DEFINE(months);
 
 		static constexpr auto rule = lexy::dsl::list(
 			(months_p >> lexy::dsl::p<Identifier>) |
-			lexy::dsl::p<EventMtthModifierStatement>);
+			lexy::dsl::p<ModifierStatement>);
 
 		static constexpr auto value =
 			lexy::as_list<std::vector<ast::NodePtr>> >>
@@ -88,7 +69,7 @@ namespace ovdl::v2script::grammar {
 			constexpr auto create_flags = name_rule::flag.create() + ai_chance_rule::flag.create();
 
 			constexpr auto name_statement = name_p >> (lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
-			constexpr auto ai_chance_statement = ai_chance_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<EventFactor>);
+			constexpr auto ai_chance_statement = ai_chance_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<AiBehaviorList>);
 
 			return create_flags + lexy::dsl::list(name_statement | ai_chance_statement | lexy::dsl::p<EffectList>);
 		}();
@@ -102,7 +83,6 @@ namespace ovdl::v2script::grammar {
 	};
 
 	struct EventStatement {
-
 		template<auto Production, typename AstNode>
 		struct _StringStatement {
 			static constexpr auto rule = Production >> (lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
@@ -134,8 +114,6 @@ namespace ovdl::v2script::grammar {
 				fire_only_once_rule::flag.create() +
 				immediate_rule::flag.create() +
 				mean_time_to_happen_rule::flag.create();
-
-			constexpr auto string_value = lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>;
 
 			constexpr auto id_statement = StringStatement<id_p, ast::IdNode>;
 			constexpr auto title_statement = StringStatement<title_p, ast::TitleNode>;

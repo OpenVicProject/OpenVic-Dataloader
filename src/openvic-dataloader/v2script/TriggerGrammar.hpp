@@ -29,6 +29,12 @@ namespace ovdl::v2script::grammar {
 	struct TriggerBlock {
 		static constexpr auto rule = lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>);
 
-		static constexpr auto value = lexy::forward<ast::NodePtr>;
+		static constexpr auto value = lexy::callback<ast::NodePtr>(
+			[](auto&& list) {
+				return LEXY_MOV(list);
+			},
+			[](lexy::nullopt = {}) {
+				return nullptr;
+			});
 	};
 }

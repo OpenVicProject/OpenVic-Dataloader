@@ -34,6 +34,7 @@ namespace ovdl::v2script {
 
 		bool simple_parse();
 		bool event_parse();
+		bool decision_parse();
 
 		bool has_error() const;
 		bool has_fatal_error() const;
