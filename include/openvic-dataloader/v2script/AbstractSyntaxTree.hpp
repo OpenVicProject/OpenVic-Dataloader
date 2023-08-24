@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -50,6 +51,12 @@ namespace ovdl::v2script::ast {
 		constexpr bool is_type() const {
 			return get_type().compare(detail::type_name<T>()) == 0;
 		}
+
+		template<typename T>
+		constexpr std::optional<T&> cast_to() {
+			if (is_type<T>()) return static_cast<T>(*this);
+			return std::nullopt;
+		}
 	};
 
 	using NodePtr = Node*;
@@ -77,7 +84,7 @@ namespace ovdl::v2script::ast {
 		std::vector<NodeUPtr> result;
 		result.reserve(ptrs.size());
 		for (auto&& p : ptrs) {
-			if (p == nullptr) continue;
+			if (!p || p == nullptr) continue;
 			result.push_back(NodeUPtr(p));
 		}
 		return result;
@@ -103,13 +110,15 @@ namespace ovdl::v2script::ast {
 		})                                                                         \
 	}
 
+	// Value Expression Nodes
 	OVDL_AST_STRING_NODE(IdentifierNode);
+	OVDL_AST_STRING_NODE(StringNode);
+
+	// Assignment Nodes
 	OVDL_AST_STRING_NODE(FactorNode);
 	OVDL_AST_STRING_NODE(MonthNode);
 	OVDL_AST_STRING_NODE(NameNode);
-	OVDL_AST_STRING_NODE(StringNode);
 	OVDL_AST_STRING_NODE(FireOnlyNode);
-
 	OVDL_AST_STRING_NODE(IdNode);
 	OVDL_AST_STRING_NODE(TitleNode);
 	OVDL_AST_STRING_NODE(DescNode);
@@ -172,6 +181,7 @@ namespace ovdl::v2script::ast {
 	}
 
 	OVDL_AST_LIST_NODE(ListNode);
+
 	OVDL_AST_LIST_NODE(ModifierNode);
 	OVDL_AST_LIST_NODE(MtthNode);
 	OVDL_AST_LIST_NODE(EventOptionNode);

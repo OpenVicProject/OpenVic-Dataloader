@@ -103,7 +103,7 @@ namespace ovdl::v2script::grammar {
 					return ast::make_node_ptr<ast::DecisionListNode>(LEXY_MOV(list));
 				},
 				[](lexy::nullopt = {}) {
-					return nullptr;
+					return lexy::nullopt {};
 				});
 	};
 

@@ -34,7 +34,7 @@ namespace ovdl::v2script::grammar {
 				return LEXY_MOV(list);
 			},
 			[](lexy::nullopt = {}) {
-				return nullptr;
+				return lexy::nullopt {};
 			});
 	};
 }
