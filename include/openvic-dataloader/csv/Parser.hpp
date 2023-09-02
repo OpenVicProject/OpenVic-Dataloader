@@ -1,24 +1,9 @@
 #pragma once
 
-#include <cstddef>
-#include <filesystem>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <ostream>
-#include <string_view>
-#include <vector>
-
-#include <openvic-dataloader/ParseError.hpp>
-#include <openvic-dataloader/ParseWarning.hpp>
+#include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/detail/BasicParser.hpp>
-#include <openvic-dataloader/detail/Concepts.hpp>
-#include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
-namespace ovdl::v2script {
-
-	using FileNode = ast::FileNode;
-
+namespace ovdl::csv {
 	class Parser final : public detail::BasicParser {
 	public:
 		Parser();
@@ -37,11 +22,9 @@ namespace ovdl::v2script {
 
 		constexpr Parser& load_from_file(const detail::Has_c_str auto& path);
 
-		bool simple_parse();
-		bool event_parse();
-		bool decision_parse();
+		bool parse_csv();
 
-		const FileNode* get_file_node() const;
+		const std::vector<csv::LineObject> get_lines() const;
 
 		Parser(Parser&&);
 		Parser& operator=(Parser&&);
@@ -51,7 +34,7 @@ namespace ovdl::v2script {
 	private:
 		class BufferHandler;
 		std::unique_ptr<BufferHandler> _buffer_handler;
-		std::unique_ptr<FileNode> _file_node;
+		std::vector<csv::LineObject> _lines;
 
 		template<typename... Args>
 		constexpr void _run_load_func(detail::LoadCallback<BufferHandler, Args...> auto func, Args... args);
