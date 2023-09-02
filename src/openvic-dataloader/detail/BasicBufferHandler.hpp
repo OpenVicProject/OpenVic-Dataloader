@@ -3,6 +3,7 @@
 #include <optional>
 
 #include <openvic-dataloader/ParseError.hpp>
+#include <openvic-dataloader/detail/OptionalConstexpr.hpp>
 
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
@@ -14,16 +15,16 @@ namespace ovdl::detail {
 	template<typename Encoding = lexy::default_encoding, typename MemoryResource = void>
 	class BasicBufferHandler {
 	public:
-		constexpr bool is_valid() const {
+		OVDL_OPTIONAL_CONSTEXPR bool is_valid() const {
 			return _buffer.size() != 0;
 		}
 
-		constexpr std::optional<ovdl::ParseError> load_buffer_size(const char* data, std::size_t size) {
+		OVDL_OPTIONAL_CONSTEXPR std::optional<ovdl::ParseError> load_buffer_size(const char* data, std::size_t size) {
 			_buffer = lexy::buffer<Encoding, MemoryResource>(data, size);
 			return std::nullopt;
 		}
 
-		constexpr std::optional<ovdl::ParseError> load_buffer(const char* start, const char* end) {
+		OVDL_OPTIONAL_CONSTEXPR std::optional<ovdl::ParseError> load_buffer(const char* start, const char* end) {
 			_buffer = lexy::buffer<Encoding, MemoryResource>(start, end);
 			return std::nullopt;
 		}
