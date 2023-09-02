@@ -245,7 +245,7 @@ env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
 library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
 
 if env["build_ovdl_library"]:
-    library = env.StaticLibrary(target=env.File(os.path.join(BINDIR, library_name)), source=sources)
+    library = env.StaticLibrary(target=os.path.join(BINDIR, library_name), source=sources)
     Default(library)
 
     env.Append(LIBPATH=[env.Dir(BINDIR)])
@@ -267,6 +267,8 @@ if env["build_ovdl_headless"]:
     headless_env.headless_sources = GlobRecursive("*.cpp", headless_path)
     if not env["build_ovdl_library"]:
         headless_env.headless_sources += sources
+    else:
+        headless_env.headless_sources += env.lexy_sources
     headless_program = headless_env.Program(
         target=os.path.join(BINDIR, headless_name),
         source=headless_env.headless_sources,

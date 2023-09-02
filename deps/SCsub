@@ -32,13 +32,13 @@ def build_lexy(env):
     library = lexy_env.StaticLibrary(target="lexy/src/" + library_name, source=sources)
     Default(library)
 
-    env.Append(CPPPATH=[env.Dir("lexy/include")])
+    env.Append(CPPPATH=[lexy_env.Dir("lexy/include")])
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", env.Dir("lexy/include"), "/external:W0"])
+        env.Append(CXXFLAGS=["/external:I", lexy_env.Dir("lexy/include"), "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", env.Dir("lexy/include")])
+        env.Append(CXXFLAGS=["-isystem", lexy_env.Dir("lexy/include")])
     env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[env.Dir("lexy/src")])
+    env.Append(LIBPATH=[lexy_env.Dir("lexy/src")])
     env.Append(LIBS=[library_name])
 
 
