@@ -24,7 +24,7 @@ namespace ovdl::csv {
 
 		bool parse_csv();
 
-		const std::vector<csv::LineObject> get_lines() const;
+		const std::vector<csv::LineObject>& get_lines() const;
 
 		Parser(Parser&&);
 		Parser& operator=(Parser&&);
