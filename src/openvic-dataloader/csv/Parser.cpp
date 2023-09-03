@@ -149,3 +149,7 @@ bool Parser::parse_csv() {
 	_lines = std::move(_buffer_handler->get_lines());
 	return true;
 }
+
+const std::vector<csv::LineObject>& Parser::get_lines() const {
+	return _lines;
+}
