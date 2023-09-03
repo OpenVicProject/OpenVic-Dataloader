@@ -12,6 +12,7 @@
 #include <openvic-dataloader/ParseWarning.hpp>
 #include <openvic-dataloader/detail/Concepts.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
+#include <openvic-dataloader/v2script/NodeLocationMap.hpp>
 
 #include <lexy/action/parse.hpp>
 #include <lexy/encoding.hpp>
@@ -57,8 +58,14 @@ public:
 		return _root;
 	}
 
+	ast::NodeLocationMap<decltype(_buffer)>& get_location_map() {
+		return _location_map;
+	}
+
 private:
+	friend class ::ovdl::v2script::ast::Node;
 	std::unique_ptr<ast::Node> _root;
+	ast::NodeLocationMap<decltype(_buffer)> _location_map;
 };
 
 /// BufferHandler ///
@@ -221,4 +228,60 @@ bool Parser::decision_parse() {
 
 const FileNode* Parser::get_file_node() const {
 	return _file_node.get();
+}
+
+void Parser::generate_node_location_map() {
+	_buffer_handler->get_location_map().clear();
+	_buffer_handler->get_location_map().generate_location_map(_buffer_handler->get_buffer(), get_file_node());
+}
+
+const ast::Node::line_col Parser::get_node_begin(const ast::NodeCPtr node) const {
+	if (!node) return { 0, 0 };
+	return node->get_begin_line_col(*this);
+}
+
+const ast::Node::line_col Parser::get_node_end(const ast::NodeCPtr node) const {
+	if (!node) return { 0, 0 };
+	return node->get_end_line_col(*this);
+}
+
+const ast::Node::line_col ast::Node::get_begin_line_col(const Parser& parser) const {
+	if (!parser._buffer_handler->is_valid() || parser._buffer_handler->_location_map.empty()) return {};
+	line_col result;
+	auto [itr, range_end] = parser._buffer_handler->_location_map.equal_range(this);
+	if (itr != range_end) {
+		result.line = itr->second.line_nr();
+		result.column = itr->second.column_nr();
+	}
+	// Standard doesn't really guarantee the direction of the range's sequence, but only GCC goes backwards
+	// TODO: DON'T USE STANDARD UNORDERED_MULTIMAP
+#if defined(__GNUC__) && !defined(__clang__)
+	itr++;
+	if (itr != range_end) {
+		result.line = itr->second.line_nr();
+		result.column = itr->second.column_nr();
+	}
+#endif
+	return result;
+}
+
+const ast::Node::line_col ast::Node::get_end_line_col(const Parser& parser) const {
+	if (!parser._buffer_handler->is_valid() || parser._buffer_handler->_location_map.empty()) return {};
+	line_col result;
+	auto [itr, range_end] = parser._buffer_handler->_location_map.equal_range(this);
+	if (itr != range_end) {
+		result.line = itr->second.line_nr();
+		result.column = itr->second.column_nr();
+	}
+	// Standard doesn't really guarantee the direction of the range's sequence, but only GCC goes backwards
+	// TODO: DON'T USE STANDARD UNORDERED_MULTIMAP
+#if defined(__GNUC__) && !defined(__clang__)
+	return result;
+#endif
+	itr++;
+	if (itr != range_end) {
+		result.line = itr->second.line_nr();
+		result.column = itr->second.column_nr();
+	}
+	return result;
 }

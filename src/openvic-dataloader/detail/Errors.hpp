@@ -1,6 +1,6 @@
 #pragma once
 
-#include "openvic-dataloader/v2script/Parser.hpp"
+#include <openvic-dataloader/ParseError.hpp>
 
 namespace ovdl::errors {
 	inline const ParseError make_no_file_error(const char* file_path) {

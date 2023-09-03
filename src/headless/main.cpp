@@ -81,6 +81,21 @@ int print_v2script_simple(const std::string_view path) {
 		}
 	}
 
+	parser.generate_node_location_map();
+
+	for (const auto& node : parser.get_file_node()->_statements) {
+		std::cout << node->get_type() << ": " << parser.get_node_begin(node.get()) << std::endl;
+		if (auto assign_node = node->cast_to<ovdl::v2script::ast::AssignNode>(); assign_node) {
+			auto lnode_ptr = assign_node->_initializer.get();
+			std::cout << lnode_ptr->get_type() << " begin: " << parser.get_node_begin(lnode_ptr) << std::endl;
+			std::cout << lnode_ptr->get_type() << " end: " << parser.get_node_end(lnode_ptr) << std::endl;
+			if (auto list_node = lnode_ptr->cast_to<ovdl::v2script::ast::AbstractListNode>(); list_node) {
+				for (const auto& inode : list_node->_statements) {
+					std::cout << inode->get_type() << ": " << parser.get_node_begin(inode.get()) << std::endl;
+				}
+			}
+		}
+	}
 	std::cout << parser.get_file_node() << std::endl;
 	return EXIT_SUCCESS;
 }

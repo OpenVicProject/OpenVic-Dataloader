@@ -43,12 +43,18 @@ namespace ovdl::v2script {
 
 		const FileNode* get_file_node() const;
 
+		void generate_node_location_map();
+
+		const ast::Node::line_col get_node_begin(const ast::NodeCPtr node) const;
+		const ast::Node::line_col get_node_end(const ast::NodeCPtr node) const;
+
 		Parser(Parser&&);
 		Parser& operator=(Parser&&);
 
 		~Parser();
 
 	private:
+		friend class ::ovdl::v2script::ast::Node;
 		class BufferHandler;
 		std::unique_ptr<BufferHandler> _buffer_handler;
 		std::unique_ptr<FileNode> _file_node;
