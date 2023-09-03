@@ -15,6 +15,8 @@ namespace ovdl::detail {
 	template<typename Encoding = lexy::default_encoding, typename MemoryResource = void>
 	class BasicBufferHandler {
 	public:
+		using encoding_type = Encoding;
+
 		OVDL_OPTIONAL_CONSTEXPR bool is_valid() const {
 			return _buffer.size() != 0;
 		}

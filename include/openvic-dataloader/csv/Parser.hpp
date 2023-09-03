@@ -4,6 +4,12 @@
 #include <openvic-dataloader/detail/BasicParser.hpp>
 
 namespace ovdl::csv {
+	enum class EncodingType {
+		Windows1252,
+		Utf8
+	};
+
+	template<EncodingType Encoding = EncodingType::Windows1252>
 	class Parser final : public detail::BasicParser {
 	public:
 		Parser();
@@ -39,4 +45,7 @@ namespace ovdl::csv {
 		template<typename... Args>
 		constexpr void _run_load_func(detail::LoadCallback<BufferHandler, Args...> auto func, Args... args);
 	};
+
+	using Windows1252Parser = Parser<EncodingType::Windows1252>;
+	using Utf8Parser = Parser<EncodingType::Utf8>;
 }
