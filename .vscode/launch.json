@@ -1,0 +1,35 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "cppdbg",
+            "request": "launch",
+            "name": "Debug",
+            "program": "${workspaceFolder}/bin/openvic-dataloader.headless.linux.template_debug.dev.x86_64",
+            "args": ["csv", "./output.csv"],
+            "cwd": "${workspaceFolder}/bin",
+            "preLaunchTask": "dev_build",
+            "windows": {
+                "type": "cppvsdb",
+                "request": "launch",
+                "name": "Debug",
+                "program": "${workspaceFolder}\\bin\\openvic-dataloader.headless.windows.template_debug.dev.x86_64",
+                "args": ["csv", "./output.csv"],
+                "cwd": "${workspaceFolder}\\bin",
+                "preLaunchTask": "dev_build",
+            },
+            "osx": {
+                "type": "cppvsdb",
+                "request": "launch",
+                "name": "Debug",
+                "program": "", // TODO: Mac executable?
+                "args": [],
+                "cwd": "${workspaceFolder}\\game",
+                "preLaunchTask": "dev_build",
+            }
+        }
+    ]
+}

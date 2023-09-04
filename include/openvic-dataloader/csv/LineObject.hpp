@@ -1,13 +1,17 @@
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <initializer_list>
 #include <optional>
+#include <ostream>
+#include <set>
 #include <string>
 #include <string_view>
-#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <openvic-dataloader/detail/VectorConstexpr.hpp>
@@ -24,13 +28,13 @@ namespace ovdl::csv {
 	/// ;a;b;c -> 0,4+ == ""
 	///
 	/// If this is incorrect, please report an issue.
-	class LineObject final : public std::vector<std::tuple<std::uint32_t, std::string>> {
+	class LineObject final : public std::vector<std::pair<std::uint32_t, std::string>> {
 	public:
 		// Stored position of value
 		using position_type = std::uint32_t;
 		// Value
 		using inner_value_type = std::string;
-		using container_type = std::vector<std::tuple<position_type, inner_value_type>>;
+		using container_type = std::vector<std::pair<position_type, inner_value_type>>;
 
 		OVDL_VECTOR_CONSTEXPR LineObject() = default;
 		OVDL_VECTOR_CONSTEXPR LineObject(LineObject&) = default;
@@ -54,7 +58,7 @@ namespace ovdl::csv {
 		/// Special Functionality
 		/// Retrieves value, produces "" for empty values
 		constexpr std::string_view get_value_for(std::size_t position) const {
-			if (position <= _prefix_end || position >= _suffix_end) return "";
+			if (position < _prefix_end || position >= _suffix_end) return "";
 			for (const auto& [pos, val] : *this) {
 				if (pos == position) return val;
 			}
@@ -62,7 +66,7 @@ namespace ovdl::csv {
 		}
 		/// Tries to retrieve reference, produces nullopt for empty values
 		constexpr std::optional<const std::reference_wrapper<const std::string>> try_get_string_at(std::size_t position) const {
-			if (position <= _prefix_end || position > _suffix_end) return std::nullopt;
+			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
 			for (const auto& [pos, val] : *this) {
 				if (pos == position) return std::cref(val);
 			}
@@ -83,4 +87,28 @@ namespace ovdl::csv {
 		// Should be position after last value or position after last seperator
 		position_type _suffix_end = 0;
 	};
+
+	inline std::ostream& operator<<(std::ostream& stream, const LineObject& line) {
+		static const char SEP = ';';
+		LineObject::position_type sep_index = 0;
+		for (const auto& [pos, val] : line) {
+			while (sep_index < pos) {
+				stream << SEP;
+				sep_index++;
+			}
+			if (std::any_of(val.begin(), val.end(), [](char c) { return c == SEP || std::isspace(c); })) {
+				stream << '"' << val << '"';
+			} else {
+				stream << val;
+			}
+		}
+		return stream;
+	}
+
+	inline std::ostream& operator<<(std::ostream& stream, const std::vector<LineObject>& lines) {
+		for (const LineObject& line : lines) {
+			stream << line << '\n';
+		}
+		return stream;
+	}
 }
