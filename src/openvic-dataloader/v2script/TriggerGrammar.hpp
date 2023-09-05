@@ -13,7 +13,7 @@ namespace ovdl::v2script::grammar {
 
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
 			[](auto name, auto&& initalizer) {
-				return ast::make_node_ptr<ast::ExecutionNode>(ast::ExecutionNode::Type::Trigger, LEXY_MOV(name), LEXY_MOV(initalizer));
+				return ast::make_node_ptr<ast::ExecutionNode>({}, ast::ExecutionNode::Type::Trigger, LEXY_MOV(name), LEXY_MOV(initalizer));
 			});
 	};
 

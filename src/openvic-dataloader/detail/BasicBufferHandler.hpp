@@ -41,6 +41,10 @@ namespace ovdl::detail {
 			return std::nullopt;
 		}
 
+		const auto& get_buffer() const {
+			return _buffer;
+		}
+
 	protected:
 		lexy::buffer<Encoding, MemoryResource> _buffer;
 	};

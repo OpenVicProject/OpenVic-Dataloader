@@ -1,3 +1,4 @@
+#include <concepts>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -7,6 +8,8 @@
 #include <stddef.h>
 
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
+
+#include <lexy/input_location.hpp>
 
 using namespace ovdl::v2script::ast;
 
@@ -18,13 +21,17 @@ void ovdl::v2script::ast::copy_into_node_ptr_vector(const std::vector<NodePtr>& 
 	}
 }
 
-AbstractStringNode::AbstractStringNode(std::string&& name) : _name(std::move(name)) {}
+AbstractStringNode::AbstractStringNode(NodeLocation location, std::string&& name) : Node(location),
+																					_name(std::move(name)) {}
+AbstractStringNode::AbstractStringNode(std::string&& name) : AbstractStringNode({}, std::move(name)) {}
+
 std::ostream& AbstractStringNode::print(std::ostream& stream, size_t indent) const {
 	return stream << _name;
 }
 
-#define OVDL_AST_STRING_NODE_DEF(NAME, ...)                                 \
-	NAME::NAME(std::string&& name) : AbstractStringNode(std::move(name)) {} \
+#define OVDL_AST_STRING_NODE_DEF(NAME, ...)                                                                  \
+	NAME::NAME(std::string&& name) : AbstractStringNode(std::move(name)) {}                                  \
+	NAME::NAME(NodeLocation location, std::string&& name) : AbstractStringNode(location, std::move(name)) {} \
 	std::ostream& NAME::print(std::ostream& stream, size_t indent) const __VA_ARGS__
 
 OVDL_AST_STRING_NODE_DEF(IdentifierNode, {
@@ -73,8 +80,9 @@ OVDL_AST_STRING_NODE_DEF(IsTriggeredNode, {
 
 #undef OVDL_AST_STRING_NODE_DEF
 
-AssignNode::AssignNode(NodeCPtr name, NodePtr init)
-	: _initializer(std::move(init)) {
+AssignNode::AssignNode(NodeLocation location, NodeCPtr name, NodePtr init)
+	: Node(location),
+	  _initializer(std::move(init)) {
 	if (name->is_type<IdentifierNode>()) {
 		_name = cast_node_cptr<IdentifierNode>(name)._name;
 	}
@@ -101,9 +109,10 @@ static std::ostream& print_nodeuptr_vector(const std::vector<NodeUPtr>& nodes,
 	return stream;
 }
 
-AbstractListNode::AbstractListNode(const std::vector<NodePtr>& statements) {
+AbstractListNode::AbstractListNode(NodeLocation location, const std::vector<NodePtr>& statements) : Node(location) {
 	copy_into_node_ptr_vector(statements, _statements);
 }
+AbstractListNode::AbstractListNode(const std::vector<NodePtr>& statements) : AbstractListNode({}, statements) {}
 std::ostream& AbstractListNode::print(std::ostream& stream, size_t indent) const {
 	stream << '{';
 	if (!_statements.empty()) {
@@ -113,8 +122,9 @@ std::ostream& AbstractListNode::print(std::ostream& stream, size_t indent) const
 	return stream << "}";
 }
 
-#define OVDL_AST_LIST_NODE_DEF(NAME, ...)                                                \
-	NAME::NAME(const std::vector<NodePtr>& statements) : AbstractListNode(statements) {} \
+#define OVDL_AST_LIST_NODE_DEF(NAME, ...)                                                                                 \
+	NAME::NAME(const std::vector<NodePtr>& statements) : AbstractListNode(statements) {}                                  \
+	NAME::NAME(NodeLocation location, const std::vector<NodePtr>& statements) : AbstractListNode(location, statements) {} \
 	std::ostream& NAME::print(std::ostream& stream, size_t indent) const __VA_ARGS__
 
 OVDL_AST_LIST_NODE_DEF(FileNode, {
@@ -178,9 +188,11 @@ OVDL_AST_LIST_NODE_DEF(DecisionListNode, {
 
 #undef OVDL_AST_LIST_NODE_DEF
 
-EventNode::EventNode(Type type, const std::vector<NodePtr>& statements) : _type(type) {
+EventNode::EventNode(NodeLocation location, Type type, const std::vector<NodePtr>& statements) : Node(location),
+																								 _type(type) {
 	copy_into_node_ptr_vector(statements, _statements);
 }
+EventNode::EventNode(Type type, const std::vector<NodePtr>& statements) : EventNode({}, type, statements) {}
 std::ostream& EventNode::print(std::ostream& stream, size_t indent) const {
 	switch (_type) {
 		case Type::Country: stream << "country_event = "; break;
@@ -194,9 +206,11 @@ std::ostream& EventNode::print(std::ostream& stream, size_t indent) const {
 	return stream << '}';
 }
 
-DecisionNode::DecisionNode(NodePtr name, const std::vector<NodePtr>& statements) : _name(std::move(name)) {
+DecisionNode::DecisionNode(NodeLocation location, NodePtr name, const std::vector<NodePtr>& statements) : Node(location),
+																										  _name(std::move(name)) {
 	copy_into_node_ptr_vector(statements, _statements);
 }
+DecisionNode::DecisionNode(NodePtr name, const std::vector<NodePtr>& statements) : DecisionNode({}, name, statements) {}
 std::ostream& DecisionNode::print(std::ostream& stream, size_t indent) const {
 	print_ptr(stream, _name.get(), indent) << " = {";
 	if (!_statements.empty()) {
@@ -206,10 +220,12 @@ std::ostream& DecisionNode::print(std::ostream& stream, size_t indent) const {
 	return stream << '}';
 }
 
-ExecutionNode::ExecutionNode(Type type, NodePtr name, NodePtr init) : _type(type),
-																	  _name(std::move(name)),
-																	  _initializer(std::move(init)) {
+ExecutionNode::ExecutionNode(NodeLocation location, Type type, NodePtr name, NodePtr init) : Node(location),
+																							 _type(type),
+																							 _name(std::move(name)),
+																							 _initializer(std::move(init)) {
 }
+ExecutionNode::ExecutionNode(Type type, NodePtr name, NodePtr init) : ExecutionNode({}, type, name, init) {}
 std::ostream& ExecutionNode::print(std::ostream& stream, size_t indent) const {
 	print_ptr(stream, _name.get(), indent) << " = ";
 	if (_initializer) {
@@ -218,9 +234,11 @@ std::ostream& ExecutionNode::print(std::ostream& stream, size_t indent) const {
 	return stream;
 }
 
-ExecutionListNode::ExecutionListNode(ExecutionNode::Type type, const std::vector<NodePtr>& statements) : _type(type) {
+ExecutionListNode::ExecutionListNode(NodeLocation location, ExecutionNode::Type type, const std::vector<NodePtr>& statements) : Node(location),
+																																_type(type) {
 	copy_into_node_ptr_vector(statements, _statements);
 }
+ExecutionListNode::ExecutionListNode(ExecutionNode::Type type, const std::vector<NodePtr>& statements) : ExecutionListNode({}, type, statements) {}
 std::ostream& ExecutionListNode::print(std::ostream& stream, size_t indent) const {
 	// Only way to make a valid declared parsable file
 	stream << "{ ";

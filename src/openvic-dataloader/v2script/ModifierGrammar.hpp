@@ -27,7 +27,7 @@ namespace ovdl::v2script::grammar {
 			lexy::as_list<std::vector<ast::NodePtr>> >>
 			lexy::callback<ast::NodePtr>(
 				[](auto&& list) {
-					return make_node_ptr<ast::ModifierNode>(LEXY_MOV(list));
+					return ast::make_node_ptr<ast::ModifierNode>(LEXY_MOV(list));
 				});
 	};
 }
