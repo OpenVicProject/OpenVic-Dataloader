@@ -156,10 +156,6 @@ Parser& Parser::load_from_file(const std::filesystem::path& path) {
 	return load_from_file(path.string().c_str());
 }
 
-constexpr Parser& Parser::load_from_file(const detail::Has_c_str auto& path) {
-	return load_from_file(path.c_str());
-}
-
 bool Parser::simple_parse() {
 	if (!_buffer_handler->is_valid()) {
 		return false;

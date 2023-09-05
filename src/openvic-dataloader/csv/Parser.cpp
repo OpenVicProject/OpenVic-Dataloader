@@ -160,11 +160,6 @@ Parser<Encoding>& Parser<Encoding>::load_from_file(const std::filesystem::path& 
 }
 
 template<EncodingType Encoding>
-constexpr Parser<Encoding>& Parser<Encoding>::load_from_file(const detail::Has_c_str auto& path) {
-	return load_from_file(path.c_str());
-}
-
-template<EncodingType Encoding>
 bool Parser<Encoding>::parse_csv() {
 	if (!_buffer_handler->is_valid()) {
 		return false;

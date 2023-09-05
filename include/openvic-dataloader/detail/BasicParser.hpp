@@ -10,6 +10,9 @@
 #include <openvic-dataloader/detail/Concepts.hpp>
 
 namespace ovdl::detail {
+	/// Common interface for Parsers
+	///
+	/// Derive from to build new Parsers
 	class BasicParser {
 	public:
 		BasicParser();
