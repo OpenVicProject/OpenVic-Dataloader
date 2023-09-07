@@ -109,7 +109,7 @@ Parser Parser::from_file(const std::filesystem::path& path) {
 ///
 /// Expected Use:
 /// @code {.cpp}
-///	_run_load_func(&BufferHandler::<load_function>, <arguments>);
+///	_run_load_func(std::mem_fn(&BufferHandler::<load_function>), <arguments>);
 /// @endcode
 ///
 /// @tparam Type
@@ -130,13 +130,11 @@ constexpr void Parser::_run_load_func(detail::LoadCallback<BufferHandler, Args..
 }
 
 constexpr Parser& Parser::load_from_buffer(const char* data, std::size_t size) {
-	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&BufferHandler::load_buffer_size), data, size);
 	return *this;
 }
 
 constexpr Parser& Parser::load_from_buffer(const char* start, const char* end) {
-	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&BufferHandler::load_buffer), start, end);
 	return *this;
 }
@@ -147,7 +145,6 @@ constexpr Parser& Parser::load_from_string(const std::string_view string) {
 
 constexpr Parser& Parser::load_from_file(const char* path) {
 	_file_path = path;
-	// Type can be deduced??
 	_run_load_func(std::mem_fn(&BufferHandler::load_file), path);
 	return *this;
 }

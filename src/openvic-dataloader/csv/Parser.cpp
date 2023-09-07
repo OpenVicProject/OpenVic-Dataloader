@@ -106,7 +106,7 @@ Parser<Encoding> Parser<Encoding>::from_file(const std::filesystem::path& path) 
 ///
 /// Expected Use:
 /// @code {.cpp}
-///	_run_load_func(&BufferHandler::<load_function>, <arguments>);
+///	_run_load_func(std::mem_fn(&BufferHandler::<load_function>), <arguments>);
 /// @endcode
 ///
 /// @tparam Type
@@ -129,14 +129,12 @@ constexpr void Parser<Encoding>::_run_load_func(detail::LoadCallback<BufferHandl
 
 template<EncodingType Encoding>
 constexpr Parser<Encoding>& Parser<Encoding>::load_from_buffer(const char* data, std::size_t size) {
-	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&BufferHandler::load_buffer_size), data, size);
 	return *this;
 }
 
 template<EncodingType Encoding>
 constexpr Parser<Encoding>& Parser<Encoding>::load_from_buffer(const char* start, const char* end) {
-	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&BufferHandler::load_buffer), start, end);
 	return *this;
 }
@@ -149,7 +147,6 @@ constexpr Parser<Encoding>& Parser<Encoding>::load_from_string(const std::string
 template<EncodingType Encoding>
 constexpr Parser<Encoding>& Parser<Encoding>::load_from_file(const char* path) {
 	_file_path = path;
-	// Type can be deduced??
 	_run_load_func(std::mem_fn(&BufferHandler::load_file), path);
 	return *this;
 }
