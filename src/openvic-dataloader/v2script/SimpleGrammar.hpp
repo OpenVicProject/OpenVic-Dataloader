@@ -12,12 +12,27 @@
 #include "detail/LexyLitRange.hpp"
 
 // Grammar Definitions //
+/* REQUIREMENTS:
+ * DAT-626
+ * DAT-627
+ * DAT-628
+ * DAT-636
+ * DAT-641
+ * DAT-642
+ * DAT-643
+ */
 namespace ovdl::v2script::grammar {
 	struct StatementListBlock;
 
+	/* REQUIREMENTS: DAT-630 */
 	static constexpr auto whitespace_specifier = lexy::dsl::ascii::blank / lexy::dsl::ascii::newline;
+	/* REQUIREMENTS: DAT-631 */
 	static constexpr auto comment_specifier = LEXY_LIT("#") >> lexy::dsl::until(lexy::dsl::newline).or_eof();
 
+	/* REQUIREMENTS:
+	 * DAT-632
+	 * DAT-635
+	 */
 	static constexpr auto data_specifier =
 		lexy::dsl::ascii::alpha_digit_underscore /
 		LEXY_ASCII_ONE_OF("%&'") / lexy::dsl::lit_c<0x2B> / LEXY_ASCII_ONE_OF("-.") /
@@ -39,6 +54,10 @@ namespace ovdl::v2script::grammar {
 			});
 	};
 
+	/* REQUIREMENTS:
+	 * DAT-633
+	 * DAT-634
+	 */
 	struct StringExpression {
 		static constexpr auto escaped_symbols = lexy::symbol_table<char> //
 													.map<'"'>('"')
@@ -70,11 +89,17 @@ namespace ovdl::v2script::grammar {
 				});
 	};
 
+	/* REQUIREMENTS: DAT-638 */
+	struct ValueExpression {
+		static constexpr auto rule = lexy::dsl::p<Identifier> | lexy::dsl::p<StringExpression>;
+		static constexpr auto value = lexy::forward<ast::NodePtr>;
+	};
+
 	struct SimpleAssignmentStatement {
 		static constexpr auto rule =
 			lexy::dsl::position(lexy::dsl::p<Identifier>) >>
 			lexy::dsl::equal_sign +
-				(lexy::dsl::p<Identifier> | lexy::dsl::p<StringExpression> | lexy::dsl::recurse_branch<StatementListBlock>);
+				(lexy::dsl::p<ValueExpression> | lexy::dsl::recurse_branch<StatementListBlock>);
 
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
 			[](const char* pos, auto name, auto&& initalizer) {
@@ -82,11 +107,12 @@ namespace ovdl::v2script::grammar {
 			});
 	};
 
+	/* REQUIREMENTS: DAT-639 */
 	struct AssignmentStatement {
 		static constexpr auto rule =
 			lexy::dsl::position(lexy::dsl::p<Identifier>) >>
 				(lexy::dsl::equal_sign >>
-						(lexy::dsl::p<Identifier> | lexy::dsl::p<StringExpression> | lexy::dsl::recurse_branch<StatementListBlock>) |
+						(lexy::dsl::p<ValueExpression> | lexy::dsl::recurse_branch<StatementListBlock>) |
 					lexy::dsl::else_ >> lexy::dsl::return_) |
 			lexy::dsl::p<StringExpression>;
 
@@ -102,6 +128,7 @@ namespace ovdl::v2script::grammar {
 			});
 	};
 
+	/* REQUIREMENTS: DAT-640 */
 	struct StatementListBlock {
 		static constexpr auto rule =
 			lexy::dsl::position(lexy::dsl::curly_bracketed.open()) >>
