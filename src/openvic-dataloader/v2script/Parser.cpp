@@ -160,6 +160,12 @@ constexpr Parser& Parser::load_from_file(const detail::Has_c_str auto& path) {
 	return load_from_file(path.c_str());
 }
 
+/* REQUIREMENTS:
+ * DAT-23
+ * DAT-26
+ * DAT-28
+ * DAT-29
+ */
 bool Parser::simple_parse() {
 	if (!_buffer_handler->is_valid()) {
 		return false;
