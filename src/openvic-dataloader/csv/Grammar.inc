@@ -13,6 +13,8 @@
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
+#include <lexy/dsl/delimited.hpp>
+#include <lexy/dsl/follow.hpp>
 
 #include "detail/LexyLitRange.hpp"
 
