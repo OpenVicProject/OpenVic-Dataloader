@@ -165,16 +165,23 @@ constexpr Parser<Encoding>& Parser<Encoding>::load_from_file(const detail::Has_c
 }
 
 template<EncodingType Encoding>
-bool Parser<Encoding>::parse_csv() {
+bool Parser<Encoding>::parse_csv(bool handle_strings) {
 	if (!_buffer_handler->is_valid()) {
 		return false;
 	}
 
 	std::optional<std::vector<ParseError>> errors;
+	auto report_error = ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream });
 	if constexpr (Encoding == EncodingType::Windows1252) {
-		errors = _buffer_handler->template parse<csv::grammar::windows1252::SemiColonFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
+		if (handle_strings)
+			errors = _buffer_handler->template parse<csv::grammar::windows1252::strings::SemiColonFile>(report_error);
+		else
+			errors = _buffer_handler->template parse<csv::grammar::windows1252::SemiColonFile>(report_error);
 	} else {
-		errors = _buffer_handler->template parse<csv::grammar::utf8::SemiColonFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
+		if (handle_strings)
+			errors = _buffer_handler->template parse<csv::grammar::utf8::strings::SemiColonFile>(report_error);
+		else
+			errors = _buffer_handler->template parse<csv::grammar::utf8::SemiColonFile>(report_error);
 	}
 	if (errors) {
 		_errors.reserve(errors->size());
