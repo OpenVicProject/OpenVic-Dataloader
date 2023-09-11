@@ -249,7 +249,7 @@ if env["build_ovdl_library"]:
     Default(library)
 
     env.Append(LIBPATH=[env.Dir(BINDIR)])
-    env.Append(LIBS=[library_name])
+    env.Prepend(LIBS=[library_name])
 
     env.openvic_dataloader["LIBPATH"] = env["LIBPATH"]
     env.openvic_dataloader["LIBS"] = env["LIBS"]
@@ -267,8 +267,6 @@ if env["build_ovdl_headless"]:
     headless_env.headless_sources = GlobRecursive("*.cpp", headless_path)
     if not env["build_ovdl_library"]:
         headless_env.headless_sources += sources
-    else:
-        headless_env.headless_sources += env.lexy_sources
     headless_program = headless_env.Program(
         target=os.path.join(BINDIR, headless_name),
         source=headless_env.headless_sources,

@@ -39,7 +39,7 @@ def build_lexy(env):
         env.Append(CXXFLAGS=["-isystem", lexy_env.Dir("lexy/include")])
     env.Append(CXXFLAGS=[""])
     env.Append(LIBPATH=[lexy_env.Dir("lexy/src")])
-    env.Append(LIBS=[library_name])
+    env.Prepend(LIBS=[library_name])
 
 
 build_lexy(env)
