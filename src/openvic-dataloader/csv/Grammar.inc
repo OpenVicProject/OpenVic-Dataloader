@@ -13,8 +13,15 @@
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
-#include <lexy/dsl/delimited.hpp>
-#include <lexy/dsl/follow.hpp>
+
+#include "detail/LexyLitRange.hpp"
+
+struct ParseOptions {
+	/// @brief Seperator character
+	char SepChar;
+	/// @brief Determines whether StringValue is supported
+	bool SupportStrings;
+};
 
 #include "detail/LexyLitRange.hpp"
 
