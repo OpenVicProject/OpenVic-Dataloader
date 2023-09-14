@@ -38,9 +38,9 @@ struct LexyEncodingFrom<EncodingType::Utf8> {
 template<EncodingType Encoding>
 class Parser<Encoding>::BufferHandler final : public detail::BasicBufferHandler<typename LexyEncodingFrom<Encoding>::encoding> {
 public:
-	template<typename Node, typename ErrorCallback>
-	std::optional<std::vector<ParseError>> parse(const ErrorCallback& callback) {
-		auto result = lexy::parse<Node>(this->_buffer, callback);
+	template<typename Node, typename ParseState, typename ErrorCallback>
+	std::optional<std::vector<ParseError>> parse(const ParseState& state, const ErrorCallback& callback) {
+		auto result = lexy::parse<Node>(this->_buffer, state, callback);
 		if (!result) {
 			return result.errors();
 		}
@@ -174,14 +174,14 @@ bool Parser<Encoding>::parse_csv(bool handle_strings) {
 	auto report_error = ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream });
 	if constexpr (Encoding == EncodingType::Windows1252) {
 		if (handle_strings)
-			errors = _buffer_handler->template parse<csv::grammar::windows1252::strings::SemiColonFile>(report_error);
+			errors = _buffer_handler->template parse<csv::grammar::windows1252::strings::SemiColonFile>(_parser_state, report_error);
 		else
-			errors = _buffer_handler->template parse<csv::grammar::windows1252::SemiColonFile>(report_error);
+			errors = _buffer_handler->template parse<csv::grammar::windows1252::SemiColonFile>(_parser_state, report_error);
 	} else {
 		if (handle_strings)
-			errors = _buffer_handler->template parse<csv::grammar::utf8::strings::SemiColonFile>(report_error);
+			errors = _buffer_handler->template parse<csv::grammar::utf8::strings::SemiColonFile>(_parser_state, report_error);
 		else
-			errors = _buffer_handler->template parse<csv::grammar::utf8::SemiColonFile>(report_error);
+			errors = _buffer_handler->template parse<csv::grammar::utf8::SemiColonFile>(_parser_state, report_error);
 	}
 	if (errors) {
 		_errors.reserve(errors->size());

@@ -4,24 +4,20 @@
 
 // Includes to keep file errors small
 #include <initializer_list>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
 
 #include <openvic-dataloader/csv/LineObject.hpp>
+#include <openvic-dataloader/csv/Parser.hpp>
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 
-#include "detail/LexyLitRange.hpp"
-
-struct ParseOptions {
-	/// @brief Seperator character
-	char SepChar;
-	/// @brief Determines whether StringValue is supported
-	bool SupportStrings;
-};
+#include <fmt/format.h>
 
 #include "detail/LexyLitRange.hpp"
 
@@ -30,23 +26,27 @@ struct ParseOptions {
 	char SepChar;
 	/// @brief Determines whether StringValue is supported
 	bool SupportStrings;
+	/// @brief Paradox-style localization escape characters
+	/// @note Is ignored if SupportStrings is true
+	char EscapeChar;
 };
 
+constexpr auto escaped_symbols = lexy::symbol_table<char> //
+									 .map<'"'>('"')
+									 .map<'\''>('\'')
+									 .map<'\\'>('\\')
+									 .map<'/'>('/')
+									 .map<'b'>('\b')
+									 .map<'f'>('\f')
+									 .map<'n'>('\n')
+									 .map<'r'>('\r')
+									 .map<'t'>('\t');
+
+constexpr auto escaped_quote = lexy::symbol_table<char> //
+								   .map<'"'>('"');
+
+template<ParseOptions Options>
 struct StringValue {
-	static constexpr auto escaped_symbols = lexy::symbol_table<char> //
-												.map<'"'>('"')
-												.map<'\''>('\'')
-												.map<'\\'>('\\')
-												.map<'/'>('/')
-												.map<'b'>('\b')
-												.map<'f'>('\f')
-												.map<'n'>('\n')
-												.map<'r'>('\r')
-												.map<'t'>('\t');
-	/// This doesn't actually do anything, so this might to be manually parsed if vic2's CSV parser creates a " from ""
-	static constexpr auto escaped_quote = lexy::symbol_table<char> //
-											  .map<'"'>('"');
-
 	static constexpr auto rule = [] {
 		// Arbitrary code points
 		auto c = character - control;
@@ -57,25 +57,66 @@ struct StringValue {
 		auto quote_escape = lexy::dsl::escape(lexy::dsl::lit_c<'"'>) //
 								.symbol<escaped_quote>();
 
-		return lexy::dsl::delimited(lexy::dsl::lit_c<'"'>, lexy::dsl::not_followed_by(lexy::dsl::lit_c<'"'>, lexy::dsl::lit_c<'"'>))(c, back_escape, quote_escape);
+		auto quotes = lexy::dsl::delimited(lexy::dsl::lit_c<'"'>, lexy::dsl::not_followed_by(lexy::dsl::lit_c<'"'>, lexy::dsl::lit_c<'"'>));
+
+		return quotes(c, back_escape, quote_escape);
 	}();
 
 	static constexpr auto value = lexy::as_string<std::string>;
 };
 
 template<ParseOptions Options>
+struct EscapeValue {
+	static constexpr auto rule = [] {
+		auto id = lexy::dsl::identifier(id_head, id_tail);
+
+		return lexy::dsl::lit_b<Options.EscapeChar> >>
+			   (lexy::dsl::lit_b<Options.EscapeChar> |
+				   (id >> lexy::dsl::lit_b<Options.EscapeChar>));
+	}();
+	static constexpr auto value =
+		lexy::callback_with_state<std::string>(
+			[](const auto& state, auto&& lexeme) {
+				auto check = std::string_view { lexeme.data(), lexeme.size() };
+				if (auto value = state.find_value(check); value != state.end())
+					return std::string(value->second.data(), value->second.size());
+				return fmt::format("${}$", check);
+			},
+			[](auto&& lexeme) {
+				return fmt::format("${}$", std::string_view { lexeme.data(), lexeme.size() });
+			},
+			[](lexy::nullopt = {}) {
+				return std::string(1, Options.EscapeChar);
+			},
+			[](const auto& state, lexy::nullopt = {}) {
+				return std::string(1, Options.EscapeChar);
+			});
+};
+
+template<ParseOptions Options>
 struct PlainValue {
 	static constexpr auto rule = [] {
+		auto min_skip = lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline;
 		if constexpr (Options.SupportStrings) {
-			return lexy::dsl::identifier(character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline));
+			return lexy::dsl::identifier(character - min_skip);
 		} else {
-			auto escape_check_char = character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline);
+			auto escape_check_char = [=] {
+				if constexpr (Options.EscapeChar != 0) {
+					return character - (min_skip / lexy::dsl::lit_b<Options.EscapeChar>);
+				} else {
+					return character - min_skip;
+				}
+			}();
 			auto id_check_char = escape_check_char - lexy::dsl::lit_b<'\\'>;
 			auto id_segment = lexy::dsl::identifier(id_check_char);
 			auto escape_segement = lexy::dsl::token(escape_check_char);
-			auto escape_sym = lexy::dsl::symbol<StringValue::escaped_symbols>(escape_segement);
+			auto escape_sym = lexy::dsl::symbol<escaped_symbols>(escape_segement);
 			auto escape_rule = lexy::dsl::lit_b<'\\'> >> escape_sym;
-			return lexy::dsl::list(id_segment | escape_rule);
+			if constexpr (Options.EscapeChar != 0) {
+				return lexy::dsl::list(lexy::dsl::p<EscapeValue<Options>> | id_segment | escape_rule);
+			} else {
+				return lexy::dsl::list(id_segment | escape_rule);
+			}
 		}
 	}();
 	static constexpr auto value = lexy::as_string<std::string>;
@@ -85,7 +126,7 @@ template<ParseOptions Options>
 struct Value {
 	static constexpr auto rule = [] {
 		if constexpr (Options.SupportStrings) {
-			return lexy::dsl::p<StringValue> | lexy::dsl::p<PlainValue<Options>>;
+			return lexy::dsl::p<StringValue<Options>> | lexy::dsl::p<PlainValue<Options>>;
 		} else {
 			return lexy::dsl::p<PlainValue<Options>>;
 		}
@@ -165,16 +206,16 @@ struct File {
 	static constexpr auto value = lexy::as_list<std::vector<ovdl::csv::LineObject>>;
 };
 
-using CommaFile = File<ParseOptions { ',' }>;
-using ColonFile = File<ParseOptions { ':' }>;
-using SemiColonFile = File<ParseOptions { ';' }>;
-using TabFile = File<ParseOptions { '\t' }>;
-using BarFile = File<ParseOptions { '|' }>;
+using CommaFile = File<ParseOptions { ',', false, '$' }>;
+using ColonFile = File<ParseOptions { ':', false, '$' }>;
+using SemiColonFile = File<ParseOptions { ';', false, '$' }>;
+using TabFile = File<ParseOptions { '\t', false, '$' }>;
+using BarFile = File<ParseOptions { '|', false, '$' }>;
 
 namespace strings {
-	using CommaFile = File<ParseOptions { ',', true }>;
-	using ColonFile = File<ParseOptions { ':', true }>;
-	using SemiColonFile = File<ParseOptions { ';', true }>;
-	using TabFile = File<ParseOptions { '\t', true }>;
-	using BarFile = File<ParseOptions { '|', true }>;
+	using CommaFile = File<ParseOptions { ',', true, '$' }>;
+	using ColonFile = File<ParseOptions { ':', true, '$' }>;
+	using SemiColonFile = File<ParseOptions { ';', true, '$' }>;
+	using TabFile = File<ParseOptions { '\t', true, '$' }>;
+	using BarFile = File<ParseOptions { '|', true, '$' }>;
 }

@@ -55,7 +55,9 @@ IncludeCategories:
     Priority: 3
   - Regex: ^<lexy/
     Priority: 4
-  - Regex: ^"openvic-dataloader/
+  - Regex: ^<fmt/
     Priority: 5
-  - Regex: .*
+  - Regex: ^"openvic-dataloader/
     Priority: 6
+  - Regex: .*
+    Priority: 7

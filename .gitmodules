@@ -5,3 +5,7 @@
 [submodule "scripts"]
 	path = scripts
 	url = https://github.com/OpenVicProject/scripts
+[submodule "deps/fmt"]
+	path = deps/fmt
+	url = https://github.com/fmtlib/fmt
+	ignore = dirty

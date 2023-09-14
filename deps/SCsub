@@ -41,5 +41,31 @@ def build_lexy(env):
     env.Append(LIBPATH=[lexy_env.Dir("lexy/src")])
     env.Prepend(LIBS=[library_name])
 
+def build_fmt(env):
+    fmt_env = env.Clone()
+
+    if fmt_env.get("is_msvc", False):
+        fmt_env.Append(CXXFLAGS=["/std:c++20"])
+    else:
+        fmt_env.Append(CXXFLAGS=["-std=c++20"])
+    
+    paths = ["fmt/include", "fmt/src"]
+    fmt_env.Append(CPPPATH=[[fmt_env.Dir(p) for p in paths]])
+    sources = env.GlobRecursive("*.cc", paths, exclude=["fmt.cc"])
+    env.fmt_sources = sources
+    library_name = "libfmt" + env["LIBSUFFIX"]
+    library = fmt_env.StaticLibrary(target="fmt/src/" + library_name, source=sources)
+    Default(library)
+
+    env.Append(CPPPATH=[fmt_env.Dir("fmt/include")])
+    if env.get("is_msvc", False):
+        env.Append(CXXFLAGS=["/external:I", fmt_env.Dir("fmt/include"), "/external:W0"])
+    else:
+        env.Append(CXXFLAGS=["-isystem", fmt_env.Dir("fmt/include")])
+    env.Append(CXXFLAGS=[""])
+    env.Append(LIBPATH=[fmt_env.Dir("fmt/src")])
+    env.Prepend(LIBS=[library_name])
+
 
 build_lexy(env)
+build_fmt(env)
