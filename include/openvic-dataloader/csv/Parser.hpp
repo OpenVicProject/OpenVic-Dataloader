@@ -28,7 +28,7 @@ namespace ovdl::csv {
 
 		constexpr Parser& load_from_file(const detail::Has_c_str auto& path);
 
-		bool parse_csv();
+		bool parse_csv(bool handle_strings = false);
 
 		const std::vector<csv::LineObject>& get_lines() const;
 
