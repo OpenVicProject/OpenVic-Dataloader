@@ -8,11 +8,11 @@
 #include "TriggerGrammar.hpp"
 
 namespace ovdl::v2script::grammar {
-	constexpr auto modifier_keyword = LEXY_KEYWORD("modifier", lexy::dsl::inline_<Identifier>);
-	constexpr auto factor_keyword = LEXY_KEYWORD("factor", lexy::dsl::inline_<Identifier>);
+	constexpr auto modifier_keyword = LEXY_KEYWORD("modifier", lexy::dsl::inline_<Identifier<StringEscapeOption>>);
+	constexpr auto factor_keyword = LEXY_KEYWORD("factor", lexy::dsl::inline_<Identifier<StringEscapeOption>>);
 
 	struct FactorStatement {
-		static constexpr auto rule = factor_keyword >> lexy::dsl::equal_sign + lexy::dsl::inline_<Identifier>;
+		static constexpr auto rule = factor_keyword >> lexy::dsl::equal_sign + lexy::dsl::inline_<Identifier<StringEscapeOption>>;
 		static constexpr auto value = lexy::as_string<std::string> | lexy::new_<ast::FactorNode, ast::NodePtr>;
 	};
 

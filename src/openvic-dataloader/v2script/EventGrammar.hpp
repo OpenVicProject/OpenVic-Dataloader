@@ -21,25 +21,25 @@ namespace ovdl::v2script::grammar {
 	// Macros
 	//////////////////
 // Produces <KW_NAME>_rule and <KW_NAME>_p
-#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME)                                                    \
-	struct KW_NAME##_rule {                                                                     \
-		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
-		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                          \
-		static constexpr auto value = lexy::noop;                                               \
-	};                                                                                          \
+#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME)                                                                        \
+	struct KW_NAME##_rule {                                                                                         \
+		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier<StringEscapeOption>>); \
+		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                                              \
+		static constexpr auto value = lexy::noop;                                                                   \
+	};                                                                                                              \
 	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule>
 
 // Produces <KW_NAME>_rule and <KW_NAME>_p and <KW_NAME>_rule::flag and <KW_NAME>_rule::too_many_error
-#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                               \
-	struct KW_NAME##_rule {                                                                     \
-		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier>); \
-		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                          \
-		static constexpr auto value = lexy::noop;                                               \
-		static constexpr auto flag = lexy::dsl::context_flag<struct KW_NAME##_context>;         \
-		struct too_many_error {                                                                 \
-			static constexpr auto name = "expected left side " #KW_NAME " to be found once";    \
-		};                                                                                      \
-	};                                                                                          \
+#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                                                   \
+	struct KW_NAME##_rule {                                                                                         \
+		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier<StringEscapeOption>>); \
+		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                                              \
+		static constexpr auto value = lexy::noop;                                                                   \
+		static constexpr auto flag = lexy::dsl::context_flag<struct KW_NAME##_context>;                             \
+		struct too_many_error {                                                                                     \
+			static constexpr auto name = "expected left side " #KW_NAME " to be found once";                        \
+		};                                                                                                          \
+	};                                                                                                              \
 	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule> >> (lexy::dsl::must(KW_NAME##_rule::flag.is_reset()).error<KW_NAME##_rule::too_many_error> + KW_NAME##_rule::flag.set())
 	//////////////////
 	// Macros
@@ -52,7 +52,7 @@ namespace ovdl::v2script::grammar {
 		OVDL_GRAMMAR_KEYWORD_DEFINE(months);
 
 		struct MonthValue {
-			static constexpr auto rule = lexy::dsl::inline_<Identifier>;
+			static constexpr auto rule = lexy::dsl::inline_<Identifier<StringEscapeOption>>;
 			static constexpr auto value = lexy::as_string<std::string> | lexy::new_<ast::MonthNode, ast::NodePtr>;
 		};
 
@@ -70,7 +70,7 @@ namespace ovdl::v2script::grammar {
 
 	template<auto Production, typename AstNode>
 	struct _StringStatement {
-		static constexpr auto rule = Production >> (lexy::dsl::p<StringExpression> | lexy::dsl::p<Identifier>);
+		static constexpr auto rule = Production >> (lexy::dsl::p<StringExpression<StringEscapeOption>> | lexy::dsl::p<Identifier<StringEscapeOption>>);
 		static constexpr auto value =
 			lexy::callback<ast::NodePtr>(
 				[](auto&& value) {
@@ -116,7 +116,7 @@ namespace ovdl::v2script::grammar {
 		OVDL_GRAMMAR_KEYWORD_DEFINE(option);
 
 		static constexpr auto rule = [] {
-			constexpr auto symbol_value = lexy::dsl::symbol<event_symbols>(lexy::dsl::inline_<Identifier>);
+			constexpr auto symbol_value = lexy::dsl::symbol<event_symbols>(lexy::dsl::inline_<Identifier<StringEscapeOption>>);
 
 			constexpr auto create_flags =
 				id_rule::flag.create() +
@@ -153,7 +153,7 @@ namespace ovdl::v2script::grammar {
 						   mean_time_to_happen_statement |
 						   trigger_statement |
 						   option_statement |
-						   lexy::dsl::p<SimpleAssignmentStatement>));
+						   lexy::dsl::p<SimpleAssignmentStatement<StringEscapeOption>>));
 		}();
 
 		static constexpr auto value =
@@ -171,7 +171,7 @@ namespace ovdl::v2script::grammar {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<EventStatement> | lexy::dsl::p<SimpleAssignmentStatement>);
+		static constexpr auto rule = lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<EventStatement> | lexy::dsl::p<SimpleAssignmentStatement<StringEscapeOption>>);
 
 		static constexpr auto value = lexy::as_list<std::vector<ast::NodePtr>> >> lexy::new_<ast::FileNode, ast::NodePtr>;
 	};

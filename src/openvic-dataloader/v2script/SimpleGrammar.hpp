@@ -22,7 +22,18 @@
  * DAT-643
  */
 namespace ovdl::v2script::grammar {
+	struct ParseOptions {
+		/// @brief Makes string parsing avoid string escapes
+		bool NoStringEscape;
+	};
+
+	static constexpr ParseOptions NoStringEscapeOption = ParseOptions { true };
+	static constexpr ParseOptions StringEscapeOption = ParseOptions { false };
+
+	template<ParseOptions Options>
 	struct StatementListBlock;
+	template<ParseOptions Options>
+	struct AssignmentStatement;
 
 	/* REQUIREMENTS: DAT-630 */
 	static constexpr auto whitespace_specifier = lexy::dsl::ascii::blank / lexy::dsl::ascii::newline;
@@ -45,6 +56,18 @@ namespace ovdl::v2script::grammar {
 
 	static constexpr auto data_char_class = LEXY_CHAR_CLASS("DataSpecifier", data_specifier);
 
+	static constexpr auto escaped_symbols = lexy::symbol_table<char> //
+												.map<'"'>('"')
+												.map<'\''>('\'')
+												.map<'\\'>('\\')
+												.map<'/'>('/')
+												.map<'b'>('\b')
+												.map<'f'>('\f')
+												.map<'n'>('\n')
+												.map<'r'>('\r')
+												.map<'t'>('\t');
+
+	template<ParseOptions Options>
 	struct Identifier {
 		static constexpr auto rule = lexy::dsl::identifier(data_char_class);
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
@@ -58,27 +81,22 @@ namespace ovdl::v2script::grammar {
 	 * DAT-633
 	 * DAT-634
 	 */
+	template<ParseOptions Options>
 	struct StringExpression {
-		static constexpr auto escaped_symbols = lexy::symbol_table<char> //
-													.map<'"'>('"')
-													.map<'\''>('\'')
-													.map<'\\'>('\\')
-													.map<'/'>('/')
-													.map<'b'>('\b')
-													.map<'f'>('\f')
-													.map<'n'>('\n')
-													.map<'r'>('\r')
-													.map<'t'>('\t');
 		static constexpr auto rule = [] {
 			// Arbitrary code points that aren't control characters.
 			auto c = ovdl::detail::lexydsl::make_range<0x20, 0xFF>() - lexy::dsl::ascii::control;
 
-			// Escape sequences start with a backlash.
-			// They either map one of the symbols,
-			// or a Unicode code point of the form uXXXX.
-			auto escape = lexy::dsl::backslash_escape //
-							  .symbol<escaped_symbols>();
-			return lexy::dsl::delimited(lexy::dsl::position(lexy::dsl::lit_b<'"'>))(c, escape);
+			if constexpr (Options.NoStringEscape) {
+				return lexy::dsl::delimited(lexy::dsl::position(lexy::dsl::lit_b<'"'>))(c);
+			} else {
+				// Escape sequences start with a backlash.
+				// They either map one of the symbols,
+				// or a Unicode code point of the form uXXXX.
+				auto escape = lexy::dsl::backslash_escape //
+								  .symbol<escaped_symbols>();
+				return lexy::dsl::delimited(lexy::dsl::position(lexy::dsl::lit_b<'"'>))(c, escape);
+			}
 		}();
 
 		static constexpr auto value =
@@ -90,16 +108,18 @@ namespace ovdl::v2script::grammar {
 	};
 
 	/* REQUIREMENTS: DAT-638 */
+	template<ParseOptions Options>
 	struct ValueExpression {
-		static constexpr auto rule = lexy::dsl::p<Identifier> | lexy::dsl::p<StringExpression>;
+		static constexpr auto rule = lexy::dsl::p<Identifier<Options>> | lexy::dsl::p<StringExpression<Options>>;
 		static constexpr auto value = lexy::forward<ast::NodePtr>;
 	};
 
+	template<ParseOptions Options>
 	struct SimpleAssignmentStatement {
 		static constexpr auto rule =
-			lexy::dsl::position(lexy::dsl::p<Identifier>) >>
-			lexy::dsl::equal_sign +
-				(lexy::dsl::p<ValueExpression> | lexy::dsl::recurse_branch<StatementListBlock>);
+			lexy::dsl::position(lexy::dsl::p<Identifier<Options>>) >>
+			(lexy::dsl::equal_sign +
+				(lexy::dsl::p<ValueExpression<Options>> | lexy::dsl::recurse_branch<StatementListBlock<Options>>));
 
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
 			[](const char* pos, auto name, auto&& initalizer) {
@@ -108,13 +128,14 @@ namespace ovdl::v2script::grammar {
 	};
 
 	/* REQUIREMENTS: DAT-639 */
+	template<ParseOptions Options>
 	struct AssignmentStatement {
 		static constexpr auto rule =
-			lexy::dsl::position(lexy::dsl::p<Identifier>) >>
+			lexy::dsl::position(lexy::dsl::p<Identifier<Options>>) >>
 				(lexy::dsl::equal_sign >>
-						(lexy::dsl::p<ValueExpression> | lexy::dsl::recurse_branch<StatementListBlock>) |
+						(lexy::dsl::p<ValueExpression<Options>> | lexy::dsl::recurse_branch<StatementListBlock<Options>>) |
 					lexy::dsl::else_ >> lexy::dsl::return_) |
-			lexy::dsl::p<StringExpression>;
+			lexy::dsl::p<StringExpression<Options>>;
 
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
 			[](const char* pos, auto name, lexy::nullopt = {}) {
@@ -129,11 +150,12 @@ namespace ovdl::v2script::grammar {
 	};
 
 	/* REQUIREMENTS: DAT-640 */
+	template<ParseOptions Options>
 	struct StatementListBlock {
 		static constexpr auto rule =
 			lexy::dsl::position(lexy::dsl::curly_bracketed.open()) >>
-			lexy::dsl::opt(lexy::dsl::list(lexy::dsl::p<AssignmentStatement>)) +
-				lexy::dsl::opt(lexy::dsl::semicolon) >>
+			(lexy::dsl::opt(lexy::dsl::list(lexy::dsl::recurse_branch<AssignmentStatement<Options>>)) +
+				lexy::dsl::opt(lexy::dsl::semicolon)) >>
 			lexy::dsl::position(lexy::dsl::curly_bracketed.close());
 
 		static constexpr auto value =
@@ -156,11 +178,12 @@ namespace ovdl::v2script::grammar {
 				});
 	};
 
+	template<ParseOptions Options>
 	struct File {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<AssignmentStatement>);
+		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<AssignmentStatement<Options>>);
 
 		static constexpr auto value = lexy::as_list<std::vector<ast::NodePtr>> >> lexy::new_<ast::FileNode, ast::NodePtr>;
 	};

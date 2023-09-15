@@ -175,7 +175,7 @@ bool Parser::simple_parse() {
 		_warnings.push_back(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<grammar::File>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
+	auto errors = _buffer_handler->parse<grammar::File<grammar::NoStringEscapeOption>>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
 	if (errors) {
 		_errors.reserve(errors->size());
 		for (auto& err : errors.value()) {
