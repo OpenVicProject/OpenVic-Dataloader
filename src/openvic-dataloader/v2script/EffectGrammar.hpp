@@ -9,7 +9,7 @@
 
 namespace ovdl::v2script::grammar {
 	struct EffectStatement {
-		static constexpr auto rule = lexy::dsl::inline_<SimpleAssignmentStatement>;
+		static constexpr auto rule = lexy::dsl::inline_<SimpleAssignmentStatement<StringEscapeOption>>;
 
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
 			[](auto name, auto&& initalizer) {
@@ -18,7 +18,7 @@ namespace ovdl::v2script::grammar {
 	};
 
 	struct EffectList {
-		static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<SimpleAssignmentStatement>);
+		static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<SimpleAssignmentStatement<StringEscapeOption>>);
 
 		static constexpr auto value =
 			lexy::as_list<std::vector<ast::NodePtr>> >>
