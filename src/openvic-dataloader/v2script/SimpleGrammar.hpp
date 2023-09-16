@@ -135,7 +135,8 @@ namespace ovdl::v2script::grammar {
 				(lexy::dsl::equal_sign >>
 						(lexy::dsl::p<ValueExpression<Options>> | lexy::dsl::recurse_branch<StatementListBlock<Options>>) |
 					lexy::dsl::else_ >> lexy::dsl::return_) |
-			lexy::dsl::p<StringExpression<Options>>;
+			lexy::dsl::p<StringExpression<Options>> |
+			lexy::dsl::recurse_branch<StatementListBlock<Options>>;
 
 		static constexpr auto value = lexy::callback<ast::NodePtr>(
 			[](const char* pos, auto name, lexy::nullopt = {}) {
