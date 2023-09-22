@@ -2,3 +2,6 @@
 	path = deps/lexy
 	url = https://github.com/foonathan/lexy
 	ignore = dirty
+[submodule "scripts"]
+	path = scripts
+	url = git@github.com:OpenVicProject/scripts
