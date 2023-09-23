@@ -64,9 +64,10 @@ jobs:
           submodules: recursive
 
       - name: Setup OpenVic-Dataloader build cache
-        uses: ./.github/actions/dataloader-cache
+        uses: OpenVicProject/openvic-cache@master
         with:
           cache-name: ${{ matrix.identifier }}
+          base-branch: ${{ env.OVDL_BASE_BRANCH }}
         continue-on-error: true
 
       - name: Set up Python
@@ -93,10 +94,10 @@ jobs:
 
       - name: Setup MinGW for Windows/MinGW build
         if: ${{ matrix.platform == 'windows' }}
-        uses: ./.github/actions/mingw-cache
+        uses: OpenVicProject/mingw-cache@master
 
       - name: Compile Dataloader
-        uses: ./.github/actions/dataloader-build
+        uses: OpenVicProject/openvic-build@master
         with:
           platform: ${{ matrix.platform }}
           target: ${{ matrix.target }}
