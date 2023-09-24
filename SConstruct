@@ -19,7 +19,7 @@ opts.Add(BoolVariable("build_ovdl_headless", "Build the openvic dataloader headl
 
 env.FinalizeOptions()
 
-SConscript("deps/SCsub")
+SConscript("deps/SCsub", "env")
 
 env.openvic_dataloader = {}
 
