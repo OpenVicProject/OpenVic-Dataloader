@@ -74,3 +74,5 @@ bin/*
 
 *.translation
 !game/common/map/*.obj
+
+compile_commands.json
