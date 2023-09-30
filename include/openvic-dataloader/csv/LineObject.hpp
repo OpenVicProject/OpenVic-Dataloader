@@ -14,7 +14,7 @@
 #include <vector>
 
 #include <openvic-dataloader/csv/ValueNode.hpp>
-#include <openvic-dataloader/detail/VectorConstexpr.hpp>
+#include <openvic-dataloader/detail/Constexprs.hpp>
 
 namespace ovdl::csv {
 	/// LineObject should be able to recognize the differences between:
@@ -57,7 +57,7 @@ namespace ovdl::csv {
 
 		/// Special Functionality
 		/// Retrieves value, produces "" for empty values
-		constexpr std::string get_value_for(std::size_t position) const {
+		OVDL_STRING_CONSTEXPR std::string get_value_for(std::size_t position) const {
 			if (position < _prefix_end || position >= _suffix_end) return "";
 			for (const auto& object : *this) {
 				if (object.get_position() == position) return object.make();
@@ -65,7 +65,7 @@ namespace ovdl::csv {
 			return "";
 		}
 		/// Tries to retrieve string, produces nullopt for empty values
-		constexpr std::optional<const std::string> try_get_string_at(std::size_t position) const {
+		OVDL_STR_OPT_CONSTEXPR std::optional<const std::string> try_get_string_at(std::size_t position) const {
 			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
 			for (const auto& object : *this) {
 				if (object.get_position() == position) return object.make();
@@ -89,7 +89,7 @@ namespace ovdl::csv {
 			return "";
 		}
 		/// Tries to retrieve string, produces nullopt for empty values
-		constexpr std::optional<const std::string> try_get_string_at(std::size_t position, const IsMap<std::string> auto& map) const {
+		OVDL_STR_OPT_CONSTEXPR std::optional<const std::string> try_get_string_at(std::size_t position, const IsMap<std::string> auto& map) const {
 			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
 			for (const auto& object : *this) {
 				if (object.get_position() == position) return object.make_from_map(map);

@@ -10,6 +10,8 @@
 #include <variant>
 #include <vector>
 
+#include <openvic-dataloader/detail/Constexprs.hpp>
+
 #include <fmt/compile.h>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -54,7 +56,7 @@ namespace ovdl::csv {
 		void add_to_list(internal_value_type value);
 		bool list_is_empty() const;
 
-		inline std::string make_from_map(const IsMap<std::string> auto& map) const {
+		OVDL_STRING_CONSTEXPR std::string make_from_map(const IsMap<std::string> auto& map) const {
 			std::vector<std::string_view> pre_joined(_value_list.size());
 
 			for (auto&& value : _value_list) {

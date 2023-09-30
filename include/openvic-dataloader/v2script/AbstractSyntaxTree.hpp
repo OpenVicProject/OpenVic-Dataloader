@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include <openvic-dataloader/detail/OptionalConstexpr.hpp>
+#include <openvic-dataloader/detail/Constexprs.hpp>
 #include <openvic-dataloader/detail/SelfType.hpp>
 #include <openvic-dataloader/detail/TypeName.hpp>
 
