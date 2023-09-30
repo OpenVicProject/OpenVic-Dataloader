@@ -4,7 +4,6 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <initializer_list>
 #include <optional>
 #include <ostream>
@@ -14,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include <openvic-dataloader/csv/ValueNode.hpp>
 #include <openvic-dataloader/detail/VectorConstexpr.hpp>
 
 namespace ovdl::csv {
@@ -28,13 +28,13 @@ namespace ovdl::csv {
 	/// ;a;b;c -> 0,4+ == ""
 	///
 	/// If this is incorrect, please report an issue.
-	class LineObject final : public std::vector<std::pair<std::uint32_t, std::string>> {
+	class LineObject final : public std::vector<ValueNode> {
 	public:
 		// Stored position of value
-		using position_type = std::uint32_t;
+		using position_type = ValueNode::position_type;
 		// Value
-		using inner_value_type = std::string;
-		using container_type = std::vector<std::pair<position_type, inner_value_type>>;
+		using inner_value_type = ValueNode;
+		using container_type = std::vector<ValueNode>;
 
 		OVDL_VECTOR_CONSTEXPR LineObject() = default;
 		OVDL_VECTOR_CONSTEXPR LineObject(LineObject&) = default;
@@ -57,18 +57,42 @@ namespace ovdl::csv {
 
 		/// Special Functionality
 		/// Retrieves value, produces "" for empty values
-		constexpr std::string_view get_value_for(std::size_t position) const {
+		constexpr std::string get_value_for(std::size_t position) const {
 			if (position < _prefix_end || position >= _suffix_end) return "";
-			for (const auto& [pos, val] : *this) {
-				if (pos == position) return val;
+			for (const auto& object : *this) {
+				if (object.get_position() == position) return object.make();
 			}
 			return "";
 		}
-		/// Tries to retrieve reference, produces nullopt for empty values
-		constexpr std::optional<const std::reference_wrapper<const std::string>> try_get_string_at(std::size_t position) const {
+		/// Tries to retrieve string, produces nullopt for empty values
+		constexpr std::optional<const std::string> try_get_string_at(std::size_t position) const {
 			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
-			for (const auto& [pos, val] : *this) {
-				if (pos == position) return std::cref(val);
+			for (const auto& object : *this) {
+				if (object.get_position() == position) return object.make();
+			}
+			return std::nullopt;
+		}
+		constexpr std::optional<const std::reference_wrapper<const ValueNode>> try_get_object_at(std::size_t position) const {
+			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
+			for (const auto& object : *this) {
+				if (object.get_position() == position) return object;
+			}
+			return std::nullopt;
+		}
+
+		/// Retrieves value, produces "" for empty values
+		constexpr std::string_view get_value_for(std::size_t position, const IsMap<std::string> auto& map) const {
+			if (position < _prefix_end || position >= _suffix_end) return "";
+			for (const auto& object : *this) {
+				if (object.get_position() == position) return object.make_from_map(map);
+			}
+			return "";
+		}
+		/// Tries to retrieve string, produces nullopt for empty values
+		constexpr std::optional<const std::string> try_get_string_at(std::size_t position, const IsMap<std::string> auto& map) const {
+			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
+			for (const auto& object : *this) {
+				if (object.get_position() == position) return object.make_from_map(map);
 			}
 			return std::nullopt;
 		}
@@ -91,8 +115,9 @@ namespace ovdl::csv {
 	inline std::ostream& operator<<(std::ostream& stream, const LineObject& line) {
 		static const char SEP = ';';
 		LineObject::position_type sep_index = 0;
-		for (const auto& [pos, val] : line) {
-			while (sep_index < pos) {
+		for (const auto& object : line) {
+			const std::string& val = object.make();
+			while (sep_index < object.get_position()) {
 				stream << SEP;
 				sep_index++;
 			}
