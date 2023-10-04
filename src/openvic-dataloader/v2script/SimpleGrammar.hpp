@@ -183,7 +183,7 @@ namespace ovdl::v2script::grammar {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<AssignmentStatement<Options>>);
+		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).opt_list(lexy::dsl::p<AssignmentStatement<Options>>);
 
 		static constexpr auto value = lexy::as_list<std::vector<ast::NodePtr>> >> lexy::new_<ast::FileNode, ast::NodePtr>;
 	};

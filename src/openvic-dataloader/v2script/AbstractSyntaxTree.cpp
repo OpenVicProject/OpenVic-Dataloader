@@ -9,6 +9,7 @@
 
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
+#include <lexy/dsl/option.hpp>
 #include <lexy/input_location.hpp>
 
 using namespace ovdl::v2script::ast;
@@ -21,8 +22,10 @@ void ovdl::v2script::ast::copy_into_node_ptr_vector(const std::vector<NodePtr>& 
 	}
 }
 
+AbstractStringNode::AbstractStringNode() : Node({}) {}
 AbstractStringNode::AbstractStringNode(NodeLocation location, std::string&& name) : Node(location),
 																					_name(std::move(name)) {}
+AbstractStringNode::AbstractStringNode(NodeLocation location) : Node(location) {}
 AbstractStringNode::AbstractStringNode(std::string&& name) : AbstractStringNode({}, std::move(name)) {}
 
 std::ostream& AbstractStringNode::print(std::ostream& stream, size_t indent) const {
@@ -30,8 +33,12 @@ std::ostream& AbstractStringNode::print(std::ostream& stream, size_t indent) con
 }
 
 #define OVDL_AST_STRING_NODE_DEF(NAME, ...)                                                                  \
+	NAME::NAME() : AbstractStringNode() {}                                                                   \
 	NAME::NAME(std::string&& name) : AbstractStringNode(std::move(name)) {}                                  \
+	NAME::NAME(lexy::nullopt) : AbstractStringNode() {}                                                      \
+	NAME::NAME(NodeLocation location) : AbstractStringNode(location) {}                                      \
 	NAME::NAME(NodeLocation location, std::string&& name) : AbstractStringNode(location, std::move(name)) {} \
+	NAME::NAME(NodeLocation location, lexy::nullopt) : AbstractStringNode(location, {}) {}                   \
 	std::ostream& NAME::print(std::ostream& stream, size_t indent) const __VA_ARGS__
 
 OVDL_AST_STRING_NODE_DEF(IdentifierNode, {
@@ -124,7 +131,9 @@ std::ostream& AbstractListNode::print(std::ostream& stream, size_t indent) const
 
 #define OVDL_AST_LIST_NODE_DEF(NAME, ...)                                                                                 \
 	NAME::NAME(const std::vector<NodePtr>& statements) : AbstractListNode(statements) {}                                  \
+	NAME::NAME(lexy::nullopt) : AbstractListNode() {}                                                                     \
 	NAME::NAME(NodeLocation location, const std::vector<NodePtr>& statements) : AbstractListNode(location, statements) {} \
+	NAME::NAME(NodeLocation location, lexy::nullopt) : AbstractListNode(location, {}) {}                                  \
 	std::ostream& NAME::print(std::ostream& stream, size_t indent) const __VA_ARGS__
 
 OVDL_AST_LIST_NODE_DEF(FileNode, {

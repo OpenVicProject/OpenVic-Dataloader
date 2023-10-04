@@ -14,6 +14,10 @@
 #include <openvic-dataloader/detail/SelfType.hpp>
 #include <openvic-dataloader/detail/TypeName.hpp>
 
+namespace lexy {
+	struct nullopt;
+}
+
 namespace ovdl::v2script {
 	class Parser;
 }
@@ -161,7 +165,9 @@ namespace ovdl::v2script::ast {
 
 	struct AbstractStringNode : public Node {
 		std::string _name;
+		AbstractStringNode();
 		AbstractStringNode(std::string&& name);
+		AbstractStringNode(NodeLocation location);
 		AbstractStringNode(NodeLocation location, std::string&& name);
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
@@ -172,8 +178,12 @@ namespace ovdl::v2script::ast {
 
 #define OVDL_AST_STRING_NODE(NAME)                       \
 	struct NAME final : public AbstractStringNode {      \
+		NAME();                                          \
 		NAME(std::string&& name);                        \
+		NAME(lexy::nullopt);                             \
+		NAME(NodeLocation location);                     \
 		NAME(NodeLocation location, std::string&& name); \
+		NAME(NodeLocation location, lexy::nullopt);      \
 		OVDL_TYPE_DEFINE_SELF;                           \
 		OVDL_RT_TYPE_DEF;                                \
 		OVDL_PRINT_FUNC_DEF;                             \
@@ -219,7 +229,9 @@ namespace ovdl::v2script::ast {
 #define OVDL_AST_LIST_NODE(NAME)                                                                       \
 	struct NAME final : public AbstractListNode {                                                      \
 		NAME(const std::vector<NodePtr>& statements = std::vector<NodePtr> {});                        \
+		NAME(lexy::nullopt);                                                                           \
 		NAME(NodeLocation location, const std::vector<NodePtr>& statements = std::vector<NodePtr> {}); \
+		NAME(NodeLocation location, lexy::nullopt);                                                    \
 		OVDL_TYPE_DEFINE_SELF;                                                                         \
 		OVDL_RT_TYPE_DEF;                                                                              \
 		OVDL_PRINT_FUNC_DEF;                                                                           \
