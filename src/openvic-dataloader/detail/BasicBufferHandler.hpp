@@ -18,7 +18,7 @@ namespace ovdl::detail {
 		using encoding_type = Encoding;
 
 		OVDL_OPTIONAL_CONSTEXPR bool is_valid() const {
-			return _buffer.size() != 0;
+			return _buffer.data() != nullptr;
 		}
 
 		OVDL_OPTIONAL_CONSTEXPR std::optional<ovdl::ParseError> load_buffer_size(const char* data, std::size_t size) {
