@@ -31,6 +31,7 @@
 #include "detail/Warnings.hpp"
 #include "v2script/DecisionGrammar.hpp"
 #include "v2script/EventGrammar.hpp"
+#include "v2script/LuaDefinesGrammar.hpp"
 
 using namespace ovdl;
 using namespace ovdl::v2script;
@@ -220,6 +221,28 @@ bool Parser::decision_parse() {
 	}
 
 	auto errors = _buffer_handler->parse<grammar::DecisionFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
+	if (errors) {
+		_errors.reserve(errors->size());
+		for (auto& err : errors.value()) {
+			_has_fatal_error |= err.type == ParseError::Type::Fatal;
+			_errors.push_back(err);
+		}
+		return false;
+	}
+	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
+	return true;
+}
+
+bool Parser::lua_defines_parse() {
+	if (!_buffer_handler->is_valid()) {
+		return false;
+	}
+
+	if (_buffer_handler->is_exclusive_utf8()) {
+		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	}
+
+	auto errors = _buffer_handler->parse<lua::grammar::File<>>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
 	if (errors) {
 		_errors.reserve(errors->size());
 		for (auto& err : errors.value()) {
