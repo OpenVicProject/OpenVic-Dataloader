@@ -64,6 +64,42 @@ int print_csv(const std::string_view path) {
 	return EXIT_SUCCESS;
 }
 
+int print_lua(const std::string_view path) {
+	auto parser = ovdl::v2script::Parser::from_file(path);
+	if (parser.has_error()) {
+		return 1;
+	}
+
+	parser.lua_defines_parse();
+	if (parser.has_error()) {
+		return 2;
+	}
+
+	if (parser.has_warning()) {
+		for (auto& warning : parser.get_warnings()) {
+			std::cerr << "Warning: " << warning.message << std::endl;
+		}
+	}
+
+	parser.generate_node_location_map();
+
+	for (const auto& node : parser.get_file_node()->_statements) {
+		std::cout << node->get_type() << ": " << parser.get_node_begin(node.get()) << std::endl;
+		if (auto assign_node = node->cast_to<ovdl::v2script::ast::AssignNode>(); assign_node) {
+			auto lnode_ptr = assign_node->_initializer.get();
+			std::cout << lnode_ptr->get_type() << " begin: " << parser.get_node_begin(lnode_ptr) << std::endl;
+			std::cout << lnode_ptr->get_type() << " end: " << parser.get_node_end(lnode_ptr) << std::endl;
+			if (auto list_node = lnode_ptr->cast_to<ovdl::v2script::ast::AbstractListNode>(); list_node) {
+				for (const auto& inode : list_node->_statements) {
+					std::cout << inode->get_type() << ": " << parser.get_node_begin(inode.get()) << std::endl;
+				}
+			}
+		}
+	}
+	std::cout << parser.get_file_node() << std::endl;
+	return EXIT_SUCCESS;
+}
+
 int print_v2script_simple(const std::string_view path) {
 	auto parser = ovdl::v2script::Parser::from_file(path);
 	if (parser.has_error()) {
@@ -103,6 +139,9 @@ int print_v2script_simple(const std::string_view path) {
 int main(int argc, char** argv) {
 	switch (argc) {
 		case 2:
+			if (insenitive_trim_eq(std::filesystem::path(argv[1]).extension().string(), ".lua")) {
+				return print_lua(argv[1]);
+			}
 			return print_v2script_simple(argv[1]);
 		case 4:
 			if (insenitive_trim_eq(argv[1], "csv") && insenitive_trim_eq(argv[2], "utf"))

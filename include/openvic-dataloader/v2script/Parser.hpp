@@ -40,6 +40,7 @@ namespace ovdl::v2script {
 		bool simple_parse();
 		bool event_parse();
 		bool decision_parse();
+		bool lua_defines_parse();
 
 		const FileNode* get_file_node() const;
 
