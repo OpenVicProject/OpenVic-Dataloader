@@ -132,7 +132,6 @@ namespace ovdl::csv::grammar {
 
 	template<ParseOptions Options>
 	struct Line {
-
 		static constexpr auto suffix_setter(ovdl::csv::LineObject& line) {
 			auto& [position, value] = line.back();
 			if (value.empty()) {
@@ -143,7 +142,7 @@ namespace ovdl::csv::grammar {
 			}
 		};
 
-		static constexpr auto rule = lexy::dsl::p<LineEnd<Options>> | lexy::dsl::p<Seperator<Options>> >> lexy::dsl::p<LineEnd<Options>>;
+		static constexpr auto rule = lexy::dsl::p<LineEnd<Options>> | lexy::dsl::p<Seperator<Options>> >> lexy::dsl::opt(lexy::dsl::p<LineEnd<Options>>);
 		static constexpr auto value =
 			lexy::callback<ovdl::csv::LineObject>(
 				[](ovdl::csv::LineObject&& line) {
@@ -158,6 +157,9 @@ namespace ovdl::csv::grammar {
 					}
 					suffix_setter(line);
 					return LEXY_MOV(line);
+				},
+				[](std::size_t suffix_count, lexy::nullopt = {}) {
+					return ovdl::csv::LineObject(0, {}, suffix_count + 1);
 				});
 	};
 
