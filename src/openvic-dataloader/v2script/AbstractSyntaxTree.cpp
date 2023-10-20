@@ -14,6 +14,22 @@
 
 using namespace ovdl::v2script::ast;
 
+static void _handle_string_characters(std::string& string, bool allow_newline) {
+	size_t position = 0;
+	for (auto& c : string) {
+		switch (c) {
+			case '\r':
+			case '\n':
+				if (allow_newline) goto END_LOOP;
+				c = ' ';
+				break;
+			default: break;
+		}
+	END_LOOP:
+		position++;
+	}
+}
+
 void ovdl::v2script::ast::copy_into_node_ptr_vector(const std::vector<NodePtr>& source, std::vector<NodeUPtr>& dest) {
 	dest.clear();
 	dest.reserve(source.size());
@@ -23,22 +39,24 @@ void ovdl::v2script::ast::copy_into_node_ptr_vector(const std::vector<NodePtr>& 
 }
 
 AbstractStringNode::AbstractStringNode() : Node({}) {}
-AbstractStringNode::AbstractStringNode(NodeLocation location, std::string&& name) : Node(location),
-																					_name(std::move(name)) {}
+AbstractStringNode::AbstractStringNode(NodeLocation location, std::string&& name, bool allow_newline) : Node(location),
+																										_name(std::move(name)) {
+	_handle_string_characters(_name, allow_newline);
+}
 AbstractStringNode::AbstractStringNode(NodeLocation location) : Node(location) {}
-AbstractStringNode::AbstractStringNode(std::string&& name) : AbstractStringNode({}, std::move(name)) {}
+AbstractStringNode::AbstractStringNode(std::string&& name, bool allow_newline) : AbstractStringNode({}, std::move(name), allow_newline) {}
 
 std::ostream& AbstractStringNode::print(std::ostream& stream, size_t indent) const {
 	return stream << _name;
 }
 
-#define OVDL_AST_STRING_NODE_DEF(NAME, ...)                                                                  \
-	NAME::NAME() : AbstractStringNode() {}                                                                   \
-	NAME::NAME(std::string&& name) : AbstractStringNode(std::move(name)) {}                                  \
-	NAME::NAME(lexy::nullopt) : AbstractStringNode() {}                                                      \
-	NAME::NAME(NodeLocation location) : AbstractStringNode(location) {}                                      \
-	NAME::NAME(NodeLocation location, std::string&& name) : AbstractStringNode(location, std::move(name)) {} \
-	NAME::NAME(NodeLocation location, lexy::nullopt) : AbstractStringNode(location, {}) {}                   \
+#define OVDL_AST_STRING_NODE_DEF(NAME, ...)                                                                                                     \
+	NAME::NAME() : AbstractStringNode() {}                                                                                                      \
+	NAME::NAME(std::string&& name, bool allow_newline) : AbstractStringNode(std::move(name), allow_newline) {}                                  \
+	NAME::NAME(lexy::nullopt) : AbstractStringNode() {}                                                                                         \
+	NAME::NAME(NodeLocation location) : AbstractStringNode(location) {}                                                                         \
+	NAME::NAME(NodeLocation location, std::string&& name, bool allow_newline) : AbstractStringNode(location, std::move(name), allow_newline) {} \
+	NAME::NAME(NodeLocation location, lexy::nullopt) : AbstractStringNode(location, {}, true) {}                                                \
 	std::ostream& NAME::print(std::ostream& stream, size_t indent) const __VA_ARGS__
 
 OVDL_AST_STRING_NODE_DEF(IdentifierNode, {

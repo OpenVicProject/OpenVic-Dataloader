@@ -83,12 +83,13 @@ namespace ovdl::v2script::grammar {
 	template<ParseOptions Options>
 	struct StringExpression {
 		static constexpr auto rule = [] {
-			// Arbitrary code points that aren't control characters.
-			auto c = ovdl::detail::lexydsl::make_range<0x20, 0xFF>() - lexy::dsl::ascii::control;
-
 			if constexpr (Options.NoStringEscape) {
+				auto c = ovdl::detail::lexydsl::make_range<0x20, 0xFF>() / lexy::dsl::lit_b<0x07> / lexy::dsl::lit_b<0x09> / lexy::dsl::lit_b<0x0A> / lexy::dsl::lit_b<0x0D>;
 				return lexy::dsl::delimited(lexy::dsl::position(lexy::dsl::lit_b<'"'>))(c);
 			} else {
+				// Arbitrary code points that aren't control characters.
+				auto c = ovdl::detail::lexydsl::make_range<0x20, 0xFF>() - lexy::dsl::ascii::control;
+
 				// Escape sequences start with a backlash.
 				// They either map one of the symbols,
 				// or a Unicode code point of the form uXXXX.
@@ -102,7 +103,7 @@ namespace ovdl::v2script::grammar {
 			lexy::as_string<std::string> >>
 			lexy::callback<ast::NodePtr>(
 				[](const char* begin, auto&& str, const char* end) {
-					return ast::make_node_ptr<ast::StringNode>(ast::NodeLocation::make_from(begin, end), LEXY_MOV(str));
+					return ast::make_node_ptr<ast::StringNode>(ast::NodeLocation::make_from(begin, end), LEXY_MOV(str), Options.NoStringEscape);
 				});
 	};
 
