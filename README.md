@@ -1,5 +1,5 @@
 # OpenVic-Dataloader
-Repo for the OpenVic-Dataloader for [OpenVic](https://github.com/OpenVicProject/OpenVic)
+Repo of the OpenVic-Dataloader Library for [OpenVic](https://github.com/OpenVicProject/OpenVic)
 
 ## Quickstart Guide
 For detailed instructions, view the OpenVic Contributor Quickstart Guide [here](https://github.com/OpenVicProject/OpenVic/blob/master/docs/contribution-quickstart-guide.md)
