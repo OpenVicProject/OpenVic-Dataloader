@@ -166,9 +166,9 @@ namespace ovdl::v2script::ast {
 	struct AbstractStringNode : public Node {
 		std::string _name;
 		AbstractStringNode();
-		AbstractStringNode(std::string&& name);
+		AbstractStringNode(std::string&& name, bool allow_newline);
 		AbstractStringNode(NodeLocation location);
-		AbstractStringNode(NodeLocation location, std::string&& name);
+		AbstractStringNode(NodeLocation location, std::string&& name, bool allow_newline);
 		OVDL_TYPE_DEFINE_SELF;
 		OVDL_RT_TYPE_DEF;
 		OVDL_PRINT_FUNC_DEF;
@@ -176,17 +176,17 @@ namespace ovdl::v2script::ast {
 		constexpr std::string_view get_base_type() const override { return ::ovdl::detail::type_name<std::decay_t<decltype(*this)>>(); }
 	};
 
-#define OVDL_AST_STRING_NODE(NAME)                       \
-	struct NAME final : public AbstractStringNode {      \
-		NAME();                                          \
-		NAME(std::string&& name);                        \
-		NAME(lexy::nullopt);                             \
-		NAME(NodeLocation location);                     \
-		NAME(NodeLocation location, std::string&& name); \
-		NAME(NodeLocation location, lexy::nullopt);      \
-		OVDL_TYPE_DEFINE_SELF;                           \
-		OVDL_RT_TYPE_DEF;                                \
-		OVDL_PRINT_FUNC_DEF;                             \
+#define OVDL_AST_STRING_NODE(NAME)                                                  \
+	struct NAME final : public AbstractStringNode {                                 \
+		NAME();                                                                     \
+		NAME(std::string&& name, bool allow_newline = true);                        \
+		NAME(lexy::nullopt);                                                        \
+		NAME(NodeLocation location);                                                \
+		NAME(NodeLocation location, std::string&& name, bool allow_newline = true); \
+		NAME(NodeLocation location, lexy::nullopt);                                 \
+		OVDL_TYPE_DEFINE_SELF;                                                      \
+		OVDL_RT_TYPE_DEF;                                                           \
+		OVDL_PRINT_FUNC_DEF;                                                        \
 	}
 
 	// Value Expression Nodes
