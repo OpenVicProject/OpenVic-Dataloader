@@ -215,7 +215,7 @@ OVDL_AST_LIST_NODE_DEF(DecisionListNode, {
 
 #undef OVDL_AST_LIST_NODE_DEF
 
-EventNode::EventNode(NodeLocation location, Type type, const std::vector<NodePtr>& statements) : Node(location),
+EventNode::EventNode(NodeLocation location, Type type, const std::vector<NodePtr>& statements) : AbstractListNode(location),
 																								 _type(type) {
 	copy_into_node_ptr_vector(statements, _statements);
 }
@@ -233,7 +233,7 @@ std::ostream& EventNode::print(std::ostream& stream, size_t indent) const {
 	return stream << '}';
 }
 
-DecisionNode::DecisionNode(NodeLocation location, NodePtr name, const std::vector<NodePtr>& statements) : Node(location),
+DecisionNode::DecisionNode(NodeLocation location, NodePtr name, const std::vector<NodePtr>& statements) : AbstractListNode(location),
 																										  _name(std::move(name)) {
 	copy_into_node_ptr_vector(statements, _statements);
 }
@@ -261,7 +261,7 @@ std::ostream& ExecutionNode::print(std::ostream& stream, size_t indent) const {
 	return stream;
 }
 
-ExecutionListNode::ExecutionListNode(NodeLocation location, ExecutionNode::Type type, const std::vector<NodePtr>& statements) : Node(location),
+ExecutionListNode::ExecutionListNode(NodeLocation location, ExecutionNode::Type type, const std::vector<NodePtr>& statements) : AbstractListNode(location),
 																																_type(type) {
 	copy_into_node_ptr_vector(statements, _statements);
 }

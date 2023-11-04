@@ -30,9 +30,9 @@ namespace ovdl::v2script {
 	constexpr std::string_view get_type() const override { return ::ovdl::detail::type_name<std::decay_t<decltype(*this)>>(); }
 
 // defines type for self-class referencing
-#define OVDL_TYPE_DEFINE_SELF                                                                                \
-	struct _self_type_tag {};                                                                                \
-	constexpr auto _self_type_helper()->decltype(::ovdl::detail::Writer<_self_type_tag, decltype(this)> {}); \
+#define OVDL_TYPE_DEFINE_SELF                                                                                  \
+	struct _self_type_tag {};                                                                                  \
+	constexpr auto _self_type_helper() -> decltype(::ovdl::detail::Writer<_self_type_tag, decltype(this)> {}); \
 	using type = ::ovdl::detail::Read<_self_type_tag>;
 
 namespace ovdl::v2script::ast {
@@ -248,37 +248,35 @@ namespace ovdl::v2script::ast {
 
 #undef OVDL_AST_LIST_NODE
 
-	struct EventNode final : public Node {
+#define OVDL_AST_LIST_EXTEND(NAME)              \
+	NAME(lexy::nullopt);                        \
+	NAME(NodeLocation location, lexy::nullopt); \
+	OVDL_TYPE_DEFINE_SELF;                      \
+	OVDL_RT_TYPE_DEF;                           \
+	OVDL_PRINT_FUNC_DEF
+
+	struct EventNode final : public AbstractListNode {
+		OVDL_AST_LIST_EXTEND(EventNode);
 		enum class Type {
 			Country,
 			Province
 		} _type;
-		std::vector<NodeUPtr> _statements;
 		EventNode(Type type, const std::vector<NodePtr>& statements = {});
 		EventNode(NodeLocation location, Type type, const std::vector<NodePtr>& statements = {});
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
 	};
 
-	struct DecisionNode final : public Node {
+	struct DecisionNode final : public AbstractListNode {
+		OVDL_AST_LIST_EXTEND(DecisionNode);
 		NodeUPtr _name;
-		std::vector<NodeUPtr> _statements;
 		DecisionNode(NodePtr name, const std::vector<NodePtr>& statements = {});
 		DecisionNode(NodeLocation location, NodePtr name, const std::vector<NodePtr>& statements = {});
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
 	};
 
-	struct EventMtthModifierNode final : public Node {
+	struct EventMtthModifierNode final : public AbstractListNode {
+		OVDL_AST_LIST_EXTEND(EventMtthModifierNode);
 		NodeUPtr _factor_value;
-		std::vector<NodeUPtr> _statements;
-		EventMtthModifierNode() : Node({}) {}
-		EventMtthModifierNode(NodeLocation location) : Node(location) {}
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
+		EventMtthModifierNode() : AbstractListNode() {}
+		EventMtthModifierNode(NodeLocation location) : AbstractListNode(location) {}
 	};
 
 	// Packed single case
@@ -296,15 +294,14 @@ namespace ovdl::v2script::ast {
 		OVDL_PRINT_FUNC_DEF;
 	};
 
-	struct ExecutionListNode final : public Node {
+	struct ExecutionListNode final : public AbstractListNode {
+		OVDL_AST_LIST_EXTEND(ExecutionListNode);
 		ExecutionNode::Type _type;
-		std::vector<NodeUPtr> _statements;
 		ExecutionListNode(ExecutionNode::Type type, const std::vector<NodePtr>& statements);
 		ExecutionListNode(NodeLocation location, ExecutionNode::Type type, const std::vector<NodePtr>& statements);
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
 	};
+
+#undef OVDL_AST_LIST_EXTEND
 
 }
 
