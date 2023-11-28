@@ -1,47 +1,34 @@
-#include <memory>
 #include <vector>
 
+#include <openvic-dataloader/File.hpp>
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/csv/Parser.hpp>
-#include <openvic-dataloader/detail/ClassExport.hpp>
+#include <openvic-dataloader/detail/LexyReportError.hpp>
+#include <openvic-dataloader/detail/OStreamOutputIterator.hpp>
+#include <openvic-dataloader/detail/utility/Utility.hpp>
 
 #include <lexy/action/parse.hpp>
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 #include <lexy/input/file.hpp>
 
-#include "csv/CsvGrammar.hpp"
-#include "detail/BasicBufferHandler.hpp"
-#include "detail/LexyReportError.hpp"
-#include "detail/OStreamOutputIterator.hpp"
+#include "CsvGrammar.hpp"
+#include "CsvParseState.hpp"
+#include "detail/NullBuff.hpp"
+#include "detail/ParseHandler.hpp"
 
 using namespace ovdl;
 using namespace ovdl::csv;
 
-///	BufferHandler ///
-
-template<EncodingType>
-struct LexyEncodingFrom {
-};
-
-template<>
-struct LexyEncodingFrom<EncodingType::Windows1252> {
-	using encoding = lexy::default_encoding;
-};
-
-template<>
-struct LexyEncodingFrom<EncodingType::Utf8> {
-	using encoding = lexy::utf8_char_encoding;
-};
+///	ParseHandler ///
 
 template<EncodingType Encoding>
-class Parser<Encoding>::BufferHandler final : public detail::BasicBufferHandler<typename LexyEncodingFrom<Encoding>::encoding> {
-public:
-	template<typename Node, typename ErrorCallback>
-	std::optional<std::vector<ParseError>> parse(const ErrorCallback& callback) {
-		auto result = lexy::parse<Node>(this->_buffer, callback);
+struct Parser<Encoding>::ParseHandler final : detail::BasicFileParseHandler<CsvParseState<Encoding>> {
+	template<typename Node>
+	std::optional<DiagnosticLogger::error_range> parse() {
+		auto result = lexy::parse<Node>(this->buffer(), *this->_parse_state, this->_parse_state->logger().error_callback());
 		if (!result) {
-			return result.errors();
+			return this->_parse_state->logger().get_errors();
 		}
 		_lines = std::move(result.value());
 		return std::nullopt;
@@ -59,8 +46,14 @@ private:
 
 template<EncodingType Encoding>
 Parser<Encoding>::Parser()
-	: _buffer_handler(std::make_unique<BufferHandler>()) {
-	set_error_log_to_stderr();
+	: _parse_handler(std::make_unique<ParseHandler>()) {
+	set_error_log_to_null();
+}
+
+template<EncodingType Encoding>
+Parser<Encoding>::Parser(std::basic_ostream<char>& error_stream)
+	: _parse_handler(std::make_unique<ParseHandler>()) {
+	set_error_log_to(error_stream);
 }
 
 template<EncodingType Encoding>
@@ -115,28 +108,31 @@ Parser<Encoding> Parser<Encoding>::from_file(const std::filesystem::path& path) 
 ///
 template<EncodingType Encoding>
 template<typename... Args>
-constexpr void Parser<Encoding>::_run_load_func(detail::LoadCallback<BufferHandler, Args...> auto func, Args... args) {
-	_warnings.clear();
-	_errors.clear();
+constexpr void Parser<Encoding>::_run_load_func(detail::LoadCallback<ParseHandler, Args...> auto func, Args... args) {
 	_has_fatal_error = false;
-	if (auto error = func(_buffer_handler.get(), std::forward<Args>(args)...); error) {
-		_has_fatal_error = error.value().type == ParseError::Type::Fatal;
-		_errors.push_back(error.value());
-		_error_stream.get() << "Error: " << _errors.back().message << '\n';
+	auto error = func(_parse_handler.get(), std::forward<Args>(args)...);
+	auto error_message = _parse_handler->make_error_from(error);
+	if (!error_message.empty()) {
+		_has_error = true;
+		_has_fatal_error = true;
+		_parse_handler->parse_state().logger().template create_log<error::BufferError>(DiagnosticLogger::DiagnosticKind::error, fmt::runtime(error_message));
+	}
+	if (has_error() && &_error_stream.get() != &detail::cnull) {
+		print_errors_to(_error_stream.get());
 	}
 }
 
 template<EncodingType Encoding>
 constexpr Parser<Encoding>& Parser<Encoding>::load_from_buffer(const char* data, std::size_t size) {
 	// Type can't be deduced?
-	_run_load_func(std::mem_fn(&BufferHandler::load_buffer_size), data, size);
+	_run_load_func(std::mem_fn(&ParseHandler::load_buffer_size), data, size);
 	return *this;
 }
 
 template<EncodingType Encoding>
 constexpr Parser<Encoding>& Parser<Encoding>::load_from_buffer(const char* start, const char* end) {
 	// Type can't be deduced?
-	_run_load_func(std::mem_fn(&BufferHandler::load_buffer), start, end);
+	_run_load_func(std::mem_fn(&ParseHandler::load_buffer), start, end);
 	return *this;
 }
 
@@ -149,7 +145,7 @@ template<EncodingType Encoding>
 constexpr Parser<Encoding>& Parser<Encoding>::load_from_file(const char* path) {
 	_file_path = path;
 	// Type can be deduced??
-	_run_load_func(std::mem_fn(&BufferHandler::load_file), path);
+	_run_load_func(std::mem_fn(&ParseHandler::load_file), path);
 	return *this;
 }
 
@@ -159,44 +155,95 @@ Parser<Encoding>& Parser<Encoding>::load_from_file(const std::filesystem::path& 
 }
 
 template<EncodingType Encoding>
-constexpr Parser<Encoding>& Parser<Encoding>::load_from_file(const detail::Has_c_str auto& path) {
-	return load_from_file(path.c_str());
-}
-
-template<EncodingType Encoding>
 bool Parser<Encoding>::parse_csv(bool handle_strings) {
-	if (!_buffer_handler->is_valid()) {
+	if (!_parse_handler->is_valid()) {
 		return false;
 	}
 
-	std::optional<std::vector<ParseError>> errors;
-	auto report_error = ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream });
+	std::optional<Parser<Encoding>::error_range> errors;
+	// auto report_error = ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream });
 	if constexpr (Encoding == EncodingType::Windows1252) {
 		if (handle_strings)
-			errors = _buffer_handler->template parse<csv::grammar::windows1252::strings::SemiColonFile>(report_error);
+			errors = _parse_handler->template parse<csv::grammar::windows1252::strings::SemiColonFile>();
 		else
-			errors = _buffer_handler->template parse<csv::grammar::windows1252::SemiColonFile>(report_error);
+			errors = _parse_handler->template parse<csv::grammar::windows1252::SemiColonFile>();
 	} else {
 		if (handle_strings)
-			errors = _buffer_handler->template parse<csv::grammar::utf8::strings::SemiColonFile>(report_error);
+			errors = _parse_handler->template parse<csv::grammar::utf8::strings::SemiColonFile>();
 		else
-			errors = _buffer_handler->template parse<csv::grammar::utf8::SemiColonFile>(report_error);
+			errors = _parse_handler->template parse<csv::grammar::utf8::SemiColonFile>();
 	}
-	if (errors) {
-		_errors.reserve(errors->size());
-		for (auto& err : errors.value()) {
-			_has_fatal_error |= err.type == ParseError::Type::Fatal;
-			_errors.push_back(err);
+	_has_error = _parse_handler->parse_state().logger().errored();
+	_has_warning = _parse_handler->parse_state().logger().warned();
+	if (!errors->empty()) {
+		_has_fatal_error = true;
+		if (&_error_stream.get() != &detail::cnull) {
+			print_errors_to(_error_stream);
 		}
 		return false;
 	}
-	_lines = std::move(_buffer_handler->get_lines());
+	_lines = std::move(_parse_handler->get_lines());
 	return true;
 }
 
 template<EncodingType Encoding>
 const std::vector<csv::LineObject>& Parser<Encoding>::get_lines() const {
 	return _lines;
+}
+
+template<EncodingType Encoding>
+typename Parser<Encoding>::error_range Parser<Encoding>::get_errors() const {
+	return _parse_handler->parse_state().logger().get_errors();
+}
+
+template<EncodingType Encoding>
+const FilePosition Parser<Encoding>::get_error_position(const error::Error* error) const {
+	if (!error || !error->is_linked_in_tree()) {
+		return {};
+	}
+	auto err_location = _parse_handler->parse_state().logger().location_of(error);
+	if (err_location.is_synthesized()) {
+		return {};
+	}
+
+	auto loc_begin = lexy::get_input_location(_parse_handler->buffer(), err_location.begin());
+	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+	if (err_location.begin() < err_location.end()) {
+		auto loc_end = lexy::get_input_location(_parse_handler->buffer(), err_location.end(), loc_begin.anchor());
+		result.end_line = loc_end.line_nr();
+		result.end_column = loc_end.column_nr();
+	}
+	return result;
+}
+
+template<EncodingType Encoding>
+void Parser<Encoding>::print_errors_to(std::basic_ostream<char>& stream) const {
+	auto errors = get_errors();
+	if (errors.empty()) return;
+	for (const auto error : errors) {
+		dryad::visit_tree(
+			error,
+			[&](const error::BufferError* buffer_error) {
+				stream << buffer_error->message() << '\n';
+			},
+			[&](const error::ParseError* parse_error) {
+				stream << parse_error->message() << '\n';
+			},
+			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::Semantic* semantic) {
+				stream << semantic->message() << '\n';
+				auto annotations = semantic->annotations();
+				if (annotations.empty()) return;
+				for (auto annotation : annotations) {
+					visitor(annotation);
+				}
+			},
+			[&](const error::PrimaryAnnotation* primary) {
+				stream << primary->message() << '\n';
+			},
+			[&](const error::SecondaryAnnotation* secondary) {
+				stream << secondary->message() << '\n';
+			});
+	}
 }
 
 template class ovdl::csv::Parser<EncodingType::Windows1252>;

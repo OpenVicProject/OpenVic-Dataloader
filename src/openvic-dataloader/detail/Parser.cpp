@@ -1,7 +1,7 @@
 #include <iostream>
 #include <ostream>
 
-#include <openvic-dataloader/detail/BasicParser.hpp>
+#include <openvic-dataloader/Parser.hpp>
 
 #include "detail/NullBuff.hpp"
 
@@ -27,7 +27,7 @@ void BasicParser::set_error_log_to(std::basic_ostream<char>& stream) {
 }
 
 bool BasicParser::has_error() const {
-	return !_errors.empty();
+	return _has_error;
 }
 
 bool BasicParser::has_fatal_error() const {
@@ -35,15 +35,7 @@ bool BasicParser::has_fatal_error() const {
 }
 
 bool BasicParser::has_warning() const {
-	return !_warnings.empty();
-}
-
-const std::vector<ovdl::ParseError>& BasicParser::get_errors() const {
-	return _errors;
-}
-
-const std::vector<ovdl::ParseWarning>& BasicParser::get_warnings() const {
-	return _warnings;
+	return _has_warning;
 }
 
 std::string_view BasicParser::get_file_path() const {

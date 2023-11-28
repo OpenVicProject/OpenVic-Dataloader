@@ -17,7 +17,7 @@ def build_lexy(env):
         lexy_env.Append(CXXFLAGS=["-std=c++20"])
 
         lexy_env.Append(CXXFLAGS=["-pedantic-errors", "-Werror", "-Wall", "-Wextra", "-Wconversion", "-Wsign-conversion"])
-        if lexy_env.get("use_llvm"):
+        if lexy_env["CXX"] == "clang++":
             lexy_env.Append(CXXFLAGS=["-Wno-shift-op-parentheses", "-Wno-parentheses-equality"])
         else:
             lexy_env.Append(CXXFLAGS=[
@@ -41,5 +41,79 @@ def build_lexy(env):
     env.Append(LIBPATH=[lexy_env.Dir("lexy/src")])
     env.Prepend(LIBS=[library_name])
 
+def build_dryad(env):
+    paths = ["dryad/include"]
+    sources = env.GlobRecursive("*.cpp", paths)
+    env.dryad_sources = sources
 
+    env.Append(CPPPATH=[env.Dir("dryad/include")])
+    if env.get("is_msvc", False):
+        env.Append(CXXFLAGS=["/external:I", env.Dir("dryad/include"), "/external:W0"])
+    else:
+        env.Append(CXXFLAGS=["-isystem", env.Dir("dryad/include")])
+
+def build_fmt(env):
+    fmt_env = env.Clone()
+
+    # Require C++20
+    if fmt_env.get("is_msvc", False):
+        fmt_env.Append(CXXFLAGS=["/std:c++20"])
+
+        fmt_env.Append(CXXFLAGS=["/WX", "/W3", "/D", "_CRT_SECURE_NO_WARNINGS"])
+    else:
+        fmt_env.Append(CXXFLAGS=["-std=c++20"])
+
+        fmt_env.Append(CXXFLAGS=[
+            "-Werror", "-Wall", "-Wextra", "-pedantic", "-Wconversion", "-Wundef"
+        ])
+        if fmt_env["CXX"] == "clang++":
+            fmt_env.Append(CXXFLAGS=[
+                "-Wweak-vtables", "-Wshadow",
+                "-Wno-gnu-zero-variadic-macro-arguments"
+            ])
+        else:
+            fmt_env.Append(CXXFLAGS=[
+                "-Wsign-conversion", "-Wold-style-cast",
+                "-Wundef", "-Wredundant-decls", "-Wwrite-strings",
+                "-Wpointer-arith", "-Wcast-qual", "-Wformat=2",
+                "-Wmissing-include-dirs", "-Wcast-align", "-Wctor-dtor-privacy",
+                "-Wdisabled-optimization", "-Winvalid-pch", "-Woverloaded-virtual",
+                "-Wconversion", "-Wundef", "-Wno-ctor-dtor-privacy", "-Wno-format-nonliteral",
+                "-Wno-dangling-else", "-Wno-unused-local-typedefs", "-Wdouble-promotion",
+                "-Wtrampolines", "-Wzero-as-null-pointer-constant", "-Wuseless-cast",
+                "-Wvector-operation-performance", "-Wsized-deallocation", "-Wshadow",
+                "-Wshift-overflow=2", "-Wnull-dereference", "-Wduplicated-cond"
+            ])
+
+    paths = ["fmt/include", "fmt/src"]
+    fmt_env.Append(CPPPATH=[[fmt_env.Dir(p) for p in paths]])
+    sources = env.GlobRecursive("*.cc", paths, "fmt.cc")
+    env.lexy_sources = sources
+    library_name = "libfmt" + env["LIBSUFFIX"]
+    library = fmt_env.StaticLibrary(target="fmt/src/" + library_name, source=sources)
+    Default(library)
+
+    env.Append(CPPPATH=[fmt_env.Dir("fmt/include")])
+    if env.get("is_msvc", False):
+        env.Append(CXXFLAGS=["/external:I", fmt_env.Dir("fmt/include"), "/external:W0"])
+    else:
+        env.Append(CXXFLAGS=["-isystem", fmt_env.Dir("fmt/include")])
+    env.Append(CXXFLAGS=[""])
+    env.Append(LIBPATH=[fmt_env.Dir("fmt/src")])
+    env.Prepend(LIBS=[library_name])
+
+def build_range_v3(env):
+    paths = ["range-v3/include"]
+    sources = env.GlobRecursive("*.cpp", paths)
+    env.range_v3_sources = sources
+
+    env.Append(CPPPATH=[env.Dir("range-v3/include")])
+    if env.get("is_msvc", False):
+        env.Append(CXXFLAGS=["/external:I", env.Dir("range-v3/include"), "/external:W0"])
+    else:
+        env.Append(CXXFLAGS=["-isystem", env.Dir("range-v3/include")])
+
+build_dryad(env)
+build_fmt(env)
 build_lexy(env)
+build_range_v3(env)

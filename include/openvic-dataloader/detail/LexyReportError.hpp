@@ -7,10 +7,11 @@
 
 #include <openvic-dataloader/ParseData.hpp>
 #include <openvic-dataloader/ParseError.hpp>
-#include <openvic-dataloader/detail/Concepts.hpp>
 
 #include <lexy/input_location.hpp>
 #include <lexy/visualize.hpp>
+
+#include "openvic-dataloader/detail/utility/Concepts.hpp"
 
 #include <lexy_ext/report_error.hpp>
 
@@ -86,7 +87,7 @@ namespace ovdl::detail {
 			return { _iter, _opts, path };
 		}
 
-		constexpr _ReportError path(const detail::Has_c_str auto& path_object) const {
+		constexpr _ReportError path(const detail::HasCstr auto& path_object) const {
 			return path(path_object.c_str());
 		}
 

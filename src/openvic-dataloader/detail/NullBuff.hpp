@@ -22,9 +22,9 @@ namespace ovdl::detail {
 		basic_nullbuf<cT, traits> m_sbuf;
 	};
 
-	typedef basic_onullstream<char> onullstream;
-	typedef basic_onullstream<wchar_t> wonullstream;
+	using onullstream = basic_onullstream<char>;
+	using wonullstream = basic_onullstream<wchar_t>;
 
-	inline onullstream cnull;
-	inline onullstream wcnull;
+	static inline onullstream cnull;
+	static inline onullstream wcnull;
 }
