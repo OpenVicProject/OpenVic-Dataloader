@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-#include <openvic-dataloader/detail/VectorConstexpr.hpp>
+#include <openvic-dataloader/detail/utility/Constexpr.hpp>
 
 namespace ovdl::csv {
 	/// LineObject should be able to recognize the differences between:

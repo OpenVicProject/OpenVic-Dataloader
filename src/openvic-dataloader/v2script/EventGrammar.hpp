@@ -1,168 +1,109 @@
 #pragma once
 
-#include <string>
-#include <vector>
+#include <cctype>
+#include <cstdlib>
 
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
+#include <lexy/grammar.hpp>
 
-#include "AiBehaviorGrammar.hpp"
-#include "EffectGrammar.hpp"
-#include "ModifierGrammar.hpp"
+#include "openvic-dataloader/NodeLocation.hpp"
+
 #include "SimpleGrammar.hpp"
-#include "TriggerGrammar.hpp"
+#include "detail/dsl.hpp"
+#include "v2script/AiBehaviorGrammar.hpp"
+#include "v2script/EffectGrammar.hpp"
+#include "v2script/ModifierGrammar.hpp"
 
 // Event Grammar Definitions //
 namespace ovdl::v2script::grammar {
-	//////////////////
-	// Macros
-	//////////////////
-// Produces <KW_NAME>_rule and <KW_NAME>_p
-#define OVDL_GRAMMAR_KEYWORD_DEFINE(KW_NAME)                                                                        \
-	struct KW_NAME##_rule {                                                                                         \
-		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier<StringEscapeOption>>); \
-		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                                              \
-		static constexpr auto value = lexy::noop;                                                                   \
-	};                                                                                                              \
-	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule>
-
-// Produces <KW_NAME>_rule and <KW_NAME>_p and <KW_NAME>_rule::flag and <KW_NAME>_rule::too_many_error
-#define OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(KW_NAME)                                                                   \
-	struct KW_NAME##_rule {                                                                                         \
-		static constexpr auto keyword = LEXY_KEYWORD(#KW_NAME, lexy::dsl::inline_<Identifier<StringEscapeOption>>); \
-		static constexpr auto rule = keyword >> lexy::dsl::equal_sign;                                              \
-		static constexpr auto value = lexy::noop;                                                                   \
-		static constexpr auto flag = lexy::dsl::context_flag<struct KW_NAME##_context>;                             \
-		struct too_many_error {                                                                                     \
-			static constexpr auto name = "expected left side " #KW_NAME " to be found once";                        \
-		};                                                                                                          \
-	};                                                                                                              \
-	static constexpr auto KW_NAME##_p = lexy::dsl::p<KW_NAME##_rule> >> (lexy::dsl::must(KW_NAME##_rule::flag.is_reset()).error<KW_NAME##_rule::too_many_error> + KW_NAME##_rule::flag.set())
-	//////////////////
-	// Macros
-	//////////////////
-	static constexpr auto event_symbols = lexy::symbol_table<ast::EventNode::Type> //
-											  .map<LEXY_SYMBOL("country_event")>(ast::EventNode::Type::Country)
-											  .map<LEXY_SYMBOL("province_event")>(ast::EventNode::Type::Province);
+	static constexpr auto event_symbols = lexy::symbol_table<bool> //
+											  .map<LEXY_SYMBOL("country_event")>(false)
+											  .map<LEXY_SYMBOL("province_event")>(true);
 
 	struct EventMtthStatement {
-		OVDL_GRAMMAR_KEYWORD_DEFINE(months);
-
 		struct MonthValue {
-			static constexpr auto rule = lexy::dsl::inline_<Identifier<StringEscapeOption>>;
-			static constexpr auto value = lexy::as_string<std::string> | lexy::new_<ast::MonthNode, ast::NodePtr>;
+			static constexpr auto rule = lexy::dsl::p<Identifier<StringEscapeOption>>;
+			static constexpr auto value = dsl::callback<ast::IdentifierValue*>(
+				[](ast::ParseState& state, ast::IdentifierValue* value) {
+					bool is_number = true;
+					for (auto* current = value->value(state.ast().symbol_interner()); *current; current++) {
+						is_number = is_number && std::isdigit(*current);
+						if (!is_number) break;
+					}
+					if (!is_number) {
+						state.logger().warning("month is not an integer") //
+							.primary(state.ast().location_of(value), "here")
+							.finish();
+					}
+					return value;
+				});
 		};
 
-		static constexpr auto rule = lexy::dsl::list(
-			(months_p >> lexy::dsl::p<MonthValue>) |
-			lexy::dsl::p<ModifierStatement>);
+		using months = keyword_rule<"months", lexy::dsl::p<MonthValue>>;
 
-		static constexpr auto value =
-			lexy::as_list<std::vector<ast::NodePtr>> >>
-			lexy::callback<ast::NodePtr>(
-				[](auto&& list) {
-					return ast::make_node_ptr<ast::MtthNode>(LEXY_MOV(list));
-				});
+		static constexpr auto rule = dsl::curly_bracketed(lexy::dsl::p<months> | lexy::dsl::p<ModifierStatement>);
+
+		static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue, true>;
 	};
 
-	template<auto Production, typename AstNode>
-	struct _StringStatement {
-		static constexpr auto rule = Production >> (lexy::dsl::p<StringExpression<StringEscapeOption>> | lexy::dsl::p<Identifier<StringEscapeOption>>);
-		static constexpr auto value =
-			lexy::callback<ast::NodePtr>(
-				[](auto&& value) {
-					auto result = ast::make_node_ptr<AstNode>(std::move(static_cast<ast::AbstractStringNode*>(value)->_name));
-					delete value;
-					return result;
-				});
-	};
-	template<auto Production, typename AstNode>
-	static constexpr auto StringStatement = lexy::dsl::p<_StringStatement<Production, AstNode>>;
+	static constexpr auto str_or_id = lexy::dsl::p<SimpleGrammar<StringEscapeOption>::ValueExpression>;
 
 	struct EventOptionList {
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(name);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(ai_chance);
+		using name = fkeyword_rule<"name", str_or_id>;
+		using ai_chance = fkeyword_rule<"ai_chance", lexy::dsl::p<AiBehaviorBlock>>;
 
 		static constexpr auto rule = [] {
-			constexpr auto create_flags = name_rule::flag.create() + ai_chance_rule::flag.create();
+			using helper = dsl::rule_helper<name, ai_chance>;
 
-			constexpr auto name_statement = StringStatement<name_p, ast::NameNode>;
-			constexpr auto ai_chance_statement = ai_chance_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<AiBehaviorList>);
-
-			return create_flags + lexy::dsl::list(name_statement | ai_chance_statement | lexy::dsl::p<EffectList>);
+			return dsl::curly_bracketed(helper::flags + lexy::dsl::list(helper::p | lexy::dsl::p<EffectStatement>));
 		}();
 
-		static constexpr auto value =
-			lexy::as_list<std::vector<ast::NodePtr>> >>
-			lexy::callback<ast::NodePtr>(
-				[](auto&& list) {
-					return ast::make_node_ptr<ast::EventOptionNode>(LEXY_MOV(list));
-				});
+		static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue, true>;
 	};
 
 	struct EventStatement {
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(id);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(title);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(desc);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(picture);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(is_triggered_only);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(fire_only_once);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(immediate);
-		OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE(mean_time_to_happen);
-		OVDL_GRAMMAR_KEYWORD_DEFINE(trigger);
-		OVDL_GRAMMAR_KEYWORD_DEFINE(option);
+		using id = fkeyword_rule<"id", str_or_id>;
+		using title = fkeyword_rule<"title", str_or_id>;
+		using desc = fkeyword_rule<"desc", str_or_id>;
+		using picture = fkeyword_rule<"picture", str_or_id>;
+		using is_triggered_only = fkeyword_rule<"is_triggered_only", str_or_id>;
+		using fire_only_once = fkeyword_rule<"fire_only_once", str_or_id>;
+		using immediate = fkeyword_rule<"immediate", lexy::dsl::p<EffectBlock>>;
+		using mean_time_to_happen = fkeyword_rule<"mean_time_to_happen", lexy::dsl::p<EventMtthStatement>>;
+		using trigger = keyword_rule<"trigger", lexy::dsl::p<TriggerBlock>>;
+		using option = keyword_rule<"option", lexy::dsl::p<EventOptionList>>;
 
-		static constexpr auto rule = [] {
-			constexpr auto symbol_value = lexy::dsl::symbol<event_symbols>(lexy::dsl::inline_<Identifier<StringEscapeOption>>);
+		struct EventList {
+			static constexpr auto rule = [] {
+				using helper = dsl::rule_helper<id, title, desc, picture, is_triggered_only, fire_only_once, immediate, mean_time_to_happen>;
 
-			constexpr auto create_flags =
-				id_rule::flag.create() +
-				title_rule::flag.create() +
-				desc_rule::flag.create() +
-				picture_rule::flag.create() +
-				is_triggered_only_rule::flag.create() +
-				fire_only_once_rule::flag.create() +
-				immediate_rule::flag.create() +
-				mean_time_to_happen_rule::flag.create();
+				return helper::flags +
+					   dsl::curly_bracketed.opt_list(
+						   helper::p | lexy::dsl::p<trigger> | lexy::dsl::p<option> |
+						   lexy::dsl::p<SAssignStatement<StringEscapeOption>>);
+			}();
 
-			constexpr auto id_statement = StringStatement<id_p, ast::IdNode>;
-			constexpr auto title_statement = StringStatement<title_p, ast::TitleNode>;
-			constexpr auto desc_statement = StringStatement<desc_p, ast::DescNode>;
-			constexpr auto picture_statement = StringStatement<picture_p, ast::PictureNode>;
-			constexpr auto is_triggered_only_statement = StringStatement<is_triggered_only_p, ast::IsTriggeredNode>;
-			constexpr auto fire_only_once_statement = StringStatement<fire_only_once_p, ast::FireOnlyNode>;
-			constexpr auto immediate_statement = immediate_p >> lexy::dsl::p<EffectBlock>;
-			constexpr auto mean_time_to_happen_statement = mean_time_to_happen_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<EventMtthStatement>);
+			static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue, true>;
+		};
 
-			constexpr auto trigger_statement = trigger_p >> lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>);
-			constexpr auto option_statement = option_p >> lexy::dsl::curly_bracketed(lexy::dsl::p<EventOptionList>);
-
-			return symbol_value >>
-				   (create_flags + lexy::dsl::equal_sign +
-					   lexy::dsl::curly_bracketed.opt_list(
-						   id_statement |
-						   title_statement |
-						   desc_statement |
-						   picture_statement |
-						   is_triggered_only_statement |
-						   fire_only_once_statement |
-						   immediate_statement |
-						   mean_time_to_happen_statement |
-						   trigger_statement |
-						   option_statement |
-						   lexy::dsl::p<SimpleAssignmentStatement<StringEscapeOption>>));
-		}();
+		static constexpr auto rule = dsl::p<Identifier<StringEscapeOption>> >> lexy::dsl::equal_sign >> lexy::dsl::p<EventList>;
 
 		static constexpr auto value =
-			lexy::as_list<std::vector<ast::NodePtr>> >>
-			lexy::callback<ast::NodePtr>(
-				[](auto& type, auto&& list) {
-					return ast::make_node_ptr<ast::EventNode>(type, LEXY_MOV(list));
-				},
-				[](auto& type, lexy::nullopt = {}) {
-					return ast::make_node_ptr<ast::EventNode>(type);
+			dsl::callback<ast::EventStatement*>(
+				[](ast::ParseState& state, NodeLocation loc, ast::IdentifierValue* name, ast::ListValue* list) {
+					static auto country_decl = state.ast().intern_cstr("country_event");
+					static auto province_decl = state.ast().intern_cstr("province_event");
+
+					if (name->value(state.ast().symbol_interner()) != country_decl || name->value(state.ast().symbol_interner()) != province_decl) {
+						state.logger().warning("event declarator \"{}\" is not {} or {}", name->value(state.ast().symbol_interner()), country_decl, province_decl) //
+							.primary(loc, "here")
+							.finish();
+					}
+
+					return state.ast().create<ast::EventStatement>(loc, name->value(state.ast().symbol_interner()) == province_decl, list);
 				});
 	};
 
@@ -170,13 +111,8 @@ namespace ovdl::v2script::grammar {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<EventStatement> | lexy::dsl::p<SimpleAssignmentStatement<StringEscapeOption>>);
+		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<EventStatement> | lexy::dsl::p<SAssignStatement<StringEscapeOption>>);
 
-		static constexpr auto value = lexy::as_list<std::vector<ast::NodePtr>> >> lexy::new_<ast::FileNode, ast::NodePtr>;
+		static constexpr auto value = lexy::as_list<ast::StatementList> >> construct<ast::FileTree>;
 	};
-
-#undef OVDL_GRAMMAR_KEYWORD_DEFINE
-#undef OVDL_GRAMMAR_KEYWORD_FLAG_DEFINE
-#undef OVDL_GRAMMAR_KEYWORD_STATEMENT
-#undef OVDL_GRAMMAR_KEYWORD_FLAG_STATEMENT
 }

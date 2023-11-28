@@ -3,7 +3,7 @@
 #include <lexy/action/match.hpp>
 #include <lexy/dsl.hpp>
 
-#include "detail/LexyLitRange.hpp"
+#include "detail/dsl.hpp"
 
 namespace ovdl::detail {
 	namespace detect_utf8 {
@@ -18,15 +18,15 @@ namespace ovdl::detail {
 				constexpr auto is_not_ascii_flag = lexy::dsl::context_flag<DetectUtf8>;
 
 				// & 0b10000000 == 0b00000000
-				constexpr auto ascii_values = lexydsl::make_range<0b00000000, 0b01111111>();
+				constexpr auto ascii_values = dsl::make_range<0b00000000, 0b01111111>();
 				// & 0b11100000 == 0b11000000
-				constexpr auto two_byte = lexydsl::make_range<0b11000000, 0b11011111>();
+				constexpr auto two_byte = dsl::make_range<0b11000000, 0b11011111>();
 				// & 0b11110000 == 0b11100000
-				constexpr auto three_byte = lexydsl::make_range<0b11100000, 0b11101111>();
+				constexpr auto three_byte = dsl::make_range<0b11100000, 0b11101111>();
 				// & 0b11111000 == 0b11110000
-				constexpr auto four_byte = lexydsl::make_range<0b11110000, 0b11110111>();
+				constexpr auto four_byte = dsl::make_range<0b11110000, 0b11110111>();
 				// & 0b11000000 == 0b10000000
-				constexpr auto check_bytes = lexydsl::make_range<0b10000000, 0b10111111>();
+				constexpr auto check_bytes = dsl::make_range<0b10000000, 0b10111111>();
 
 				constexpr auto utf8_check =
 					((four_byte >> lexy::dsl::times<3>(check_bytes)) |

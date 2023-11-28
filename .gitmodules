@@ -5,3 +5,12 @@
 [submodule "scripts"]
 	path = scripts
 	url = https://github.com/OpenVicProject/scripts
+[submodule "deps/dryad"]
+	path = deps/dryad
+	url = https://github.com/Spartan322/dryad
+[submodule "deps/fmt"]
+	path = deps/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "deps/range-v3"]
+	path = deps/range-v3
+	url = https://github.com/ericniebler/range-v3
