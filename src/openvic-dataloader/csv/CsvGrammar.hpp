@@ -165,9 +165,9 @@ namespace ovdl::csv::grammar {
 
 	template<ParseOptions Options>
 	struct File {
-		static constexpr auto rule =
-			lexy::dsl::whitespace(lexy::dsl::newline) +
-			lexy::dsl::opt(lexy::dsl::list(lexy::dsl::p<Line<Options>>, lexy::dsl::trailing_sep(lexy::dsl::eol)));
+		static constexpr auto rule = lexy::dsl::terminator(lexy::dsl::eof).opt_list(
+			lexy::dsl::p<Line<Options>> | lexy::dsl::newline
+		);
 
 		static constexpr auto value = lexy::as_list<std::vector<ovdl::csv::LineObject>>;
 	};
