@@ -21,7 +21,6 @@
 #include <lexy/lexeme.hpp>
 #include <lexy/visualize.hpp>
 
-#include "SimpleGrammar.hpp"
 #include "detail/BasicBufferHandler.hpp"
 #include "detail/DetectUtf8.hpp"
 #include "detail/Errors.hpp"
@@ -32,6 +31,8 @@
 #include "v2script/DecisionGrammar.hpp"
 #include "v2script/EventGrammar.hpp"
 #include "v2script/LuaDefinesGrammar.hpp"
+
+#include "SimpleGrammar.hpp"
 
 using namespace ovdl;
 using namespace ovdl::v2script;
