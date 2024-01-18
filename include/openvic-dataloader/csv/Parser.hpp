@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/detail/BasicParser.hpp>
 

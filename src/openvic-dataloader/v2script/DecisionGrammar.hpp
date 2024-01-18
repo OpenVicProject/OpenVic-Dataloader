@@ -1,7 +1,5 @@
 #pragma once
 
-#include <memory>
-#include <string>
 #include <vector>
 
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
@@ -13,7 +11,6 @@
 #include <lexy/dsl/option.hpp>
 
 #include "AiBehaviorGrammar.hpp"
-#include "EffectGrammar.hpp"
 #include "SimpleGrammar.hpp"
 #include "TriggerGrammar.hpp"
 

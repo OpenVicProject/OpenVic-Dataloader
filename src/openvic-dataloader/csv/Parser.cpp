@@ -12,7 +12,6 @@
 
 #include "csv/CsvGrammar.hpp"
 #include "detail/BasicBufferHandler.hpp"
-#include "detail/Errors.hpp"
 #include "detail/LexyReportError.hpp"
 #include "detail/OStreamOutputIterator.hpp"
 
