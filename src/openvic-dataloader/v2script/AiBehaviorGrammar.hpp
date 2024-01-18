@@ -5,8 +5,6 @@
 #include <lexy/dsl.hpp>
 
 #include "ModifierGrammar.hpp"
-#include "SimpleGrammar.hpp"
-#include "TriggerGrammar.hpp"
 
 namespace ovdl::v2script::grammar {
 	struct AiBehaviorList {

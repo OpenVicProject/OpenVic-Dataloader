@@ -1,6 +1,6 @@
 #pragma once
 
-#include "openvic-dataloader/v2script/Parser.hpp"
+#include <openvic-dataloader/v2script/Parser.hpp>
 
 namespace ovdl::v2script::warnings {
 	inline const ParseWarning make_utf8_warning(const char* file_path) {

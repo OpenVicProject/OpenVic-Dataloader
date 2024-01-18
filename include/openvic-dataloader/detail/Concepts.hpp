@@ -2,7 +2,6 @@
 
 #include <concepts>
 #include <optional>
-#include <type_traits>
 #include <utility>
 
 #include <openvic-dataloader/ParseError.hpp>
