@@ -43,7 +43,7 @@ namespace ovdl::v2script::grammar {
 	 * DAT-632
 	 * DAT-635
 	 */
-	static constexpr auto data_specifier =
+	static constexpr auto windows_1252_data_specifier =
 		lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.") /
 		lexy::dsl::lit_b<0x8A> / lexy::dsl::lit_b<0x8C> / lexy::dsl::lit_b<0x8E> /
 		lexy::dsl::lit_b<0x92> / lexy::dsl::lit_b<0x97> / lexy::dsl::lit_b<0x9A> / lexy::dsl::lit_b<0x9C> /
@@ -51,6 +51,17 @@ namespace ovdl::v2script::grammar {
 		detail::lexydsl::make_range<0xC0, 0xD6>() /
 		detail::lexydsl::make_range<0xD8, 0xF6>() /
 		detail::lexydsl::make_range<0xF8, 0xFF>();
+
+	static constexpr auto windows_1251_data_specifier_additions =
+		detail::lexydsl::make_range<0x80, 0x81>() / lexy::dsl::lit_b<0x83> / lexy::dsl::lit_b<0x8D> / lexy::dsl::lit_b<0x8F> /
+		lexy::dsl::lit_b<0x90> / lexy::dsl::lit_b<0x9D> / lexy::dsl::lit_b<0x9F> /
+		detail::lexydsl::make_range<0xA1, 0xA3>() / lexy::dsl::lit_b<0xA5> / lexy::dsl::lit_b<0xA8> / lexy::dsl::lit_b<0xAA> /
+		lexy::dsl::lit_b<0xAF> /
+		detail::lexydsl::make_range<0xB2, 0xB4>() / lexy::dsl::lit_b<0xB8> / lexy::dsl::lit_b<0xBA> /
+		detail::lexydsl::make_range<0xBC, 0xBF>() /
+		lexy::dsl::lit_b<0xD7> / lexy::dsl::lit_b<0xF7>;
+
+	static constexpr auto data_specifier = windows_1252_data_specifier / windows_1251_data_specifier_additions;
 
 	static constexpr auto data_char_class = LEXY_CHAR_CLASS("DataSpecifier", data_specifier);
 
