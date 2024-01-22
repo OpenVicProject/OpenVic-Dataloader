@@ -273,7 +273,7 @@ const ast::Node::line_col Parser::get_node_end(const ast::NodeCPtr node) const {
 
 const ast::Node::line_col ast::Node::get_begin_line_col(const Parser& parser) const {
 	if (!parser._buffer_handler->is_valid() || parser._buffer_handler->_location_map.empty()) return {};
-	line_col result;
+	line_col result {};
 	auto [itr, range_end] = parser._buffer_handler->_location_map.equal_range(this);
 	if (itr != range_end) {
 		result.line = itr->second.line_nr();
@@ -293,7 +293,7 @@ const ast::Node::line_col ast::Node::get_begin_line_col(const Parser& parser) co
 
 const ast::Node::line_col ast::Node::get_end_line_col(const Parser& parser) const {
 	if (!parser._buffer_handler->is_valid() || parser._buffer_handler->_location_map.empty()) return {};
-	line_col result;
+	line_col result {};
 	auto [itr, range_end] = parser._buffer_handler->_location_map.equal_range(this);
 	if (itr != range_end) {
 		result.line = itr->second.line_nr();

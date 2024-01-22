@@ -45,3 +45,7 @@ const std::vector<ovdl::ParseError>& BasicParser::get_errors() const {
 const std::vector<ovdl::ParseWarning>& BasicParser::get_warnings() const {
 	return _warnings;
 }
+
+std::string_view BasicParser::get_file_path() const {
+	return _file_path;
+}

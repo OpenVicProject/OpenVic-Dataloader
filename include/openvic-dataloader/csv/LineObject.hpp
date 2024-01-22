@@ -88,7 +88,7 @@ namespace ovdl::csv {
 	};
 
 	inline std::ostream& operator<<(std::ostream& stream, const LineObject& line) {
-		static const char SEP = ';';
+		static constexpr char SEP = ';';
 		LineObject::position_type sep_index = 0;
 		for (const auto& [pos, val] : line) {
 			while (sep_index < pos) {
