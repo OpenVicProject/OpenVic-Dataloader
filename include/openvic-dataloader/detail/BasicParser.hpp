@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <openvic-dataloader/ParseError.hpp>
@@ -22,13 +24,14 @@ namespace ovdl::detail {
 
 		const std::vector<ParseError>& get_errors() const;
 		const std::vector<ParseWarning>& get_warnings() const;
+		std::string_view get_file_path() const;
 
 	protected:
 		std::vector<ParseError> _errors;
 		std::vector<ParseWarning> _warnings;
 
 		std::reference_wrapper<std::ostream> _error_stream;
-		const char* _file_path;
+		std::string _file_path;
 		bool _has_fatal_error = false;
 	};
 }
