@@ -6,10 +6,10 @@
 #include <type_traits>
 
 namespace ovdl::detail {
-	template<typename Callback, class CHAR_T, class traits = std::char_traits<CHAR_T>>
-	class BasicCallbackStreamBuffer : public std::basic_streambuf<CHAR_T, traits> {
+	template<typename Callback, class CharT, class traits = std::char_traits<CharT>>
+	class BasicCallbackStreamBuffer : public std::basic_streambuf<CharT, traits> {
 	public:
-		using base_type = std::basic_streambuf<CHAR_T, traits>;
+		using base_type = std::basic_streambuf<CharT, traits>;
 		using callback_type = Callback;
 		using char_type = typename base_type::char_type;
 		using int_type = typename base_type::int_type;
@@ -29,11 +29,12 @@ namespace ovdl::detail {
 		};
 
 		int_type overflow(int_type ch) override {
+			auto c = static_cast<char_type>(ch);
 			if constexpr (std::is_same_v<void, typename decltype(std::function { _callback })::result_type>) {
-				_callback(&ch, 1, _user_data);
+				_callback(&c, 1, _user_data);
 				return 1;
 			} else {
-				return _callback(&ch, 1, _user_data); // returns the number of characters successfully written.
+				return _callback(&c, 1, _user_data); // returns the number of characters successfully written.
 			}
 		}
 
@@ -64,21 +65,27 @@ namespace ovdl::detail {
 		CallbackWStreamBuffer(Callback cb, void* user_data = nullptr) : base_type(cb, user_data) {}
 	};
 
-	template<typename Callback, class CHAR_T, class traits = std::char_traits<CHAR_T>>
-	class BasicCallbackStream : public std::basic_ostream<CHAR_T, traits> {
+	template<class CharT, typename Callback, class traits = std::char_traits<CharT>>
+	class BasicCallbackStream : public std::basic_ostream<CharT, traits> {
 	public:
-		using base_type = std::basic_ostream<CHAR_T, traits>;
+		using base_type = std::basic_ostream<CharT, traits>;
 
 		BasicCallbackStream(Callback cb, void* user_data = nullptr)
 			: m_sbuf(cb, user_data),
-			  std::basic_ios<CHAR_T, traits>(&m_sbuf),
-			  std::basic_ostream<CHAR_T, traits>(&m_sbuf) {
-			std::basic_ios<CHAR_T, traits>::init(&m_sbuf);
+			  std::basic_ios<CharT, traits>(&m_sbuf),
+			  std::basic_ostream<CharT, traits>(&m_sbuf) {
+			std::basic_ios<CharT, traits>::init(&m_sbuf);
 		}
 
 	private:
-		BasicCallbackStreamBuffer<Callback, CHAR_T, traits> m_sbuf;
+		BasicCallbackStreamBuffer<Callback, CharT, traits> m_sbuf;
 	};
+
+	template<typename CharT>
+	auto make_callback_stream(auto&& cb, void* user_data = nullptr) {
+		using Callback = std::decay_t<decltype(cb)>;
+		return BasicCallbackStream<CharT, Callback> { std::forward<Callback>(cb), user_data };
+	}
 
 	template<typename Callback>
 	class CallbackStream : public BasicCallbackStream<Callback, char> {
