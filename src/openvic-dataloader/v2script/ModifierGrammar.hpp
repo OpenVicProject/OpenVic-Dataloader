@@ -10,9 +10,9 @@
 
 #include "openvic-dataloader/NodeLocation.hpp"
 
-#include "ParseState.hpp"
 #include "SimpleGrammar.hpp"
 #include "TriggerGrammar.hpp"
+#include "detail/InternalConcepts.hpp"
 #include "detail/dsl.hpp"
 
 namespace ovdl::v2script::grammar {
@@ -22,9 +22,9 @@ namespace ovdl::v2script::grammar {
 	struct FactorStatement {
 		static constexpr auto rule = lexy::dsl::position(factor_keyword) >> (lexy::dsl::equal_sign + lexy::dsl::p<Identifier<StringEscapeOption>>);
 		static constexpr auto value = dsl::callback<ast::AssignStatement*>(
-			[](ast::ParseState& state, NodeLocation loc, ast::IdentifierValue* value) {
-				auto* factor = state.ast().create<ast::IdentifierValue>(loc, state.ast().intern("factor"));
-				return state.ast().create<ast::AssignStatement>(loc, factor, value);
+			[](detail::IsParseState auto& state, NodeLocation loc, ast::IdentifierValue* value) {
+				auto* factor = state.ast().template create<ast::IdentifierValue>(loc, state.ast().intern("factor"));
+				return state.ast().template create<ast::AssignStatement>(loc, factor, value);
 			});
 	};
 
@@ -49,9 +49,9 @@ namespace ovdl::v2script::grammar {
 			lexy::dsl::position(modifier_keyword) >> lexy::dsl::equal_sign >> lexy::dsl::p<ModifierList>;
 
 		static constexpr auto value = dsl::callback<ast::AssignStatement*>(
-			[](ast::ParseState& state, NodeLocation loc, ast::ListValue* list) {
-				auto* factor = state.ast().create<ast::IdentifierValue>(loc, state.ast().intern("modifier"));
-				return state.ast().create<ast::AssignStatement>(loc, factor, list);
+			[](detail::IsParseState auto& state, NodeLocation loc, ast::ListValue* list) {
+				auto* factor = state.ast().template create<ast::IdentifierValue>(loc, state.ast().intern("modifier"));
+				return state.ast().template create<ast::AssignStatement>(loc, factor, list);
 			});
 	};
 }

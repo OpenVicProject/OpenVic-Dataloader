@@ -6,7 +6,6 @@
 #include <utility>
 
 namespace ovdl {
-	struct NodeLocation;
 	struct File;
 	namespace detail {
 		enum class buffer_error : std::uint8_t;
@@ -15,7 +14,7 @@ namespace ovdl {
 
 namespace ovdl::detail {
 	template<typename T, typename... Ts>
-	concept any_of = (std::same_as<T, Ts> || ...);
+	concept any_of = std::disjunction_v<std::is_same<T, Ts>...>;
 
 	template<typename T>
 	concept HasCstr =
@@ -41,5 +40,10 @@ namespace ovdl::detail {
 		{ T::template is_secondary_char_type<typename T::char_type>() } -> std::same_as<bool>;
 		{ T::eof() } -> std::same_as<typename T::int_type>;
 		{ T::to_int_type(typename T::char_type {}) } -> std::same_as<typename T::int_type>;
+	};
+
+	template<typename T, typename R, typename... Args>
+	concept Invocable_R = std::invocable<T, Args...> && requires(Args&&... args) {
+		{ invoke(forward<Args>(args)...) } -> std::convertible_to<R>;
 	};
 }

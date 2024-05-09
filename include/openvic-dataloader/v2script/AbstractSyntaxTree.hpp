@@ -1,12 +1,10 @@
 #pragma once
 
-#include <cstdio>
 #include <string_view>
 
-#include <openvic-dataloader/AbstractSyntaxTree.hpp>
-#include <openvic-dataloader/File.hpp>
 #include <openvic-dataloader/NodeLocation.hpp>
-#include <openvic-dataloader/detail/LexyFwdDeclaration.hpp>
+#include <openvic-dataloader/detail/SymbolIntern.hpp>
+#include <openvic-dataloader/detail/Utility.hpp>
 
 #include <dryad/_detail/assert.hpp>
 #include <dryad/_detail/config.hpp>
@@ -82,37 +80,34 @@ namespace ovdl::v2script::ast {
 	};
 
 	struct FlatValue : dryad::abstract_node_range<Value, NodeKind::FirstFlatValue, NodeKind::LastFlatValue> {
-		AbstractSyntaxTree::symbol_type value() const {
+		SymbolIntern::symbol_type value() const {
 			return _value;
 		}
 
-		const char* value(const AbstractSyntaxTree::symbol_interner_type& symbols) const {
+		const char* value(const SymbolIntern::symbol_interner_type& symbols) const {
 			return _value.c_str(symbols);
 		}
 
 	protected:
-		explicit FlatValue(dryad::node_ctor ctor, NodeKind kind, AbstractSyntaxTree::symbol_type value)
+		explicit FlatValue(dryad::node_ctor ctor, NodeKind kind, SymbolIntern::symbol_type value)
 			: node_base(ctor, kind),
 			  _value(value) {}
 
 	protected:
-		AbstractSyntaxTree::symbol_type _value;
+		SymbolIntern::symbol_type _value;
 	};
 
 	struct IdentifierValue : dryad::basic_node<NodeKind::IdentifierValue, FlatValue> {
-		explicit IdentifierValue(dryad::node_ctor ctor, AbstractSyntaxTree::symbol_type value) : node_base(ctor, value) {}
+		explicit IdentifierValue(dryad::node_ctor ctor, SymbolIntern::symbol_type value) : node_base(ctor, value) {}
 	};
 
 	struct StringValue : dryad::basic_node<NodeKind::StringValue, FlatValue> {
-		explicit StringValue(dryad::node_ctor ctor, AbstractSyntaxTree::symbol_type value) : node_base(ctor, value) {}
+		explicit StringValue(dryad::node_ctor ctor, SymbolIntern::symbol_type value) : node_base(ctor, value) {}
 	};
 
 	struct ListValue : dryad::basic_node<NodeKind::ListValue, dryad::container_node<Value>> {
 		explicit ListValue(dryad::node_ctor ctor, StatementList statements);
-		explicit ListValue(dryad::node_ctor ctor, AssignStatementList statements)
-			: node_base(ctor) {
-			insert_child_list_after(nullptr, statements);
-		}
+		explicit ListValue(dryad::node_ctor ctor, AssignStatementList statements);
 
 		explicit ListValue(dryad::node_ctor ctor) : ListValue(ctor, StatementList {}) {
 		}
@@ -171,10 +166,7 @@ namespace ovdl::v2script::ast {
 
 	struct FileTree : dryad::basic_node<NodeKind::FileTree, dryad::container_node<Node>> {
 		explicit FileTree(dryad::node_ctor ctor, StatementList statements);
-		explicit FileTree(dryad::node_ctor ctor, AssignStatementList statements) : node_base(ctor) {
-			insert_child_list_after(nullptr, statements);
-		}
-
+		explicit FileTree(dryad::node_ctor ctor, AssignStatementList statements);
 		explicit FileTree(dryad::node_ctor ctor) : FileTree(ctor, StatementList {}) {
 		}
 

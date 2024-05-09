@@ -3,14 +3,13 @@
 #include <cstdint>
 #include <string_view>
 
-#include <openvic-dataloader/File.hpp>
-#include <openvic-dataloader/detail/utility/Utility.hpp>
+#include <openvic-dataloader/detail/Utility.hpp>
 
 #include <dryad/abstract_node.hpp>
 #include <dryad/node.hpp>
 
 namespace ovdl {
-	template<IsFile>
+	template<typename>
 	struct BasicDiagnosticLogger;
 }
 
@@ -40,6 +39,10 @@ namespace ovdl::error {
 		FirstSemantic = SemanticError,
 		LastSemantic = SemanticHelp,
 
+		// Annotated Error //
+		FirstAnnotatedError = FirstParseError,
+		LastAnnotatedError = LastSemantic,
+
 		PrimaryAnnotation,
 		SecondaryAnnotation,
 
@@ -59,15 +62,15 @@ namespace ovdl::error {
 	}
 
 	struct Error : dryad::abstract_node_all<ErrorKind> {
-		std::string_view message() const { return _message; }
+		const char* message() const { return _message; }
 
 	protected:
 		DRYAD_ABSTRACT_NODE_CTOR(Error);
 
 		void _set_message(const char* message) { _message = message; }
-		const char* _message;
+		const char* _message = "";
 
-		template<IsFile>
+		template<typename>
 		friend struct ovdl::BasicDiagnosticLogger;
 	};
 
@@ -98,7 +101,30 @@ namespace ovdl::error {
 		explicit BufferError(dryad::node_ctor ctor) : node_base(ctor) {}
 	};
 
-	struct ParseError : dryad::abstract_node_range<Error, ErrorKind::FirstParseError, ErrorKind::LastParseError> {
+	struct Annotation : dryad::abstract_node_range<Error, ErrorKind::FirstAnnotation, ErrorKind::LastAnnotation> {
+	protected:
+		explicit Annotation(dryad::node_ctor ctor, ErrorKind kind, const char* message) : node_base(ctor, kind) {
+			_set_message(message);
+		}
+	};
+
+	struct AnnotatedError : dryad::abstract_node_range<dryad::container_node<Error>, ErrorKind::FirstAnnotatedError, ErrorKind::LastAnnotatedError> {
+		DRYAD_CHILD_NODE_RANGE_GETTER(Annotation, annotations, nullptr, this->node_after(_last_annotation));
+
+		void push_back(Annotation* annotation);
+		void push_back(AnnotationList p_annotations);
+
+	protected:
+		explicit AnnotatedError(dryad::node_ctor ctor, ErrorKind kind) : node_base(ctor, kind) {
+			insert_child_list_after(nullptr, AnnotationList {});
+			_last_annotation = nullptr;
+		}
+
+	private:
+		Annotation* _last_annotation;
+	};
+
+	struct ParseError : dryad::abstract_node_range<AnnotatedError, ErrorKind::FirstParseError, ErrorKind::LastParseError> {
 		std::string_view production_name() const { return _production_name; }
 
 	protected:
@@ -116,8 +142,10 @@ namespace ovdl::error {
 
 	template<ErrorKind NodeKind>
 	struct _ParseError_t : dryad::basic_node<NodeKind, ParseError> {
+		using base_node = dryad::basic_node<NodeKind, ParseError>;
+
 		explicit _ParseError_t(dryad::node_ctor ctor, const char* message, const char* production_name)
-			: dryad::basic_node<NodeKind, ParseError>(ctor, message, production_name) {}
+			: base_node(ctor, message, production_name) {}
 	};
 
 	using ExpectedLiteral = _ParseError_t<ErrorKind::ExpectedLiteral>;
@@ -125,30 +153,21 @@ namespace ovdl::error {
 	using ExpectedCharClass = _ParseError_t<ErrorKind::ExpectedCharClass>;
 	using GenericParseError = _ParseError_t<ErrorKind::GenericParseError>;
 
-	struct Semantic : dryad::abstract_node_range<dryad::container_node<Error>, ErrorKind::FirstSemantic, ErrorKind::LastSemantic> {
-		DRYAD_CHILD_NODE_RANGE_GETTER(Annotation, annotations, nullptr, this->node_after(_last_annotation));
-
-		void push_back(Annotation* annotation);
-		void push_back(AnnotationList p_annotations);
-
+	struct Semantic : dryad::abstract_node_range<AnnotatedError, ErrorKind::FirstSemantic, ErrorKind::LastSemantic> {
 	protected:
 		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind)
 			: node_base(ctor, kind) {};
 
 		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind, const char* message)
 			: node_base(ctor, kind) {
-			insert_child_list_after(nullptr, AnnotationList {});
 			_set_message(message);
 		};
 
 		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind, const char* message, AnnotationList annotations)
 			: node_base(ctor, kind) {
-			insert_child_list_after(nullptr, annotations);
+			push_back(annotations);
 			_set_message(message);
 		};
-
-	private:
-		Error* _last_annotation;
 	};
 
 	template<ErrorKind NodeKind>
@@ -172,13 +191,6 @@ namespace ovdl::error {
 	using SemanticFixit = _SemanticError_t<ErrorKind::SemanticFixit>;
 	using SemanticHelp = _SemanticError_t<ErrorKind::SemanticHelp>;
 
-	struct Annotation : dryad::abstract_node_range<Error, ErrorKind::FirstAnnotation, ErrorKind::LastAnnotation> {
-	protected:
-		explicit Annotation(dryad::node_ctor ctor, ErrorKind kind, const char* message) : node_base(ctor, kind) {
-			_set_message(message);
-		}
-	};
-
 	template<ErrorKind NodeKind>
 	struct _Annotation_t : dryad::basic_node<NodeKind, Annotation> {
 		explicit _Annotation_t(dryad::node_ctor ctor, const char* message)
@@ -188,12 +200,13 @@ namespace ovdl::error {
 	using PrimaryAnnotation = _Annotation_t<ErrorKind::PrimaryAnnotation>;
 	using SecondaryAnnotation = _Annotation_t<ErrorKind::SecondaryAnnotation>;
 
-	inline void Semantic::push_back(Annotation* annotation) {
-		insert_child_after(annotations().end().deref(), annotation);
+	inline void AnnotatedError::push_back(Annotation* annotation) {
+		insert_child_after(_last_annotation, annotation);
 		_last_annotation = annotation;
 	}
 
-	inline void Semantic::push_back(AnnotationList p_annotations) {
+	inline void AnnotatedError::push_back(AnnotationList p_annotations) {
+		if (p_annotations.empty()) return;
 		insert_child_list_after(annotations().end().deref(), p_annotations);
 		_last_annotation = *p_annotations.end();
 	}

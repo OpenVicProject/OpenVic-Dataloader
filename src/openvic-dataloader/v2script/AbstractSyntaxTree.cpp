@@ -1,8 +1,7 @@
-#include <stddef.h>
-
-#include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
+#include "openvic-dataloader/v2script/AbstractSyntaxTree.hpp"
 
 #include <lexy/dsl/option.hpp>
+#include <lexy/encoding.hpp>
 #include <lexy/input_location.hpp>
 
 #include <dryad/node.hpp>
@@ -23,6 +22,15 @@ ListValue::ListValue(dryad::node_ctor ctor, StatementList statements)
 	}
 }
 
+ListValue::ListValue(dryad::node_ctor ctor, AssignStatementList statements) : node_base(ctor) {
+	insert_child_list_after(nullptr, statements);
+	if (statements.empty()) {
+		_last_statement = nullptr;
+	} else {
+		_last_statement = statements.back();
+	}
+}
+
 FileTree::FileTree(dryad::node_ctor ctor, StatementList statements) : node_base(ctor) {
 	insert_child_list_after(nullptr, statements);
 	if (statements.empty()) {
@@ -32,29 +40,22 @@ FileTree::FileTree(dryad::node_ctor ctor, StatementList statements) : node_base(
 	}
 }
 
-// static void _handle_string_characters(std::string& string, bool allow_newline) {
-// 	size_t position = 0;
-// 	for (auto& c : string) {
-// 		switch (c) {
-// 			case '\r':
-// 			case '\n':
-// 				if (allow_newline) goto END_LOOP;
-// 				c = ' ';
-// 				break;
-// 			default: break;
-// 		}
-// 	END_LOOP:
-// 		position++;
-// 	}
-// }
+FileTree::FileTree(dryad::node_ctor ctor, AssignStatementList statements) : node_base(ctor) {
+	insert_child_list_after(nullptr, statements);
+	if (statements.empty()) {
+		_last_node = nullptr;
+	} else {
+		_last_node = statements.back();
+	}
+}
 
-std::string AbstractSyntaxTree::make_list_visualizer() const {
+std::string FileAbstractSyntaxTree::make_list_visualizer() const {
 	const int INDENT_SIZE = 2;
 
 	std::string result;
 	unsigned int level = 0;
 
-	for (auto [event, node] : dryad::traverse(_tree)) {
+	for (auto [event, node] : dryad::traverse(this->_tree)) {
 		if (event == dryad::traverse_event::exit) {
 			--level;
 			continue;
@@ -66,7 +67,7 @@ std::string AbstractSyntaxTree::make_list_visualizer() const {
 		dryad::visit_node(
 			node,
 			[&](const FlatValue* value) {
-				result.append(value->value(_symbol_interner));
+				result.append(value->value(this->_symbol_interner));
 			},
 			[&](const ListValue* value) {
 			},
@@ -89,19 +90,19 @@ std::string AbstractSyntaxTree::make_list_visualizer() const {
 	return result;
 }
 
-std::string AbstractSyntaxTree::make_native_visualizer() const {
+std::string FileAbstractSyntaxTree::make_native_visualizer() const {
 	constexpr int INDENT_SIZE = 2;
 
 	std::string result;
 	unsigned int level = 0;
 
 	dryad::visit_tree(
-		_tree,
+		this->_tree,
 		[&](const IdentifierValue* value) {
-			result.append(value->value(_symbol_interner));
+			result.append(value->value(this->_symbol_interner));
 		},
 		[&](const StringValue* value) {
-			result.append(1, '"').append(value->value(_symbol_interner)).append(1, '"');
+			result.append(1, '"').append(value->value(this->_symbol_interner)).append(1, '"');
 		},
 		[&](dryad::child_visitor<NodeKind> visitor, const ValueStatement* statement) {
 			visitor(statement->value());

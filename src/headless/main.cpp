@@ -6,7 +6,7 @@
 #include <iterator>
 #include <string_view>
 
-#include <openvic-dataloader/ParseWarning.hpp>
+#include <openvic-dataloader/NodeLocation.hpp>
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/csv/Parser.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
@@ -41,9 +41,8 @@ bool insenitive_trim_eq(std::string_view lhs, std::string_view rhs) {
 		[](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
-template<ovdl::csv::EncodingType Encoding>
 int print_csv(const std::string_view path) {
-	auto parser = ovdl::csv::Parser<Encoding>(std::cerr);
+	auto parser = ovdl::csv::Parser(std::cerr);
 	parser.load_from_file(path);
 	if (parser.has_error()) {
 		return 1;
@@ -73,12 +72,11 @@ int print_lua(const std::string_view path, VisualizationType visual_type) {
 		return 1;
 	}
 
-	parser.lua_defines_parse();
-	if (parser.has_error()) {
+	if (!parser.lua_defines_parse()) {
 		return 2;
 	}
 
-	if (parser.has_warning()) {
+	if (parser.has_error() || parser.has_warning()) {
 		parser.print_errors_to(std::cerr);
 	}
 
@@ -97,12 +95,11 @@ int print_v2script_simple(const std::string_view path, VisualizationType visual_
 		return 1;
 	}
 
-	parser.simple_parse();
-	if (parser.has_error()) {
+	if (!parser.simple_parse()) {
 		return 2;
 	}
 
-	if (parser.has_warning()) {
+	if (parser.has_error() || parser.has_warning()) {
 		parser.print_errors_to(std::cerr);
 	}
 
@@ -139,23 +136,18 @@ int main(int argc, char** argv) {
 				return print_lua(args[1], type);
 			}
 			return print_v2script_simple(args[1], type);
-		case 4:
-			if (insenitive_trim_eq(args[1], "csv") && insenitive_trim_eq(args[2], "utf"))
-				return print_csv<ovdl::csv::EncodingType::Utf8>(args[3]);
-			goto default_jump;
 		case 3:
 			if (insenitive_trim_eq(args[1], "csv"))
-				return print_csv<ovdl::csv::EncodingType::Windows1252>(args[2]);
+				return print_csv(args[2]);
 			if (insenitive_trim_eq(args[1], "lua"))
 				return print_lua(args[2], type);
 			[[fallthrough]];
 		default:
-		default_jump:
 			std::fprintf(stderr, "usage: %s <filename>\n", args[0].c_str());
 			std::fprintf(stderr, "usage: %s list <options> <filename>\n", args[0].c_str());
 			std::fprintf(stderr, "usage: %s native <options> <filename>\n", args[0].c_str());
 			std::fprintf(stderr, "usage: %s lua <filename>\n", args[0].c_str());
-			std::fprintf(stderr, "usage: %s csv [utf] <filename>\n", args[0].c_str());
+			std::fprintf(stderr, "usage: %s csv <filename>\n", args[0].c_str());
 			return EXIT_FAILURE;
 	}
 

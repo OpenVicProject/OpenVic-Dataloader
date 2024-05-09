@@ -4,16 +4,15 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 
-#include <openvic-dataloader/DiagnosticLogger.hpp>
+#include <openvic-dataloader/Error.hpp>
 #include <openvic-dataloader/NodeLocation.hpp>
-#include <openvic-dataloader/ParseError.hpp>
-#include <openvic-dataloader/ParseWarning.hpp>
-#include <openvic-dataloader/detail/LexyReportError.hpp>
+#include <openvic-dataloader/detail/Concepts.hpp>
+#include <openvic-dataloader/detail/Encoding.hpp>
 #include <openvic-dataloader/detail/OStreamOutputIterator.hpp>
-#include <openvic-dataloader/detail/utility/Concepts.hpp>
-#include <openvic-dataloader/detail/utility/Utility.hpp>
+#include <openvic-dataloader/detail/Utility.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 #include <lexy/action/parse.hpp>
@@ -29,10 +28,8 @@
 
 #include <fmt/core.h>
 
-#include "openvic-dataloader/Error.hpp"
-
+#include "DiagnosticLogger.hpp"
 #include "ParseState.hpp"
-#include "detail/DetectUtf8.hpp"
 #include "detail/NullBuff.hpp"
 #include "detail/ParseHandler.hpp"
 #include "detail/Warnings.hpp"
@@ -44,29 +41,46 @@
 using namespace ovdl;
 using namespace ovdl::v2script;
 
-///	BufferHandler ///
+///	ParseHandler ///
 
 struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast::ParseState> {
-	constexpr bool is_exclusive_utf8() const {
-		return detail::is_utf8_no_ascii(buffer());
-	}
-
 	template<typename Node>
 	std::optional<DiagnosticLogger::error_range> parse() {
-		auto result = lexy::parse<Node>(buffer(), *_parse_state, _parse_state->logger().error_callback());
-		if (!result) {
-			return _parse_state->logger().get_errors();
+		if (parse_state().encoding() == ovdl::detail::Encoding::Utf8) {
+			parse_state().logger().warning(warnings::make_utf8_warning(path()));
 		}
-		_parse_state->ast().set_root(result.value());
+
+		auto result = [&] {
+			switch (parse_state().encoding()) {
+				using enum detail::Encoding;
+				case Ascii:
+				case Utf8:
+					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
+				case Unknown:
+				case Windows1251:
+				case Windows1252:
+					return lexy::parse<Node>(buffer<lexy::default_encoding>(), parse_state(), parse_state().logger().error_callback());
+				default:
+					ovdl::detail::unreachable();
+			}
+		}();
+		if (!result) {
+			return parse_state().logger().get_errors();
+		}
+		parse_state().ast().set_root(result.value());
 		return std::nullopt;
 	}
 
 	ast::FileTree* root() {
-		return _parse_state->ast().root();
+		return parse_state().ast().root();
+	}
+
+	Parser::error_range get_errors() {
+		return parse_state().logger().get_errors();
 	}
 };
 
-/// BufferHandler ///
+///	ParseHandler ///
 
 Parser::Parser()
 	: _parse_handler(std::make_unique<ParseHandler>()) {
@@ -82,29 +96,29 @@ Parser::Parser(Parser&&) = default;
 Parser& Parser::operator=(Parser&&) = default;
 Parser::~Parser() = default;
 
-Parser Parser::from_buffer(const char* data, std::size_t size) {
+Parser Parser::from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback) {
 	Parser result;
-	return std::move(result.load_from_buffer(data, size));
+	return std::move(result.load_from_buffer(data, size, encoding_fallback));
 }
 
-Parser Parser::from_buffer(const char* start, const char* end) {
+Parser Parser::from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback) {
 	Parser result;
-	return std::move(result.load_from_buffer(start, end));
+	return std::move(result.load_from_buffer(start, end, encoding_fallback));
 }
 
-Parser Parser::from_string(const std::string_view string) {
+Parser Parser::from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback) {
 	Parser result;
-	return std::move(result.load_from_string(string));
+	return std::move(result.load_from_string(string, encoding_fallback));
 }
 
-Parser Parser::from_file(const char* path) {
+Parser Parser::from_file(const char* path, std::optional<detail::Encoding> encoding_fallback) {
 	Parser result;
-	return std::move(result.load_from_file(path));
+	return std::move(result.load_from_file(path, encoding_fallback));
 }
 
-Parser Parser::from_file(const std::filesystem::path& path) {
+Parser Parser::from_file(const std::filesystem::path& path, std::optional<detail::Encoding> encoding_fallback) {
 	Parser result;
-	return std::move(result.load_from_file(path));
+	return std::move(result.load_from_file(path, encoding_fallback));
 }
 
 ///
@@ -128,38 +142,38 @@ constexpr void Parser::_run_load_func(detail::LoadCallback<Parser::ParseHandler*
 	if (!error_message.empty()) {
 		_has_error = true;
 		_has_fatal_error = true;
-		_parse_handler->parse_state().logger().create_log<error::BufferError>(DiagnosticLogger::DiagnosticKind::error, fmt::runtime(error_message));
+		_parse_handler->parse_state().logger().template create_log<error::BufferError>(DiagnosticLogger::DiagnosticKind::error, fmt::runtime(error_message));
 	}
 	if (has_error() && &_error_stream.get() != &detail::cnull) {
 		print_errors_to(_error_stream.get());
 	}
 }
 
-constexpr Parser& Parser::load_from_buffer(const char* data, std::size_t size) {
+constexpr Parser& Parser::load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback) {
 	// Type can't be deduced?
-	_run_load_func(std::mem_fn(&ParseHandler::load_buffer_size), data, size);
+	_run_load_func(std::mem_fn(&ParseHandler::load_buffer_size), data, size, encoding_fallback);
 	return *this;
 }
 
-constexpr Parser& Parser::load_from_buffer(const char* start, const char* end) {
+constexpr Parser& Parser::load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback) {
 	// Type can't be deduced?
-	_run_load_func(std::mem_fn(&ParseHandler::load_buffer), start, end);
+	_run_load_func(std::mem_fn(&ParseHandler::load_buffer), start, end, encoding_fallback);
 	return *this;
 }
 
-constexpr Parser& Parser::load_from_string(const std::string_view string) {
-	return load_from_buffer(string.data(), string.size());
+constexpr Parser& Parser::load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback) {
+	return load_from_buffer(string.data(), string.size(), encoding_fallback);
 }
 
-Parser& Parser::load_from_file(const char* path) {
+Parser& Parser::load_from_file(const char* path, std::optional<detail::Encoding> encoding_fallback) {
 	set_file_path(path);
 	// Type can be deduced??
-	_run_load_func(std::mem_fn(&ParseHandler::load_file), path);
+	_run_load_func(std::mem_fn(&ParseHandler::load_file), get_file_path().data(), encoding_fallback);
 	return *this;
 }
 
-Parser& Parser::load_from_file(const std::filesystem::path& path) {
-	return load_from_file(path.string().c_str());
+Parser& Parser::load_from_file(const std::filesystem::path& path, std::optional<detail::Encoding> encoding_fallback) {
+	return load_from_file(path.string().c_str(), encoding_fallback);
 }
 
 /* REQUIREMENTS:
@@ -173,11 +187,7 @@ bool Parser::simple_parse() {
 		return false;
 	}
 
-	if (_parse_handler->is_exclusive_utf8()) {
-		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
-	}
-
-	auto errors = _parse_handler->parse<grammar::File<grammar::NoStringEscapeOption>>();
+	std::optional<DiagnosticLogger::error_range> errors = _parse_handler->parse<grammar::File>();
 	_has_error = _parse_handler->parse_state().logger().errored();
 	_has_warning = _parse_handler->parse_state().logger().warned();
 	if (!_parse_handler->root()) {
@@ -196,14 +206,11 @@ bool Parser::event_parse() {
 		return false;
 	}
 
-	if (_parse_handler->is_exclusive_utf8()) {
-		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
-	}
-
-	auto errors = _parse_handler->parse<grammar::EventFile>();
+	std::optional<DiagnosticLogger::error_range> errors = _parse_handler->parse<grammar::EventFile>();
 	_has_error = _parse_handler->parse_state().logger().errored();
 	_has_warning = _parse_handler->parse_state().logger().warned();
 	if (!_parse_handler->root()) {
+		_has_error = true;
 		_has_fatal_error = true;
 		if (&_error_stream.get() != &detail::cnull) {
 			print_errors_to(_error_stream);
@@ -218,14 +225,11 @@ bool Parser::decision_parse() {
 		return false;
 	}
 
-	if (_parse_handler->is_exclusive_utf8()) {
-		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
-	}
-
-	auto errors = _parse_handler->parse<grammar::DecisionFile>();
+	std::optional<DiagnosticLogger::error_range> errors = _parse_handler->parse<grammar::DecisionFile>();
 	_has_error = _parse_handler->parse_state().logger().errored();
 	_has_warning = _parse_handler->parse_state().logger().warned();
 	if (!_parse_handler->root()) {
+		_has_error = true;
 		_has_fatal_error = true;
 		if (&_error_stream.get() != &detail::cnull) {
 			print_errors_to(_error_stream);
@@ -240,14 +244,11 @@ bool Parser::lua_defines_parse() {
 		return false;
 	}
 
-	if (_parse_handler->is_exclusive_utf8()) {
-		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
-	}
-
-	auto errors = _parse_handler->parse<lua::grammar::File<>>();
+	std::optional<DiagnosticLogger::error_range> errors = _parse_handler->parse<lua::grammar::File>();
 	_has_error = _parse_handler->parse_state().logger().errored();
 	_has_warning = _parse_handler->parse_state().logger().warned();
 	if (!_parse_handler->root()) {
+		_has_error = true;
 		_has_fatal_error = true;
 		if (&_error_stream.get() != &detail::cnull) {
 			print_errors_to(_error_stream);
@@ -273,47 +274,65 @@ std::string Parser::make_list_string() const {
 	return _parse_handler->parse_state().ast().make_list_visualizer();
 }
 
+// TODO: Remove reinterpret_cast
+// WARNING: This almost certainly breaks on utf16 and utf32 encodings, luckily we don't parse in that format
+// This is purely to silence the node_location errors because char8_t is useless
+#define REINTERPRET_IT(IT) reinterpret_cast<const std::decay_t<decltype(buffer)>::encoding::char_type*>((IT))
+
 const FilePosition Parser::get_position(const ast::Node* node) const {
 	if (!node || !node->is_linked_in_tree()) {
 		return {};
 	}
-	auto node_location = _parse_handler->parse_state().ast().location_of(node);
+
+	NodeLocation node_location;
+
+	node_location = _parse_handler->parse_state().ast().location_of(node);
+
 	if (node_location.is_synthesized()) {
-		return {};
+		return FilePosition {};
 	}
 
-	auto loc_begin = lexy::get_input_location(_parse_handler->buffer(), node_location.begin());
-	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
-	if (node_location.begin() < node_location.end()) {
-		auto loc_end = lexy::get_input_location(_parse_handler->buffer(), node_location.end(), loc_begin.anchor());
-		result.end_line = loc_end.line_nr();
-		result.end_column = loc_end.column_nr();
-	}
-	return result;
+	return _parse_handler->parse_state().ast().file().visit_buffer(
+		[&](auto&& buffer) -> FilePosition {
+			auto loc_begin = lexy::get_input_location(buffer, REINTERPRET_IT(node_location.begin()));
+			FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+			if (node_location.begin() < node_location.end()) {
+				auto loc_end = lexy::get_input_location(buffer, REINTERPRET_IT(node_location.end()), loc_begin.anchor());
+				result.end_line = loc_end.line_nr();
+				result.end_column = loc_end.column_nr();
+			}
+			return result;
+		});
 }
 
 Parser::error_range Parser::get_errors() const {
-	return _parse_handler->parse_state().logger().get_errors();
+	return _parse_handler->get_errors();
 }
 
 const FilePosition Parser::get_error_position(const error::Error* error) const {
 	if (!error || !error->is_linked_in_tree()) {
 		return {};
 	}
+
 	auto err_location = _parse_handler->parse_state().logger().location_of(error);
 	if (err_location.is_synthesized()) {
-		return {};
+		return FilePosition {};
 	}
 
-	auto loc_begin = lexy::get_input_location(_parse_handler->buffer(), err_location.begin());
-	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
-	if (err_location.begin() < err_location.end()) {
-		auto loc_end = lexy::get_input_location(_parse_handler->buffer(), err_location.end(), loc_begin.anchor());
-		result.end_line = loc_end.line_nr();
-		result.end_column = loc_end.column_nr();
-	}
-	return result;
+	return _parse_handler->parse_state().ast().file().visit_buffer(
+		[&](auto&& buffer) -> FilePosition {
+			auto loc_begin = lexy::get_input_location(buffer, REINTERPRET_IT(err_location.begin()));
+			FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+			if (err_location.begin() < err_location.end()) {
+				auto loc_end = lexy::get_input_location(buffer, REINTERPRET_IT(err_location.end()), loc_begin.anchor());
+				result.end_line = loc_end.line_nr();
+				result.end_column = loc_end.column_nr();
+			}
+			return result;
+		});
 }
+
+#undef REINTERPRET_IT
 
 void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 	auto errors = get_errors();
@@ -324,19 +343,9 @@ void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 			[&](const error::BufferError* buffer_error) {
 				stream << "buffer error: " << buffer_error->message() << '\n';
 			},
-			[&](const error::ParseError* parse_error) {
-				auto position = get_error_position(parse_error);
-				std::string pos_str = fmt::format(":{}:{}: ", position.start_line, position.start_column);
-				stream << _file_path << pos_str << "parse error for '" << parse_error->production_name() << "': " << parse_error->message() << '\n';
-			},
-			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::Semantic* semantic) {
-				auto position = get_error_position(semantic);
-				std::string pos_str = ": ";
-				if (!position.is_empty()) {
-					pos_str = fmt::format(":{}:{}: ", position.start_line, position.start_column);
-				}
-				stream << _file_path << pos_str << semantic->message() << '\n';
-				auto annotations = semantic->annotations();
+			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::AnnotatedError* annotated_error) {
+				stream << annotated_error->message() << '\n';
+				auto annotations = annotated_error->annotations();
 				for (auto annotation : annotations) {
 					visitor(annotation);
 				}

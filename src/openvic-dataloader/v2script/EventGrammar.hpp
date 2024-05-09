@@ -11,8 +11,8 @@
 
 #include "openvic-dataloader/NodeLocation.hpp"
 
-#include "ParseState.hpp"
 #include "SimpleGrammar.hpp"
+#include "detail/InternalConcepts.hpp"
 #include "detail/dsl.hpp"
 #include "v2script/AiBehaviorGrammar.hpp"
 #include "v2script/EffectGrammar.hpp"
@@ -28,7 +28,7 @@ namespace ovdl::v2script::grammar {
 		struct MonthValue {
 			static constexpr auto rule = lexy::dsl::p<Identifier<StringEscapeOption>>;
 			static constexpr auto value = dsl::callback<ast::IdentifierValue*>(
-				[](ast::ParseState& state, ast::IdentifierValue* value) {
+				[](detail::IsParseState auto& state, ast::IdentifierValue* value) {
 					bool is_number = true;
 					for (auto* current = value->value(state.ast().symbol_interner()); *current; current++) {
 						is_number = is_number && std::isdigit(*current);
@@ -94,7 +94,7 @@ namespace ovdl::v2script::grammar {
 
 		static constexpr auto value =
 			dsl::callback<ast::EventStatement*>(
-				[](ast::ParseState& state, NodeLocation loc, ast::IdentifierValue* name, ast::ListValue* list) {
+				[](detail::IsParseState auto& state, NodeLocation loc, ast::IdentifierValue* name, ast::ListValue* list) {
 					static auto country_decl = state.ast().intern_cstr("country_event");
 					static auto province_decl = state.ast().intern_cstr("province_event");
 
@@ -104,7 +104,7 @@ namespace ovdl::v2script::grammar {
 							.finish();
 					}
 
-					return state.ast().create<ast::EventStatement>(loc, name->value(state.ast().symbol_interner()) == province_decl, list);
+					return state.ast().template create<ast::EventStatement>(loc, name->value(state.ast().symbol_interner()) == province_decl, list);
 				});
 	};
 
