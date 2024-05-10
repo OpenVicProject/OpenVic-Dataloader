@@ -1,29 +1,38 @@
 #include "openvic-dataloader/v2script/Parser.hpp"
 
-#include <functional>
-#include <memory>
+#include <iostream>
 #include <optional>
 #include <string>
 #include <utility>
-#include <vector>
 
+#include <openvic-dataloader/DiagnosticLogger.hpp>
+#include <openvic-dataloader/NodeLocation.hpp>
 #include <openvic-dataloader/ParseError.hpp>
 #include <openvic-dataloader/ParseWarning.hpp>
-#include <openvic-dataloader/detail/Concepts.hpp>
+#include <openvic-dataloader/detail/LexyReportError.hpp>
+#include <openvic-dataloader/detail/OStreamOutputIterator.hpp>
+#include <openvic-dataloader/detail/utility/Concepts.hpp>
+#include <openvic-dataloader/detail/utility/Utility.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
-#include <openvic-dataloader/v2script/NodeLocationMap.hpp>
 
 #include <lexy/action/parse.hpp>
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 #include <lexy/input/file.hpp>
+#include <lexy/input_location.hpp>
 #include <lexy/lexeme.hpp>
 #include <lexy/visualize.hpp>
 
-#include "detail/BasicBufferHandler.hpp"
+#include <dryad/node.hpp>
+#include <dryad/tree.hpp>
+
+#include <fmt/core.h>
+
+#include "openvic-dataloader/Error.hpp"
+
 #include "detail/DetectUtf8.hpp"
-#include "detail/LexyReportError.hpp"
-#include "detail/OStreamOutputIterator.hpp"
+#include "detail/NullBuff.hpp"
+#include "detail/ParseHandler.hpp"
 #include "detail/Warnings.hpp"
 #include "v2script/DecisionGrammar.hpp"
 #include "v2script/EventGrammar.hpp"
@@ -35,42 +44,36 @@ using namespace ovdl::v2script;
 
 ///	BufferHandler ///
 
-class Parser::BufferHandler final : public detail::BasicBufferHandler<> {
-public:
+struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast::ParseState> {
 	constexpr bool is_exclusive_utf8() const {
-		return detail::is_utf8_no_ascii(_buffer);
+		return detail::is_utf8_no_ascii(buffer());
 	}
 
-	template<typename Node, typename ErrorCallback>
-	std::optional<std::vector<ParseError>> parse(const ErrorCallback& callback) {
-		auto result = lexy::parse<Node>(_buffer, callback);
+	template<typename Node>
+	std::optional<DiagnosticLogger::error_range> parse() {
+		auto result = lexy::parse<Node>(buffer(), *_parse_state, _parse_state->logger().error_callback());
 		if (!result) {
-			return result.errors();
+			return _parse_state->logger().get_errors();
 		}
-		// This is mighty frustrating
-		_root = std::unique_ptr<ast::Node>(result.value());
+		_parse_state->ast().set_root(result.value());
 		return std::nullopt;
 	}
 
-	std::unique_ptr<ast::Node>& get_root() {
-		return _root;
+	ast::FileTree* root() {
+		return _parse_state->ast().root();
 	}
-
-	ast::NodeLocationMap<decltype(_buffer)>& get_location_map() {
-		return _location_map;
-	}
-
-private:
-	friend class ::ovdl::v2script::ast::Node;
-	std::unique_ptr<ast::Node> _root;
-	ast::NodeLocationMap<decltype(_buffer)> _location_map;
 };
 
 /// BufferHandler ///
 
 Parser::Parser()
-	: _buffer_handler(std::make_unique<BufferHandler>()) {
-	set_error_log_to_stderr();
+	: _parse_handler(std::make_unique<ParseHandler>()) {
+	set_error_log_to_null();
+}
+
+Parser::Parser(std::basic_ostream<char>& error_stream)
+	: _parse_handler(std::make_unique<ParseHandler>()) {
+	set_error_log_to(error_stream);
 }
 
 Parser::Parser(Parser&&) = default;
@@ -116,26 +119,29 @@ Parser Parser::from_file(const std::filesystem::path& path) {
 /// @param args
 ///
 template<typename... Args>
-constexpr void Parser::_run_load_func(detail::LoadCallback<BufferHandler, Args...> auto func, Args... args) {
-	_warnings.clear();
-	_errors.clear();
+constexpr void Parser::_run_load_func(detail::LoadCallback<Parser::ParseHandler*, Args...> auto func, Args... args) {
 	_has_fatal_error = false;
-	if (auto error = func(_buffer_handler.get(), std::forward<Args>(args)...); error) {
-		_has_fatal_error = error.value().type == ParseError::Type::Fatal;
-		_errors.push_back(error.value());
-		_error_stream.get() << "Error: " << _errors.back().message << '\n';
+	auto error = func(_parse_handler.get(), std::forward<Args>(args)...);
+	auto error_message = _parse_handler->make_error_from(error);
+	if (!error_message.empty()) {
+		_has_error = true;
+		_has_fatal_error = true;
+		_parse_handler->parse_state().logger().create_log<error::BufferError>(DiagnosticLogger::DiagnosticKind::error, fmt::runtime(error_message));
+	}
+	if (has_error() && &_error_stream.get() != &detail::cnull) {
+		print_errors_to(_error_stream.get());
 	}
 }
 
 constexpr Parser& Parser::load_from_buffer(const char* data, std::size_t size) {
 	// Type can't be deduced?
-	_run_load_func(std::mem_fn(&BufferHandler::load_buffer_size), data, size);
+	_run_load_func(std::mem_fn(&ParseHandler::load_buffer_size), data, size);
 	return *this;
 }
 
 constexpr Parser& Parser::load_from_buffer(const char* start, const char* end) {
 	// Type can't be deduced?
-	_run_load_func(std::mem_fn(&BufferHandler::load_buffer), start, end);
+	_run_load_func(std::mem_fn(&ParseHandler::load_buffer), start, end);
 	return *this;
 }
 
@@ -146,16 +152,12 @@ constexpr Parser& Parser::load_from_string(const std::string_view string) {
 constexpr Parser& Parser::load_from_file(const char* path) {
 	_file_path = path;
 	// Type can be deduced??
-	_run_load_func(std::mem_fn(&BufferHandler::load_file), path);
+	_run_load_func(std::mem_fn(&ParseHandler::load_file), path);
 	return *this;
 }
 
 Parser& Parser::load_from_file(const std::filesystem::path& path) {
 	return load_from_file(path.string().c_str());
-}
-
-constexpr Parser& Parser::load_from_file(const detail::Has_c_str auto& path) {
-	return load_from_file(path.c_str());
 }
 
 /* REQUIREMENTS:
@@ -165,149 +167,175 @@ constexpr Parser& Parser::load_from_file(const detail::Has_c_str auto& path) {
  * DAT-29
  */
 bool Parser::simple_parse() {
-	if (!_buffer_handler->is_valid()) {
+	if (!_parse_handler->is_valid()) {
 		return false;
 	}
 
-	if (_buffer_handler->is_exclusive_utf8()) {
-		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	if (_parse_handler->is_exclusive_utf8()) {
+		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<grammar::File<grammar::NoStringEscapeOption>>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
-	if (errors) {
-		_errors.reserve(errors->size());
-		for (auto& err : errors.value()) {
-			_has_fatal_error |= err.type == ParseError::Type::Fatal;
-			_errors.push_back(err);
+	auto errors = _parse_handler->parse<grammar::File<grammar::NoStringEscapeOption>>();
+	_has_error = _parse_handler->parse_state().logger().errored();
+	_has_warning = _parse_handler->parse_state().logger().warned();
+	if (!_parse_handler->root()) {
+		_has_fatal_error = true;
+		if (&_error_stream.get() != &detail::cnull) {
+			print_errors_to(_error_stream);
 		}
 		return false;
 	}
-	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
 	return true;
 }
 
 bool Parser::event_parse() {
-	if (!_buffer_handler->is_valid()) {
+	if (!_parse_handler->is_valid()) {
 		return false;
 	}
 
-	if (_buffer_handler->is_exclusive_utf8()) {
-		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	if (_parse_handler->is_exclusive_utf8()) {
+		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<grammar::EventFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
-	if (errors) {
-		_errors.reserve(errors->size());
-		for (auto& err : errors.value()) {
-			_has_fatal_error |= err.type == ParseError::Type::Fatal;
-			_errors.push_back(err);
+	auto errors = _parse_handler->parse<grammar::EventFile>();
+	_has_error = _parse_handler->parse_state().logger().errored();
+	_has_warning = _parse_handler->parse_state().logger().warned();
+	if (!_parse_handler->root()) {
+		_has_fatal_error = true;
+		if (&_error_stream.get() != &detail::cnull) {
+			print_errors_to(_error_stream);
 		}
 		return false;
 	}
-	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
 	return true;
 }
 
 bool Parser::decision_parse() {
-	if (!_buffer_handler->is_valid()) {
+	if (!_parse_handler->is_valid()) {
 		return false;
 	}
 
-	if (_buffer_handler->is_exclusive_utf8()) {
-		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	if (_parse_handler->is_exclusive_utf8()) {
+		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<grammar::DecisionFile>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
-	if (errors) {
-		_errors.reserve(errors->size());
-		for (auto& err : errors.value()) {
-			_has_fatal_error |= err.type == ParseError::Type::Fatal;
-			_errors.push_back(err);
+	auto errors = _parse_handler->parse<grammar::DecisionFile>();
+	_has_error = _parse_handler->parse_state().logger().errored();
+	_has_warning = _parse_handler->parse_state().logger().warned();
+	if (!_parse_handler->root()) {
+		_has_fatal_error = true;
+		if (&_error_stream.get() != &detail::cnull) {
+			print_errors_to(_error_stream);
 		}
 		return false;
 	}
-	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
 	return true;
 }
 
 bool Parser::lua_defines_parse() {
-	if (!_buffer_handler->is_valid()) {
+	if (!_parse_handler->is_valid()) {
 		return false;
 	}
 
-	if (_buffer_handler->is_exclusive_utf8()) {
-		_warnings.push_back(warnings::make_utf8_warning(_file_path));
+	if (_parse_handler->is_exclusive_utf8()) {
+		_parse_handler->parse_state().logger().warning(warnings::make_utf8_warning(_file_path));
 	}
 
-	auto errors = _buffer_handler->parse<lua::grammar::File<>>(ovdl::detail::ReporError.path(_file_path).to(detail::OStreamOutputIterator { _error_stream }));
-	if (errors) {
-		_errors.reserve(errors->size());
-		for (auto& err : errors.value()) {
-			_has_fatal_error |= err.type == ParseError::Type::Fatal;
-			_errors.push_back(err);
+	auto errors = _parse_handler->parse<lua::grammar::File<>>();
+	_has_error = _parse_handler->parse_state().logger().errored();
+	_has_warning = _parse_handler->parse_state().logger().warned();
+	if (!_parse_handler->root()) {
+		_has_fatal_error = true;
+		if (&_error_stream.get() != &detail::cnull) {
+			print_errors_to(_error_stream);
 		}
 		return false;
 	}
-	_file_node.reset(static_cast<ast::FileNode*>(_buffer_handler->get_root().release()));
 	return true;
 }
 
-const FileNode* Parser::get_file_node() const {
-	return _file_node.get();
+const FileTree* Parser::get_file_node() const {
+	return _parse_handler->root();
 }
 
-void Parser::generate_node_location_map() {
-	_buffer_handler->get_location_map().clear();
-	_buffer_handler->get_location_map().generate_location_map(_buffer_handler->get_buffer(), get_file_node());
+std::string_view Parser::value(const ovdl::v2script::ast::FlatValue& node) const {
+	return node.value(_parse_handler->parse_state().ast().symbol_interner());
 }
 
-const ast::Node::line_col Parser::get_node_begin(const ast::NodeCPtr node) const {
-	if (!node) return { 0, 0 };
-	return node->get_begin_line_col(*this);
+std::string Parser::make_native_string() const {
+	return _parse_handler->parse_state().ast().make_native_visualizer();
 }
 
-const ast::Node::line_col Parser::get_node_end(const ast::NodeCPtr node) const {
-	if (!node) return { 0, 0 };
-	return node->get_end_line_col(*this);
+std::string Parser::make_list_string() const {
+	return _parse_handler->parse_state().ast().make_list_visualizer();
 }
 
-const ast::Node::line_col ast::Node::get_begin_line_col(const Parser& parser) const {
-	if (!parser._buffer_handler->is_valid() || parser._buffer_handler->_location_map.empty()) return {};
-	line_col result {};
-	auto [itr, range_end] = parser._buffer_handler->_location_map.equal_range(this);
-	if (itr != range_end) {
-		result.line = itr->second.line_nr();
-		result.column = itr->second.column_nr();
+const FilePosition Parser::get_position(const ast::Node* node) const {
+	if (!node || !node->is_linked_in_tree()) {
+		return {};
 	}
-	// Standard doesn't really guarantee the direction of the range's sequence, but only GCC goes backwards
-	// TODO: DON'T USE STANDARD UNORDERED_MULTIMAP
-#if defined(__GNUC__) && !defined(__clang__)
-	itr++;
-	if (itr != range_end) {
-		result.line = itr->second.line_nr();
-		result.column = itr->second.column_nr();
+	auto node_location = _parse_handler->parse_state().ast().location_of(node);
+	if (node_location.is_synthesized()) {
+		return {};
 	}
-#endif
+
+	auto loc_begin = lexy::get_input_location(_parse_handler->buffer(), node_location.begin());
+	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+	if (node_location.begin() < node_location.end()) {
+		auto loc_end = lexy::get_input_location(_parse_handler->buffer(), node_location.end(), loc_begin.anchor());
+		result.end_line = loc_end.line_nr();
+		result.end_column = loc_end.column_nr();
+	}
+	return result;
+}
+
+Parser::error_range Parser::get_errors() const {
+	return _parse_handler->parse_state().logger().get_errors();
+}
+
+const FilePosition Parser::get_error_position(const error::Error* error) const {
+	if (!error || !error->is_linked_in_tree()) {
+		return {};
+	}
+	auto err_location = _parse_handler->parse_state().logger().location_of(error);
+	if (err_location.is_synthesized()) {
+		return {};
+	}
+
+	auto loc_begin = lexy::get_input_location(_parse_handler->buffer(), err_location.begin());
+	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+	if (err_location.begin() < err_location.end()) {
+		auto loc_end = lexy::get_input_location(_parse_handler->buffer(), err_location.end(), loc_begin.anchor());
+		result.end_line = loc_end.line_nr();
+		result.end_column = loc_end.column_nr();
+	}
 	return result;
 }
 
-const ast::Node::line_col ast::Node::get_end_line_col(const Parser& parser) const {
-	if (!parser._buffer_handler->is_valid() || parser._buffer_handler->_location_map.empty()) return {};
-	line_col result {};
-	auto [itr, range_end] = parser._buffer_handler->_location_map.equal_range(this);
-	if (itr != range_end) {
-		result.line = itr->second.line_nr();
-		result.column = itr->second.column_nr();
+void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
+	auto errors = get_errors();
+	if (errors.empty()) return;
+	for (const auto error : errors) {
+		dryad::visit_tree(
+			error,
+			[&](const error::BufferError* buffer_error) {
+				stream << buffer_error->message() << '\n';
+			},
+			[&](const error::ParseError* parse_error) {
+				stream << parse_error->message() << '\n';
+			},
+			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::Semantic* semantic) {
+				stream << semantic->message() << '\n';
+				auto annotations = semantic->annotations();
+				for (auto annotation : annotations) {
+					visitor(annotation);
+				}
+			},
+			[&](const error::PrimaryAnnotation* primary) {
+				stream << primary->message() << '\n';
+			},
+			[&](const error::SecondaryAnnotation* secondary) {
+				stream << secondary->message() << '\n';
+			});
 	}
-	// Standard doesn't really guarantee the direction of the range's sequence, but only GCC goes backwards
-	// TODO: DON'T USE STANDARD UNORDERED_MULTIMAP
-#if defined(__GNUC__) && !defined(__clang__)
-	return result;
-#endif
-	itr++;
-	if (itr != range_end) {
-		result.line = itr->second.line_nr();
-		result.column = itr->second.column_nr();
-	}
-	return result;
 }

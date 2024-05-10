@@ -2,8 +2,13 @@
 
 #include <filesystem>
 
+#include <openvic-dataloader/Error.hpp>
+#include <openvic-dataloader/Parser.hpp>
 #include <openvic-dataloader/csv/LineObject.hpp>
-#include <openvic-dataloader/detail/BasicParser.hpp>
+#include <openvic-dataloader/detail/utility/Concepts.hpp>
+#include <openvic-dataloader/detail/utility/ErrorRange.hpp>
+
+#include <dryad/node.hpp>
 
 namespace ovdl::csv {
 	enum class EncodingType {
@@ -15,6 +20,7 @@ namespace ovdl::csv {
 	class Parser final : public detail::BasicParser {
 	public:
 		Parser();
+		Parser(std::basic_ostream<char>& error_stream);
 
 		static Parser from_buffer(const char* data, std::size_t size);
 		static Parser from_buffer(const char* start, const char* end);
@@ -28,11 +34,20 @@ namespace ovdl::csv {
 		constexpr Parser& load_from_file(const char* path);
 		Parser& load_from_file(const std::filesystem::path& path);
 
-		constexpr Parser& load_from_file(const detail::Has_c_str auto& path);
+		constexpr Parser& load_from_file(const detail::HasCstr auto& path) {
+			return load_from_file(path.c_str());
+		}
 
 		bool parse_csv(bool handle_strings = false);
 
 		const std::vector<csv::LineObject>& get_lines() const;
+
+		using error_range = ovdl::detail::error_range;
+		Parser::error_range get_errors() const;
+
+		const FilePosition get_error_position(const error::Error* error) const;
+
+		void print_errors_to(std::basic_ostream<char>& stream) const;
 
 		Parser(Parser&&);
 		Parser& operator=(Parser&&);
@@ -40,12 +55,12 @@ namespace ovdl::csv {
 		~Parser();
 
 	private:
-		class BufferHandler;
-		std::unique_ptr<BufferHandler> _buffer_handler;
+		class ParseHandler;
+		std::unique_ptr<ParseHandler> _parse_handler;
 		std::vector<csv::LineObject> _lines;
 
 		template<typename... Args>
-		constexpr void _run_load_func(detail::LoadCallback<BufferHandler, Args...> auto func, Args... args);
+		constexpr void _run_load_func(detail::LoadCallback<ParseHandler, Args...> auto func, Args... args);
 	};
 
 	using Windows1252Parser = Parser<EncodingType::Windows1252>;

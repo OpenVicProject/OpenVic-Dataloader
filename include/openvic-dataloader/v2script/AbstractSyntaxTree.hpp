@@ -1,310 +1,200 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <iostream>
-#include <memory>
-#include <string>
+#include <cstdio>
 #include <string_view>
-#include <type_traits>
-#include <utility>
-#include <vector>
 
-#include <openvic-dataloader/detail/OptionalConstexpr.hpp>
-#include <openvic-dataloader/detail/SelfType.hpp>
-#include <openvic-dataloader/detail/TypeName.hpp>
+#include <openvic-dataloader/AbstractSyntaxTree.hpp>
+#include <openvic-dataloader/File.hpp>
+#include <openvic-dataloader/NodeLocation.hpp>
+#include <openvic-dataloader/ParseState.hpp>
+#include <openvic-dataloader/detail/LexyFwdDeclaration.hpp>
 
-namespace lexy {
-	struct nullopt;
-}
-
-namespace ovdl::v2script {
-	class Parser;
-}
-
-#define OVDL_PRINT_FUNC_DEF std::ostream& print(std::ostream& stream, std::size_t indent) const override
-
-// defines get_type_static and get_type for string type naming
-#define OVDL_RT_TYPE_DEF                                                                              \
-	static constexpr std::string_view get_type_static() { return ::ovdl::detail::type_name<type>(); } \
-	constexpr std::string_view get_type() const override { return ::ovdl::detail::type_name<std::decay_t<decltype(*this)>>(); }
-
-// defines type for self-class referencing
-#define OVDL_TYPE_DEFINE_SELF                                                                                  \
-	struct _self_type_tag {};                                                                                  \
-	constexpr auto _self_type_helper() -> decltype(::ovdl::detail::Writer<_self_type_tag, decltype(this)> {}); \
-	using type = ::ovdl::detail::Read<_self_type_tag>;
+#include <dryad/_detail/assert.hpp>
+#include <dryad/_detail/config.hpp>
+#include <dryad/abstract_node.hpp>
+#include <dryad/node.hpp>
+#include <dryad/symbol.hpp>
+#include <dryad/tree.hpp>
 
 namespace ovdl::v2script::ast {
+	enum class NodeKind {
+		FileTree,
 
-	struct Node;
-	using NodePtr = Node*;
-	using NodeCPtr = const Node*;
-	using NodeUPtr = std::unique_ptr<Node>;
+		// FlatValues //
+		IdentifierValue, // straight_identifier_value
+		StringValue,	 // "plain string value"
 
-	struct NodeLocation {
-		const char* _begin = nullptr;
-		const char* _end = nullptr;
+		FirstFlatValue = IdentifierValue,
+		LastFlatValue = StringValue,
 
-		NodeLocation() = default;
-		NodeLocation(const char* pos) : _begin(pos),
-										_end(pos) {}
-		NodeLocation(const char* begin, const char* end) : _begin(begin),
-														   _end(end) {}
+		// Values //
+		ListValue, // { <StatementList> }
+		NullValue,
 
-		NodeLocation(const NodeLocation&) = default;
-		NodeLocation& operator=(const NodeLocation&) = default;
+		FirstValue = FirstFlatValue,
+		LastValue = NullValue,
 
-		NodeLocation(NodeLocation&&) = default;
-		NodeLocation& operator=(NodeLocation&&) = default;
+		// Statements //
+		EventStatement,	 // (country_event|province_event) = { id = <FlatValue> ... }
+		AssignStatement, // <IdentifierValue> = <Value>
+		ValueStatement,	 // <Value>
 
-		const char* begin() const { return _begin; }
-		const char* end() const { return _end; }
-
-		static inline NodeLocation make_from(const char* begin, const char* end) {
-			end++;
-			if (begin >= end) return NodeLocation(begin);
-			return NodeLocation(begin, end);
-		}
+		FirstStatement = EventStatement,
+		LastStatement = ValueStatement,
 	};
 
-	struct Node {
-		Node(const Node&) = delete;
-		Node& operator=(const Node&) = delete;
-		Node(NodeLocation location) : _location(location) {}
-		Node(Node&&) = default;
-		Node& operator=(Node&&) = default;
-		virtual ~Node() = default;
+	constexpr std::string_view get_kind_name(NodeKind kind) {
+		switch (kind) {
+			using enum NodeKind;
+			case FileTree: return "file tree";
+			case IdentifierValue: return "identifier value";
+			case StringValue: return "string value";
+			case ListValue: return "list value";
+			case NullValue: return "null value";
+			case EventStatement: return "event statement";
+			case AssignStatement: return "assign statement";
+			case ValueStatement: return "value statement";
+			default: detail::unreachable();
+		}
+	}
 
-		virtual std::ostream& print(std::ostream& stream, std::size_t indent) const = 0;
-		static std::ostream& print_ptr(std::ostream& stream, NodeCPtr node, std::size_t indent);
-		explicit operator std::string() const;
+	using Node = dryad::node<NodeKind>;
+	using NodeList = dryad::unlinked_node_list<Node>;
 
-		static constexpr std::string_view get_type_static() { return detail::type_name<Node>(); }
-		constexpr virtual std::string_view get_type() const = 0;
+	struct Value;
 
-		static constexpr std::string_view get_base_type_static() { return detail::type_name<Node>(); }
-		constexpr virtual std::string_view get_base_type() const { return get_base_type_static(); }
+	struct FlatValue;
+	struct IdentifierValue;
+	struct StringValue;
 
-		template<typename T>
-		constexpr bool is_type() const {
-			return get_type().compare(detail::type_name<T>()) == 0;
+	struct ListValue;
+
+	struct Statement;
+	using StatementList = dryad::unlinked_node_list<Statement>;
+
+	struct EventStatement;
+	using EventStatementList = dryad::unlinked_node_list<EventStatement>;
+
+	struct AssignStatement;
+	using AssignStatementList = dryad::unlinked_node_list<AssignStatement>;
+
+	struct Value : dryad::abstract_node_range<Node, NodeKind::FirstValue, NodeKind::LastValue> {
+		DRYAD_ABSTRACT_NODE_CTOR(Value);
+	};
+
+	struct FlatValue : dryad::abstract_node_range<Value, NodeKind::FirstFlatValue, NodeKind::LastFlatValue> {
+		AbstractSyntaxTree::symbol_type value() const {
+			return _value;
 		}
 
-		template<typename T>
-		constexpr bool is_derived_from() const {
-			return is_type<T>() || get_base_type().compare(detail::type_name<T>()) == 0;
+		const char* value(const AbstractSyntaxTree::symbol_interner_type& symbols) const {
+			return _value.c_str(symbols);
 		}
 
-		template<typename T>
-		constexpr T* cast_to() {
-			if (is_derived_from<T>() || is_type<Node>()) return (static_cast<T*>(this));
-			return nullptr;
+	protected:
+		explicit FlatValue(dryad::node_ctor ctor, NodeKind kind, AbstractSyntaxTree::symbol_type value)
+			: node_base(ctor, kind),
+			  _value(value) {}
+
+	protected:
+		AbstractSyntaxTree::symbol_type _value;
+	};
+
+	struct IdentifierValue : dryad::basic_node<NodeKind::IdentifierValue, FlatValue> {
+		explicit IdentifierValue(dryad::node_ctor ctor, AbstractSyntaxTree::symbol_type value) : node_base(ctor, value) {}
+	};
+
+	struct StringValue : dryad::basic_node<NodeKind::StringValue, FlatValue> {
+		explicit StringValue(dryad::node_ctor ctor, AbstractSyntaxTree::symbol_type value) : node_base(ctor, value) {}
+	};
+
+	struct ListValue : dryad::basic_node<NodeKind::ListValue, dryad::container_node<Value>> {
+		explicit ListValue(dryad::node_ctor ctor, StatementList statements);
+		explicit ListValue(dryad::node_ctor ctor, AssignStatementList statements)
+			: node_base(ctor) {
+			insert_child_list_after(nullptr, statements);
 		}
 
-		template<typename T>
-		constexpr const T* const cast_to() const {
-			if (is_derived_from<T>() || is_type<Node>()) return (static_cast<const T*>(this));
-			return nullptr;
+		explicit ListValue(dryad::node_ctor ctor) : ListValue(ctor, StatementList {}) {
 		}
 
-		const NodeLocation location() const { return _location; }
-
-		struct line_col {
-			uint32_t line;
-			uint32_t column;
-		};
+		DRYAD_CHILD_NODE_RANGE_GETTER(Statement, statements, nullptr, this->node_after(_last_statement));
 
 	private:
-		friend class ::ovdl::v2script::Parser;
-		const line_col get_begin_line_col(const Parser& parser) const;
-		const line_col get_end_line_col(const Parser& parser) const;
+		Node* _last_statement;
+	};
+
+	struct NullValue : dryad::basic_node<NodeKind::NullValue, Value> {
+		explicit NullValue(dryad::node_ctor ctor) : node_base(ctor) {}
+	};
+
+	struct Statement : dryad::abstract_node_range<dryad::container_node<Node>, NodeKind::FirstStatement, NodeKind::LastStatement> {
+		explicit Statement(dryad::node_ctor ctor, NodeKind kind, Value* right)
+			: node_base(ctor, kind) {
+			insert_child_after(nullptr, right);
+		}
+
+		explicit Statement(dryad::node_ctor ctor, NodeKind kind, Value* left, Value* right)
+			: node_base(ctor, kind) {
+			insert_child_after(nullptr, left);
+			insert_child_after(left, right);
+		}
+	};
+
+	struct EventStatement : dryad::basic_node<NodeKind::EventStatement, Statement> {
+		explicit EventStatement(dryad::node_ctor ctor, bool is_province_event, ListValue* list)
+			: basic_node(ctor, list),
+			  _is_province_event(is_province_event) {
+		}
+
+		bool is_province_event() const { return _is_province_event; }
+
+		DRYAD_CHILD_NODE_GETTER(Value, right, nullptr);
 
 	private:
-		NodeLocation _location;
+		bool _is_province_event;
 	};
 
-	inline std::ostream& operator<<(std::ostream& stream, Node const& node) {
-		return node.print(stream, 0);
-	}
-	inline std::ostream& operator<<(std::ostream& stream, NodeCPtr node) {
-		return Node::print_ptr(stream, node, 0);
-	}
-	inline std::ostream& operator<<(std::ostream& stream, Node::line_col const& val) {
-		return stream << '(' << val.line << ':' << val.column << ')';
-	}
-
-	template<class T, class... Args>
-	NodePtr make_node_ptr(Args&&... args) {
-		if constexpr (std::is_pointer_v<NodePtr>) {
-			return new T(std::forward<Args>(args)...);
-		} else {
-			return NodePtr(new T(std::forward<Args>(args)...));
+	struct AssignStatement : dryad::basic_node<NodeKind::AssignStatement, Statement> {
+		explicit AssignStatement(dryad::node_ctor ctor, Value* left, Value* right)
+			: node_base(ctor, left, right) {
 		}
-	}
+		DRYAD_CHILD_NODE_GETTER(Value, left, nullptr);
+		DRYAD_CHILD_NODE_GETTER(Value, right, left());
+	};
 
-	template<typename To, typename From>
-	To& cast_node_ptr(const From& from) {
-		if constexpr (std::is_pointer_v<NodePtr>) {
-			return *static_cast<To*>(from);
-		} else {
-			return *static_cast<To*>(from.get());
+	struct ValueStatement : dryad::basic_node<NodeKind::ValueStatement, Statement> {
+		explicit ValueStatement(dryad::node_ctor ctor, Value* value)
+			: node_base(ctor, value) {
 		}
-	}
+		DRYAD_CHILD_NODE_GETTER(Value, value, nullptr);
+	};
 
-	template<typename To, typename From>
-	const To& cast_node_cptr(const From& from) {
-		if constexpr (std::is_pointer_v<NodePtr>) {
-			return *static_cast<const To*>(from);
-		} else {
-			return *static_cast<const To*>(from.get());
+	struct FileTree : dryad::basic_node<NodeKind::FileTree, dryad::container_node<Node>> {
+		explicit FileTree(dryad::node_ctor ctor, StatementList statements);
+		explicit FileTree(dryad::node_ctor ctor, AssignStatementList statements) : node_base(ctor) {
+			insert_child_list_after(nullptr, statements);
 		}
-	}
 
-	void copy_into_node_ptr_vector(const std::vector<NodePtr>& source, std::vector<NodeUPtr>& dest);
+		explicit FileTree(dryad::node_ctor ctor) : FileTree(ctor, StatementList {}) {
+		}
 
-	struct AbstractStringNode : public Node {
-		std::string _name;
-		AbstractStringNode();
-		AbstractStringNode(std::string&& name, bool allow_newline);
-		AbstractStringNode(NodeLocation location);
-		AbstractStringNode(NodeLocation location, std::string&& name, bool allow_newline);
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
-		static constexpr std::string_view get_base_type_static() { return detail::type_name<AbstractStringNode>(); }
-		constexpr std::string_view get_base_type() const override { return ::ovdl::detail::type_name<std::decay_t<decltype(*this)>>(); }
+		DRYAD_CHILD_NODE_RANGE_GETTER(Statement, statements, nullptr, this->node_after(_last_node));
+
+	private:
+		Node* _last_node;
 	};
 
-#define OVDL_AST_STRING_NODE(NAME)                                                  \
-	struct NAME final : public AbstractStringNode {                                 \
-		NAME();                                                                     \
-		NAME(std::string&& name, bool allow_newline = true);                        \
-		NAME(lexy::nullopt);                                                        \
-		NAME(NodeLocation location);                                                \
-		NAME(NodeLocation location, std::string&& name, bool allow_newline = true); \
-		NAME(NodeLocation location, lexy::nullopt);                                 \
-		OVDL_TYPE_DEFINE_SELF;                                                      \
-		OVDL_RT_TYPE_DEF;                                                           \
-		OVDL_PRINT_FUNC_DEF;                                                        \
-	}
+	using File = ovdl::BasicFile<lexy::default_encoding, Node>;
+	struct AbstractSyntaxTree : ovdl::BasicAbstractSyntaxTree<File, FileTree> {
+		using BasicAbstractSyntaxTree::BasicAbstractSyntaxTree;
 
-	// Value Expression Nodes
-	OVDL_AST_STRING_NODE(IdentifierNode);
-	OVDL_AST_STRING_NODE(StringNode);
-
-	// Assignment Nodes
-	OVDL_AST_STRING_NODE(FactorNode);
-	OVDL_AST_STRING_NODE(MonthNode);
-	OVDL_AST_STRING_NODE(NameNode);
-	OVDL_AST_STRING_NODE(FireOnlyNode);
-	OVDL_AST_STRING_NODE(IdNode);
-	OVDL_AST_STRING_NODE(TitleNode);
-	OVDL_AST_STRING_NODE(DescNode);
-	OVDL_AST_STRING_NODE(PictureNode);
-	OVDL_AST_STRING_NODE(IsTriggeredNode);
-
-#undef OVDL_AST_STRING_NODE
-
-	struct AssignNode final : public Node {
-		std::string _name;
-		NodeUPtr _initializer;
-		AssignNode(NodeLocation location, NodeCPtr name, NodePtr init);
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
+		std::string make_list_visualizer() const;
+		std::string make_native_visualizer() const;
 	};
+	using ParseState = ovdl::ParseState<AbstractSyntaxTree>;
 
-	struct AbstractListNode : public Node {
-		std::vector<NodeUPtr> _statements;
-		AbstractListNode(const std::vector<NodePtr>& statements = std::vector<NodePtr> {});
-		AbstractListNode(NodeLocation location, const std::vector<NodePtr>& statements = std::vector<NodePtr> {});
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
-		static constexpr std::string_view get_base_type_static() { return detail::type_name<AbstractListNode>(); }
-		constexpr std::string_view get_base_type() const override { return ::ovdl::detail::type_name<std::decay_t<decltype(*this)>>(); }
-	};
-
-#define OVDL_AST_LIST_NODE(NAME)                                                                       \
-	struct NAME final : public AbstractListNode {                                                      \
-		NAME(const std::vector<NodePtr>& statements = std::vector<NodePtr> {});                        \
-		NAME(lexy::nullopt);                                                                           \
-		NAME(NodeLocation location, const std::vector<NodePtr>& statements = std::vector<NodePtr> {}); \
-		NAME(NodeLocation location, lexy::nullopt);                                                    \
-		OVDL_TYPE_DEFINE_SELF;                                                                         \
-		OVDL_RT_TYPE_DEF;                                                                              \
-		OVDL_PRINT_FUNC_DEF;                                                                           \
-	}
-
-	OVDL_AST_LIST_NODE(FileNode);
-	OVDL_AST_LIST_NODE(ListNode);
-
-	OVDL_AST_LIST_NODE(ModifierNode);
-	OVDL_AST_LIST_NODE(MtthNode);
-	OVDL_AST_LIST_NODE(EventOptionNode);
-	OVDL_AST_LIST_NODE(BehaviorListNode);
-	OVDL_AST_LIST_NODE(DecisionListNode);
-
-#undef OVDL_AST_LIST_NODE
-
-#define OVDL_AST_LIST_EXTEND(NAME)              \
-	NAME(lexy::nullopt);                        \
-	NAME(NodeLocation location, lexy::nullopt); \
-	OVDL_TYPE_DEFINE_SELF;                      \
-	OVDL_RT_TYPE_DEF;                           \
-	OVDL_PRINT_FUNC_DEF
-
-	struct EventNode final : public AbstractListNode {
-		OVDL_AST_LIST_EXTEND(EventNode);
-		enum class Type {
-			Country,
-			Province
-		} _type;
-		EventNode(Type type, const std::vector<NodePtr>& statements = {});
-		EventNode(NodeLocation location, Type type, const std::vector<NodePtr>& statements = {});
-	};
-
-	struct DecisionNode final : public AbstractListNode {
-		OVDL_AST_LIST_EXTEND(DecisionNode);
-		NodeUPtr _name;
-		DecisionNode(NodePtr name, const std::vector<NodePtr>& statements = {});
-		DecisionNode(NodeLocation location, NodePtr name, const std::vector<NodePtr>& statements = {});
-	};
-
-	struct EventMtthModifierNode final : public AbstractListNode {
-		OVDL_AST_LIST_EXTEND(EventMtthModifierNode);
-		NodeUPtr _factor_value;
-		EventMtthModifierNode() : AbstractListNode() {}
-		EventMtthModifierNode(NodeLocation location) : AbstractListNode(location) {}
-	};
-
-	// Packed single case
-	struct ExecutionNode final : public Node {
-		enum class Type {
-			Effect,
-			Trigger
-		} _type;
-		NodeUPtr _name;
-		NodeUPtr _initializer;
-		ExecutionNode(Type type, NodePtr name, NodePtr init);
-		ExecutionNode(NodeLocation location, Type type, NodePtr name, NodePtr init);
-		OVDL_TYPE_DEFINE_SELF;
-		OVDL_RT_TYPE_DEF;
-		OVDL_PRINT_FUNC_DEF;
-	};
-
-	struct ExecutionListNode final : public AbstractListNode {
-		OVDL_AST_LIST_EXTEND(ExecutionListNode);
-		ExecutionNode::Type _type;
-		ExecutionListNode(ExecutionNode::Type type, const std::vector<NodePtr>& statements);
-		ExecutionListNode(NodeLocation location, ExecutionNode::Type type, const std::vector<NodePtr>& statements);
-	};
-
-#undef OVDL_AST_LIST_EXTEND
-
+	static_assert(IsFile<ast::File>, "File failed IsFile concept");
+	static_assert(IsAst<ast::AbstractSyntaxTree>, "AbstractSyntaxTree failed IsAst concept");
+	static_assert(IsParseState<ast::ParseState>, "ParseState failed IsParseState concept");
 }
-
-#undef OVDL_PRINT_FUNC_DECL
-#undef OVDL_PRINT_FUNC_DEF
-#undef OVDL_TYPE_DEFINE_SELF

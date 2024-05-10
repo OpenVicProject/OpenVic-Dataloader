@@ -6,37 +6,24 @@
 #include <lexy/dsl.hpp>
 
 #include "SimpleGrammar.hpp"
+#include "detail/dsl.hpp"
 
 namespace ovdl::v2script::grammar {
 	struct TriggerStatement {
-		static constexpr auto rule = lexy::dsl::inline_<SimpleAssignmentStatement<StringEscapeOption>>;
+		static constexpr auto rule = lexy::dsl::p<SAssignStatement<StringEscapeOption>>;
 
-		static constexpr auto value = lexy::callback<ast::NodePtr>(
-			[](auto name, auto&& initalizer) {
-				return ast::make_node_ptr<ast::ExecutionNode>({}, ast::ExecutionNode::Type::Trigger, LEXY_MOV(name), LEXY_MOV(initalizer));
-			});
+		static constexpr auto value = lexy::forward<ast::AssignStatement*>;
 	};
 
 	struct TriggerList {
-		static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<SimpleAssignmentStatement<StringEscapeOption>>);
+		static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<TriggerStatement>);
 
-		static constexpr auto value =
-			lexy::as_list<std::vector<ast::NodePtr>> >>
-			lexy::callback<ast::NodePtr>(
-				[](auto&& list) {
-					return ast::make_node_ptr<ast::ExecutionListNode>(ast::ExecutionNode::Type::Trigger, LEXY_MOV(list));
-				});
+		static constexpr auto value = lexy::as_list<ast::AssignStatementList>;
 	};
 
 	struct TriggerBlock {
-		static constexpr auto rule = lexy::dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>);
+		static constexpr auto rule = dsl::curly_bracketed.opt(lexy::dsl::p<TriggerList>);
 
-		static constexpr auto value = lexy::callback<ast::NodePtr>(
-			[](auto&& list) {
-				return LEXY_MOV(list);
-			},
-			[](lexy::nullopt = {}) {
-				return lexy::nullopt {};
-			});
+		static constexpr auto value = construct_list<ast::ListValue>;
 	};
 }

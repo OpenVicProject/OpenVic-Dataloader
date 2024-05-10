@@ -3,21 +3,26 @@
 #include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <ostream>
+#include <string>
 #include <string_view>
 
-#include <openvic-dataloader/ParseError.hpp>
-#include <openvic-dataloader/ParseWarning.hpp>
-#include <openvic-dataloader/detail/BasicParser.hpp>
-#include <openvic-dataloader/detail/Concepts.hpp>
+#include <openvic-dataloader/Error.hpp>
+#include <openvic-dataloader/NodeLocation.hpp>
+#include <openvic-dataloader/Parser.hpp>
+#include <openvic-dataloader/detail/utility/Concepts.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
-namespace ovdl::v2script {
+#include <dryad/node.hpp>
 
-	using FileNode = ast::FileNode;
+namespace ovdl::v2script {
+	using FileTree = ast::FileTree;
+	using FilePosition = ovdl::FilePosition;
 
 	class Parser final : public detail::BasicParser {
 	public:
 		Parser();
+		Parser(std::basic_ostream<char>& error_stream);
 
 		static Parser from_buffer(const char* data, std::size_t size);
 		static Parser from_buffer(const char* start, const char* end);
@@ -31,19 +36,30 @@ namespace ovdl::v2script {
 		constexpr Parser& load_from_file(const char* path);
 		Parser& load_from_file(const std::filesystem::path& path);
 
-		constexpr Parser& load_from_file(const detail::Has_c_str auto& path);
+		constexpr Parser& load_from_file(const detail::HasCstr auto& path) {
+			return load_from_file(path.c_str());
+		}
 
 		bool simple_parse();
 		bool event_parse();
 		bool decision_parse();
 		bool lua_defines_parse();
 
-		const FileNode* get_file_node() const;
+		const FileTree* get_file_node() const;
 
-		void generate_node_location_map();
+		std::string_view value(const ovdl::v2script::ast::FlatValue& node) const;
 
-		const ast::Node::line_col get_node_begin(const ast::NodeCPtr node) const;
-		const ast::Node::line_col get_node_end(const ast::NodeCPtr node) const;
+		std::string make_native_string() const;
+		std::string make_list_string() const;
+
+		const FilePosition get_position(const ast::Node* node) const;
+
+		using error_range = ovdl::detail::error_range;
+		Parser::error_range get_errors() const;
+
+		const FilePosition get_error_position(const error::Error* error) const;
+
+		void print_errors_to(std::basic_ostream<char>& stream) const;
 
 		Parser(Parser&&);
 		Parser& operator=(Parser&&);
@@ -51,12 +67,10 @@ namespace ovdl::v2script {
 		~Parser();
 
 	private:
-		friend class ::ovdl::v2script::ast::Node;
-		class BufferHandler;
-		std::unique_ptr<BufferHandler> _buffer_handler;
-		std::unique_ptr<FileNode> _file_node;
+		class ParseHandler;
+		std::unique_ptr<ParseHandler> _parse_handler;
 
 		template<typename... Args>
-		constexpr void _run_load_func(detail::LoadCallback<BufferHandler, Args...> auto func, Args... args);
+		constexpr void _run_load_func(detail::LoadCallback<Parser::ParseHandler*, Args...> auto func, Args... args);
 	};
 }
