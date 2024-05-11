@@ -33,7 +33,7 @@ namespace ovdl::v2script {
 		constexpr Parser& load_from_buffer(const char* data, std::size_t size);
 		constexpr Parser& load_from_buffer(const char* start, const char* end);
 		constexpr Parser& load_from_string(const std::string_view string);
-		constexpr Parser& load_from_file(const char* path);
+		Parser& load_from_file(const char* path);
 		Parser& load_from_file(const std::filesystem::path& path);
 
 		constexpr Parser& load_from_file(const detail::HasCstr auto& path) {
@@ -47,14 +47,14 @@ namespace ovdl::v2script {
 
 		const FileTree* get_file_node() const;
 
-		std::string_view value(const ovdl::v2script::ast::FlatValue& node) const;
+		std::string_view value(const ovdl::v2script::ast::FlatValue* node) const;
 
 		std::string make_native_string() const;
 		std::string make_list_string() const;
 
 		const FilePosition get_position(const ast::Node* node) const;
 
-		using error_range = ovdl::detail::error_range;
+		using error_range = ovdl::detail::error_range<error::Root>;
 		Parser::error_range get_errors() const;
 
 		const FilePosition get_error_position(const error::Error* error) const;

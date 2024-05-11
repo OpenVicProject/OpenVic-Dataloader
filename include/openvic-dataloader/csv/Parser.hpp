@@ -31,7 +31,7 @@ namespace ovdl::csv {
 		constexpr Parser& load_from_buffer(const char* data, std::size_t size);
 		constexpr Parser& load_from_buffer(const char* start, const char* end);
 		constexpr Parser& load_from_string(const std::string_view string);
-		constexpr Parser& load_from_file(const char* path);
+		Parser& load_from_file(const char* path);
 		Parser& load_from_file(const std::filesystem::path& path);
 
 		constexpr Parser& load_from_file(const detail::HasCstr auto& path) {
@@ -42,7 +42,7 @@ namespace ovdl::csv {
 
 		const std::vector<csv::LineObject>& get_lines() const;
 
-		using error_range = ovdl::detail::error_range;
+		using error_range = ovdl::detail::error_range<error::Root>;
 		Parser::error_range get_errors() const;
 
 		const FilePosition get_error_position(const error::Error* error) const;

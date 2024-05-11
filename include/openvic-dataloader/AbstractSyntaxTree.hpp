@@ -7,6 +7,7 @@
 
 #include <openvic-dataloader/File.hpp>
 #include <openvic-dataloader/NodeLocation.hpp>
+#include <openvic-dataloader/detail/SymbolIntern.hpp>
 #include <openvic-dataloader/detail/utility/Utility.hpp>
 
 #include <dryad/node.hpp>
@@ -17,12 +18,7 @@
 #include <fmt/core.h>
 
 namespace ovdl {
-	struct AbstractSyntaxTree {
-		struct SymbolId;
-		using index_type = std::uint32_t;
-		using symbol_type = dryad::symbol<SymbolId, index_type>;
-		using symbol_interner_type = dryad::symbol_interner<SymbolId, char, index_type>;
-
+	struct AbstractSyntaxTree : SymbolIntern {
 		symbol_type intern(const char* str, std::size_t length);
 		symbol_type intern(std::string_view str);
 		const char* intern_cstr(const char* str, std::size_t length);

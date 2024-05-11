@@ -40,7 +40,7 @@ namespace ovdl::v2script::grammar {
 
 	struct DecisionList {
 		static constexpr auto rule =
-			ovdl::dsl::keyword<"political_decisions">(lexy::dsl::inline_<Identifier<StringEscapeOption>>) >>
+			ovdl::dsl::keyword<"political_decisions">(id) >>
 			(lexy::dsl::equal_sign >> lexy::dsl::curly_bracketed.opt_list(lexy::dsl::p<DecisionStatement>));
 
 		static constexpr auto value = lexy::as_list<ast::AssignStatementList>;

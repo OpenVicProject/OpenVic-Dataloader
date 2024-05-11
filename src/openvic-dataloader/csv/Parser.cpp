@@ -142,8 +142,8 @@ constexpr Parser<Encoding>& Parser<Encoding>::load_from_string(const std::string
 }
 
 template<EncodingType Encoding>
-constexpr Parser<Encoding>& Parser<Encoding>::load_from_file(const char* path) {
-	_file_path = path;
+Parser<Encoding>& Parser<Encoding>::load_from_file(const char* path) {
+	set_file_path(path);
 	// Type can be deduced??
 	_run_load_func(std::mem_fn(&ParseHandler::load_file), path);
 	return *this;
@@ -224,15 +224,21 @@ void Parser<Encoding>::print_errors_to(std::basic_ostream<char>& stream) const {
 		dryad::visit_tree(
 			error,
 			[&](const error::BufferError* buffer_error) {
-				stream << buffer_error->message() << '\n';
+				stream << "buffer error: " << buffer_error->message() << '\n';
 			},
 			[&](const error::ParseError* parse_error) {
-				stream << parse_error->message() << '\n';
+				auto position = get_error_position(parse_error);
+				std::string pos_str = fmt::format(":{}:{}: ", position.start_line, position.start_column);
+				stream << _file_path << pos_str << "parse error for '" << parse_error->production_name() << "': " << parse_error->message() << '\n';
 			},
 			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::Semantic* semantic) {
-				stream << semantic->message() << '\n';
+				auto position = get_error_position(semantic);
+				std::string pos_str = ": ";
+				if (!position.is_empty()) {
+					pos_str = fmt::format(":{}:{}: ", position.start_line, position.start_column);
+				}
+				stream << _file_path << pos_str << semantic->message() << '\n';
 				auto annotations = semantic->annotations();
-				if (annotations.empty()) return;
 				for (auto annotation : annotations) {
 					visitor(annotation);
 				}

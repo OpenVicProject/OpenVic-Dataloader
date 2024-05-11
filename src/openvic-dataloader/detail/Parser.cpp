@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <ostream>
 
@@ -40,4 +41,10 @@ bool BasicParser::has_warning() const {
 
 std::string_view BasicParser::get_file_path() const {
 	return _file_path;
+}
+
+void BasicParser::set_file_path(std::string_view path) {
+	std::error_code error;
+	std::filesystem::path file_path = std::filesystem::weakly_canonical(path, error);
+	_file_path = file_path.string();
 }

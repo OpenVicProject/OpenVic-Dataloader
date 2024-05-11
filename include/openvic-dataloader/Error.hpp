@@ -59,7 +59,7 @@ namespace ovdl::error {
 	}
 
 	struct Error : dryad::abstract_node_all<ErrorKind> {
-		const char* message() const { return _message; }
+		std::string_view message() const { return _message; }
 
 	protected:
 		DRYAD_ABSTRACT_NODE_CTOR(Error);
@@ -79,7 +79,7 @@ namespace ovdl::error {
 	struct Root : dryad::basic_node<ErrorKind::Root, dryad::container_node<Error>> {
 		explicit Root(dryad::node_ctor ctor) : node_base(ctor) {}
 
-		DRYAD_CHILD_NODE_RANGE_GETTER(Error, errors, nullptr, this);
+		DRYAD_CHILD_NODE_RANGE_GETTER(Error, errors, nullptr, this->node_after(_last));
 
 		void insert_back(Error* error) {
 			insert_child_after(_last, error);
@@ -99,7 +99,7 @@ namespace ovdl::error {
 	};
 
 	struct ParseError : dryad::abstract_node_range<Error, ErrorKind::FirstParseError, ErrorKind::LastParseError> {
-		const char* production_name() const { return _production_name; }
+		std::string_view production_name() const { return _production_name; }
 
 	protected:
 		explicit ParseError(dryad::node_ctor ctor,
@@ -126,7 +126,7 @@ namespace ovdl::error {
 	using GenericParseError = _ParseError_t<ErrorKind::GenericParseError>;
 
 	struct Semantic : dryad::abstract_node_range<dryad::container_node<Error>, ErrorKind::FirstSemantic, ErrorKind::LastSemantic> {
-		DRYAD_CHILD_NODE_RANGE_GETTER(Annotation, annotations, nullptr, this);
+		DRYAD_CHILD_NODE_RANGE_GETTER(Annotation, annotations, nullptr, this->node_after(_last_annotation));
 
 		void push_back(Annotation* annotation);
 		void push_back(AnnotationList p_annotations);
@@ -146,6 +146,9 @@ namespace ovdl::error {
 			insert_child_list_after(nullptr, annotations);
 			_set_message(message);
 		};
+
+	private:
+		Error* _last_annotation;
 	};
 
 	template<ErrorKind NodeKind>
@@ -187,9 +190,11 @@ namespace ovdl::error {
 
 	inline void Semantic::push_back(Annotation* annotation) {
 		insert_child_after(annotations().end().deref(), annotation);
+		_last_annotation = annotation;
 	}
 
 	inline void Semantic::push_back(AnnotationList p_annotations) {
 		insert_child_list_after(annotations().end().deref(), p_annotations);
+		_last_annotation = *p_annotations.end();
 	}
 }

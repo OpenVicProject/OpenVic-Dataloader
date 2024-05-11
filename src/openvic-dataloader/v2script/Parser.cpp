@@ -1,5 +1,6 @@
 #include "openvic-dataloader/v2script/Parser.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -149,8 +150,8 @@ constexpr Parser& Parser::load_from_string(const std::string_view string) {
 	return load_from_buffer(string.data(), string.size());
 }
 
-constexpr Parser& Parser::load_from_file(const char* path) {
-	_file_path = path;
+Parser& Parser::load_from_file(const char* path) {
+	set_file_path(path);
 	// Type can be deduced??
 	_run_load_func(std::mem_fn(&ParseHandler::load_file), path);
 	return *this;
@@ -179,6 +180,7 @@ bool Parser::simple_parse() {
 	_has_error = _parse_handler->parse_state().logger().errored();
 	_has_warning = _parse_handler->parse_state().logger().warned();
 	if (!_parse_handler->root()) {
+		_has_error = true;
 		_has_fatal_error = true;
 		if (&_error_stream.get() != &detail::cnull) {
 			print_errors_to(_error_stream);
@@ -258,8 +260,8 @@ const FileTree* Parser::get_file_node() const {
 	return _parse_handler->root();
 }
 
-std::string_view Parser::value(const ovdl::v2script::ast::FlatValue& node) const {
-	return node.value(_parse_handler->parse_state().ast().symbol_interner());
+std::string_view Parser::value(const ovdl::v2script::ast::FlatValue* node) const {
+	return node->value(_parse_handler->parse_state().ast().symbol_interner());
 }
 
 std::string Parser::make_native_string() const {
@@ -319,13 +321,20 @@ void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 		dryad::visit_tree(
 			error,
 			[&](const error::BufferError* buffer_error) {
-				stream << buffer_error->message() << '\n';
+				stream << "buffer error: " << buffer_error->message() << '\n';
 			},
 			[&](const error::ParseError* parse_error) {
-				stream << parse_error->message() << '\n';
+				auto position = get_error_position(parse_error);
+				std::string pos_str = fmt::format(":{}:{}: ", position.start_line, position.start_column);
+				stream << _file_path << pos_str << "parse error for '" << parse_error->production_name() << "': " << parse_error->message() << '\n';
 			},
 			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::Semantic* semantic) {
-				stream << semantic->message() << '\n';
+				auto position = get_error_position(semantic);
+				std::string pos_str = ": ";
+				if (!position.is_empty()) {
+					pos_str = fmt::format(":{}:{}: ", position.start_line, position.start_column);
+				}
+				stream << _file_path << pos_str << semantic->message() << '\n';
 				auto annotations = semantic->annotations();
 				for (auto annotation : annotations) {
 					visitor(annotation);
