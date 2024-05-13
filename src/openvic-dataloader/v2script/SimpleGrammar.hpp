@@ -5,6 +5,8 @@
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
+#include <lexy/dsl/identifier.hpp>
+#include <lexy/dsl/symbol.hpp>
 
 #include "detail/dsl.hpp"
 
@@ -37,12 +39,14 @@ namespace ovdl::v2script::grammar {
 	/* REQUIREMENTS: DAT-631 */
 	static constexpr auto comment_specifier = LEXY_LIT("#") >> lexy::dsl::until(lexy::dsl::newline).or_eof();
 
+	static constexpr auto ascii = lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.");
+
 	/* REQUIREMENTS:
 	 * DAT-632
 	 * DAT-635
 	 */
 	static constexpr auto windows_1252_data_specifier =
-		lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.") /
+		ascii /
 		lexy::dsl::lit_b<0x8A> / lexy::dsl::lit_b<0x8C> / lexy::dsl::lit_b<0x8E> /
 		lexy::dsl::lit_b<0x92> / lexy::dsl::lit_b<0x97> / lexy::dsl::lit_b<0x9A> / lexy::dsl::lit_b<0x9C> /
 		dsl::make_range<0x9E, 0x9F>() /
@@ -73,6 +77,8 @@ namespace ovdl::v2script::grammar {
 												.map<'n'>('\n')
 												.map<'r'>('\r')
 												.map<'t'>('\t');
+
+	static constexpr auto id = lexy::dsl::identifier(data_char_class);
 
 	template<ParseOptions Options>
 	struct SimpleGrammar {
@@ -194,14 +200,14 @@ namespace ovdl::v2script::grammar {
 	template<ovdl::detail::string_literal Keyword, auto Production, auto Value = dsl::default_kw_value<ast::ParseState, ast::IdentifierValue, Keyword>>
 	using keyword_rule = dsl::keyword_rule<
 		ast::ParseState,
-		Identifier<StringEscapeOption>,
+		id,
 		ast::AssignStatement,
 		Keyword, Production, Value>;
 
 	template<ovdl::detail::string_literal Keyword, auto Production, auto Value = dsl::default_kw_value<ast::ParseState, ast::IdentifierValue, Keyword>>
 	using fkeyword_rule = dsl::fkeyword_rule<
 		ast::ParseState,
-		Identifier<StringEscapeOption>,
+		id,
 		ast::AssignStatement,
 		Keyword, Production, Value>;
 

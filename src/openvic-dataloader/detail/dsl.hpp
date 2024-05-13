@@ -97,14 +97,14 @@ namespace ovdl::dsl {
 
 	template<
 		IsParseState ParseType,
-		typename Identifier,
+		auto Identifier,
 		typename RuleValue,
 		ovdl::detail::string_literal Keyword,
 		auto Production,
 		auto Value>
 	struct keyword_rule {
 		struct rule_t {
-			static constexpr auto keyword = ovdl::dsl::keyword<Keyword>(lexy::dsl::inline_<Identifier>);
+			static constexpr auto keyword = ovdl::dsl::keyword<Keyword>(Identifier);
 			static constexpr auto rule = lexy::dsl::position(keyword) >> lexy::dsl::equal_sign;
 			static constexpr auto value = Value;
 		};
@@ -114,7 +114,7 @@ namespace ovdl::dsl {
 
 	template<
 		IsParseState ParseType,
-		typename Identifier,
+		auto Identifier,
 		typename RuleValue,
 		ovdl::detail::string_literal Keyword,
 		auto Production,

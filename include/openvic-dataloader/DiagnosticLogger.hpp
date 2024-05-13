@@ -11,9 +11,14 @@
 #include <openvic-dataloader/Error.hpp>
 #include <openvic-dataloader/File.hpp>
 #include <openvic-dataloader/NodeLocation.hpp>
+#include <openvic-dataloader/detail/CallbackOStream.hpp>
 #include <openvic-dataloader/detail/LexyReportError.hpp>
 #include <openvic-dataloader/detail/OStreamOutputIterator.hpp>
+#include <openvic-dataloader/detail/SymbolIntern.hpp>
+#include <openvic-dataloader/detail/utility/ErrorRange.hpp>
+#include <openvic-dataloader/detail/utility/Utility.hpp>
 
+#include <lexy/error.hpp>
 #include <lexy/input/base.hpp>
 #include <lexy/input/buffer.hpp>
 #include <lexy/visualize.hpp>
@@ -26,18 +31,14 @@
 
 #include <fmt/core.h>
 
-#include "openvic-dataloader/detail/CallbackOStream.hpp"
-#include "openvic-dataloader/detail/utility/ErrorRange.hpp"
-#include "openvic-dataloader/detail/utility/Utility.hpp"
-
 #include <lexy_ext/report_error.hpp>
 
 namespace ovdl {
-	struct DiagnosticLogger {
+	struct DiagnosticLogger : SymbolIntern {
 		using AnnotationKind = lexy_ext::annotation_kind;
 		using DiagnosticKind = lexy_ext::diagnostic_kind;
 
-		using error_range = detail::error_range;
+		using error_range = detail::error_range<error::Root>;
 
 		explicit operator bool() const;
 		bool errored() const;
@@ -57,28 +58,36 @@ namespace ovdl {
 					using Reader = lexy::input_reader<Input>;
 					error::Error* result;
 
+					std::string production_name = context.production();
+					auto left_strip = production_name.find_first_of('<');
+					if (left_strip != std::string::npos) {
+						auto right_strip = production_name.find_first_of('>', left_strip);
+						if (right_strip != std::string::npos) {
+							production_name.erase(left_strip, right_strip - left_strip + 1);
+						}
+					}
+
+					auto production = _logger.intern_cstr(production_name);
 					if constexpr (std::is_same_v<Tag, lexy::expected_literal>) {
 						auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
-						NodeLocation loc = NodeLocation::make_from(string.begin(), string.end());
+						NodeLocation loc = NodeLocation::make_from(context.position(), error.position() - 1);
 						auto message = _logger.intern_cstr(fmt::format("expected '{}'", string.data()));
-						result = _logger.template create<error::ExpectedLiteral>(loc, message, context.production());
+						result = _logger.template create<error::ExpectedLiteral>(loc, message, production);
 					} else if constexpr (std::is_same_v<Tag, lexy::expected_keyword>) {
 						auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
-						NodeLocation loc = NodeLocation::make_from(string.begin(), string.end());
+						NodeLocation loc = NodeLocation::make_from(context.position(), error.position() - 1);
 						auto message = _logger.intern_cstr(fmt::format("expected keyword '{}'", string.data()));
-						result = _logger.template create<error::ExpectedKeyword>(loc, message, context.production());
+						result = _logger.template create<error::ExpectedKeyword>(loc, message, production);
 					} else if constexpr (std::is_same_v<Tag, lexy::expected_char_class>) {
 						auto message = _logger.intern_cstr(fmt::format("expected {}", error.name()));
-						result = _logger.template create<error::ExpectedCharClass>(error.position(), message, context.production());
+						result = _logger.template create<error::ExpectedCharClass>(error.position(), message, production);
 					} else {
 						NodeLocation loc = NodeLocation::make_from(error.begin(), error.end());
 						auto message = _logger.intern_cstr(error.message());
-						result = _logger.template create<error::GenericParseError>(loc, message, context.production());
+						result = _logger.template create<error::GenericParseError>(loc, message, production);
 					}
 
-					if constexpr (requires { _logger.insert(result); }) {
-						_logger.insert(result);
-					}
+					_logger.insert(result);
 
 					_count++;
 				}
@@ -119,11 +128,11 @@ namespace ovdl {
 		dryad::node_map<const error::Error, NodeLocation> _map;
 		dryad::tree<error::Root> _tree;
 
-		struct SymbolId;
-		using index_type = std::uint32_t;
-		using symbol_type = dryad::symbol<SymbolId, index_type>;
-		using symbol_interner_type = dryad::symbol_interner<SymbolId, char, index_type>;
 		symbol_interner_type _symbol_interner;
+
+		void insert(error::Error* root) {
+			_tree.root()->insert_back(root);
+		}
 
 	public:
 		symbol_type intern(const char* str, std::size_t length) {
@@ -282,10 +291,10 @@ namespace ovdl {
 				auto message = _logger.intern_cstr(output);
 				switch (kind) {
 					case AnnotationKind::primary:
-						_logger.create<error::PrimaryAnnotation>(loc, message);
+						annotation = _logger.create<error::PrimaryAnnotation>(loc, message);
 						break;
 					case AnnotationKind::secondary:
-						_logger.create<error::SecondaryAnnotation>(loc, message);
+						annotation = _logger.create<error::SecondaryAnnotation>(loc, message);
 						break;
 					default: detail::unreachable();
 				}
@@ -381,10 +390,6 @@ namespace ovdl {
 		}
 
 	private:
-		void insert(error::Error* root) {
-			_tree.root()->insert_back(root);
-		}
-
 		const file_type* _file;
 	};
 }

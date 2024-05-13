@@ -22,6 +22,8 @@ namespace ovdl::detail {
 		std::string_view get_file_path() const;
 
 	protected:
+		void set_file_path(std::string_view path);
+
 		std::reference_wrapper<std::ostream> _error_stream;
 		std::string _file_path;
 		bool _has_fatal_error = false;

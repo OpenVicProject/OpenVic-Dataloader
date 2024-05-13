@@ -15,8 +15,8 @@
 #include "detail/dsl.hpp"
 
 namespace ovdl::v2script::grammar {
-	constexpr auto modifier_keyword = LEXY_KEYWORD("modifier", lexy::dsl::inline_<Identifier<StringEscapeOption>>);
-	constexpr auto factor_keyword = LEXY_KEYWORD("factor", lexy::dsl::inline_<Identifier<StringEscapeOption>>);
+	constexpr auto modifier_keyword = LEXY_KEYWORD("modifier", id);
+	constexpr auto factor_keyword = LEXY_KEYWORD("factor", id);
 
 	struct FactorStatement {
 		static constexpr auto rule = lexy::dsl::position(factor_keyword) >> (lexy::dsl::equal_sign + lexy::dsl::p<Identifier<StringEscapeOption>>);
