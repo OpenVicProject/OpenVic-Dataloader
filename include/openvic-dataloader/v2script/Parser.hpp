@@ -11,6 +11,7 @@
 #include <openvic-dataloader/NodeLocation.hpp>
 #include <openvic-dataloader/Parser.hpp>
 #include <openvic-dataloader/detail/utility/Concepts.hpp>
+#include <openvic-dataloader/detail/utility/ErrorRange.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 #include <dryad/node.hpp>

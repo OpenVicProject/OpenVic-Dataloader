@@ -8,6 +8,7 @@
 #include <lexy/dsl/identifier.hpp>
 #include <lexy/dsl/symbol.hpp>
 
+#include "ParseState.hpp"
 #include "detail/dsl.hpp"
 
 // Grammar Definitions //

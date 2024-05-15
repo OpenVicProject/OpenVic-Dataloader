@@ -11,6 +11,7 @@
 
 #include "openvic-dataloader/NodeLocation.hpp"
 
+#include "ParseState.hpp"
 #include "SimpleGrammar.hpp"
 #include "detail/dsl.hpp"
 #include "v2script/AiBehaviorGrammar.hpp"

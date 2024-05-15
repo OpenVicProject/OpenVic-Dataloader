@@ -10,6 +10,7 @@
 
 #include "openvic-dataloader/NodeLocation.hpp"
 
+#include "ParseState.hpp"
 #include "SimpleGrammar.hpp"
 #include "TriggerGrammar.hpp"
 #include "detail/dsl.hpp"
