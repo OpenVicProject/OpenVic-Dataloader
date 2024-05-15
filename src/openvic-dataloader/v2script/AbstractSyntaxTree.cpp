@@ -8,6 +8,7 @@
 #include <dryad/node.hpp>
 #include <dryad/tree.hpp>
 
+#include "ParseState.hpp"
 #include <range/v3/view/drop.hpp>
 
 using namespace ovdl::v2script::ast;

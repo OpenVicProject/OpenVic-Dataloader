@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 
 Import("env")
 
@@ -24,33 +25,39 @@ def build_lexy(env):
                 "-Wno-parentheses", "-Wno-unused-local-typedefs", "-Wno-array-bounds" #, "-Wno-maybe-uninitialized", "-Wno-restrict"
             ])
 
-    paths = ["lexy/include", "lexy/src"]
-    lexy_env.Append(CPPPATH=[[lexy_env.Dir(p) for p in paths]])
-    sources = env.GlobRecursive("*.cpp", paths)
+    include_path = "lexy/include"
+    source_path = "lexy/src"
+    lexy_env.Append(CPPPATH=[[lexy_env.Dir(p) for p in [source_path, include_path]]])
+    sources = env.GlobRecursive("*.cpp", [source_path])
     env.lexy_sources = sources
+
     library_name = "liblexy_file" + env["LIBSUFFIX"]
-    library = lexy_env.StaticLibrary(target="lexy/src/" + library_name, source=sources)
+    library = lexy_env.StaticLibrary(target=os.path.join(source_path, library_name), source=sources)
     Default(library)
 
-    env.Append(CPPPATH=[lexy_env.Dir("lexy/include")])
+    include_dir = lexy_env.Dir(include_path)
+    source_dir = lexy_env.Dir(source_path)
+    env.Append(CPPPATH=[include_dir])
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", lexy_env.Dir("lexy/include"), "/external:W0"])
+        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", lexy_env.Dir("lexy/include")])
+        env.Append(CXXFLAGS=["-isystem", include_dir])
     env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[lexy_env.Dir("lexy/src")])
+    env.Append(LIBPATH=[source_dir])
     env.Prepend(LIBS=[library_name])
 
 def build_dryad(env):
-    paths = ["dryad/include"]
-    sources = env.GlobRecursive("*.cpp", paths)
-    env.dryad_sources = sources
-
-    env.Append(CPPPATH=[env.Dir("dryad/include")])
+    include_path = "dryad/include"
+    include_dir = env.Dir(include_path)
+    env.dryad = {}
+    env.dryad["INCPATH"] = [include_dir]
+    env.Append(CPPPATH=env.dryad["INCPATH"])
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", env.Dir("dryad/include"), "/external:W0"])
+        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", env.Dir("dryad/include")])
+        env.Append(CXXFLAGS=["-isystem", include_dir])
+    
+    env.exposed_includes += env.dryad["INCPATH"]
 
 def build_fmt(env):
     fmt_env = env.Clone()
@@ -85,33 +92,51 @@ def build_fmt(env):
                 "-Wshift-overflow=2", "-Wnull-dereference", "-Wduplicated-cond"
             ])
 
-    paths = ["fmt/include", "fmt/src"]
+    include_path = "fmt/include"
+    source_path = "fmt/src"
+    paths = [include_path, source_path]
     fmt_env.Append(CPPPATH=[[fmt_env.Dir(p) for p in paths]])
     sources = env.GlobRecursive("*.cc", paths, "fmt.cc")
     env.lexy_sources = sources
+
     library_name = "libfmt" + env["LIBSUFFIX"]
-    library = fmt_env.StaticLibrary(target="fmt/src/" + library_name, source=sources)
+    library = fmt_env.StaticLibrary(target=os.path.join(source_path, library_name), source=sources)
     Default(library)
 
-    env.Append(CPPPATH=[fmt_env.Dir("fmt/include")])
+    include_dir = fmt_env.Dir(include_path)
+    source_dir = fmt_env.Dir(source_path)
+
+    env.fmt = {}
+    env.fmt["INCPATH"] = [include_dir]
+
+    env.Append(CPPPATH=env.fmt["INCPATH"])
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", fmt_env.Dir("fmt/include"), "/external:W0"])
+        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", fmt_env.Dir("fmt/include")])
+        env.Append(CXXFLAGS=["-isystem", include_dir])
     env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[fmt_env.Dir("fmt/src")])
+    env.Append(LIBPATH=[fmt_env.Dir(source_path)])
     env.Prepend(LIBS=[library_name])
+    
+    env.exposed_includes += env.fmt["INCPATH"]
 
 def build_range_v3(env):
-    paths = ["range-v3/include"]
-    sources = env.GlobRecursive("*.cpp", paths)
+    include_path = "range-v3/include"
+    sources = env.GlobRecursive("*.cpp", [include_path])
     env.range_v3_sources = sources
 
-    env.Append(CPPPATH=[env.Dir("range-v3/include")])
+    include_dir = env.Dir(include_path)
+
+    env.range_v3 = {}
+    env.range_v3["INCPATH"] = [include_dir]
+
+    env.Append(CPPPATH=env.range_v3["INCPATH"])
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", env.Dir("range-v3/include"), "/external:W0"])
+        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", env.Dir("range-v3/include")])
+        env.Append(CXXFLAGS=["-isystem", include_dir])
+    
+    env.exposed_includes += env.range_v3["INCPATH"]
 
 build_dryad(env)
 build_fmt(env)

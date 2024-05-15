@@ -31,6 +31,7 @@
 
 #include "openvic-dataloader/Error.hpp"
 
+#include "ParseState.hpp"
 #include "detail/DetectUtf8.hpp"
 #include "detail/NullBuff.hpp"
 #include "detail/ParseHandler.hpp"

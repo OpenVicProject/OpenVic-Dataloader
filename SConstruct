@@ -19,6 +19,8 @@ opts.Add(BoolVariable("build_ovdl_headless", "Build the openvic dataloader headl
 
 env.FinalizeOptions()
 
+env.exposed_includes = []
+
 SConscript("deps/SCsub", "env")
 
 env.openvic_dataloader = {}
@@ -63,7 +65,7 @@ if env["build_ovdl_library"]:
 
     env.openvic_dataloader["LIBPATH"] = env["LIBPATH"]
     env.openvic_dataloader["LIBS"] = env["LIBS"]
-    env.openvic_dataloader["INCPATH"] = [env.Dir(include_path)]
+    env.openvic_dataloader["INCPATH"] = [env.Dir(include_path)] + env.exposed_includes
 
 headless_program = None
 env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
