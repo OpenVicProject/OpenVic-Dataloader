@@ -1,4 +1,4 @@
-#include "openvic-dataloader/v2script/AbstractSyntaxTree.hpp"
+#include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
 #include <lexy/dsl/option.hpp>
 #include <lexy/encoding.hpp>
@@ -31,6 +31,10 @@ ListValue::ListValue(dryad::node_ctor ctor, AssignStatementList statements) : no
 	}
 }
 
+ListValue::ListValue(dryad::node_ctor ctor) : node_base(ctor) {
+	_last_statement = nullptr;
+}
+
 FileTree::FileTree(dryad::node_ctor ctor, StatementList statements) : node_base(ctor) {
 	insert_child_list_after(nullptr, statements);
 	if (statements.empty()) {
@@ -47,6 +51,10 @@ FileTree::FileTree(dryad::node_ctor ctor, AssignStatementList statements) : node
 	} else {
 		_last_node = statements.back();
 	}
+}
+
+FileTree::FileTree(dryad::node_ctor ctor) : node_base(ctor) {
+	_last_node = nullptr;
 }
 
 std::string FileAbstractSyntaxTree::make_list_visualizer() const {

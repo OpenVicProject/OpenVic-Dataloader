@@ -11,10 +11,12 @@ namespace ovdl {
 		const char_type* _end = nullptr;
 
 		BasicNodeLocation() = default;
-		BasicNodeLocation(const char_type* pos) : _begin(pos),
-												  _end(pos) {}
-		BasicNodeLocation(const char_type* begin, const char_type* end) : _begin(begin),
-																		  _end(end) {}
+		BasicNodeLocation(const char_type* pos)
+			: _begin(pos),
+			  _end(pos) {}
+		BasicNodeLocation(const char_type* begin, const char_type* end)
+			: _begin(begin),
+			  _end(end) {}
 
 		BasicNodeLocation(const BasicNodeLocation&) noexcept = default;
 		BasicNodeLocation& operator=(const BasicNodeLocation&) = default;

@@ -66,6 +66,8 @@ bin/*
 *.idb
 *.exp
 
+tests/bin/*
+
 # Build configuarion.
 /custom.py
 

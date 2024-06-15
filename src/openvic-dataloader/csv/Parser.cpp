@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <openvic-dataloader/Error.hpp>
 #include <openvic-dataloader/NodeLocation.hpp>
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/csv/Parser.hpp>
@@ -14,6 +15,8 @@
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 #include <lexy/input/file.hpp>
+
+#include <dryad/node.hpp>
 
 #include "CsvGrammar.hpp"
 #include "CsvParseState.hpp"
@@ -51,6 +54,13 @@ struct Parser::ParseHandler final : detail::BasicFileParseHandler<CsvParseState>
 
 	std::vector<csv::LineObject>& get_lines() {
 		return _lines;
+	}
+
+	Parser::error_range get_errors() {
+		using iterator = typename decltype(std::declval<const error::Root*>()->children())::iterator;
+		if (!is_valid())
+			return dryad::make_node_range<error::Error>(iterator::from_ptr(nullptr), iterator::from_ptr(nullptr));
+		return parse_state().logger().get_errors();
 	}
 
 private:
@@ -126,19 +136,19 @@ constexpr void Parser::_run_load_func(detail::LoadCallback<ParseHandler, Args...
 	}
 }
 
-constexpr Parser& Parser::load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback) {
+Parser& Parser::load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback) {
 	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&ParseHandler::load_buffer_size), data, size, encoding_fallback);
 	return *this;
 }
 
-constexpr Parser& Parser::load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback) {
+Parser& Parser::load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback) {
 	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&ParseHandler::load_buffer), start, end, encoding_fallback);
 	return *this;
 }
 
-constexpr Parser& Parser::load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback) {
+Parser& Parser::load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback) {
 	return load_from_buffer(string.data(), string.size(), encoding_fallback);
 }
 
@@ -166,7 +176,7 @@ bool Parser::parse_csv(bool handle_strings) {
 	}();
 	_has_error = _parse_handler->parse_state().logger().errored();
 	_has_warning = _parse_handler->parse_state().logger().warned();
-	if (!errors->empty()) {
+	if (errors && !errors->empty()) {
 		_has_error = true;
 		_has_fatal_error = true;
 		if (&_error_stream.get() != &detail::cnull) {
@@ -182,7 +192,7 @@ const std::vector<csv::LineObject>& Parser::get_lines() const {
 }
 
 typename Parser::error_range Parser::get_errors() const {
-	return _parse_handler->parse_state().logger().get_errors();
+	return _parse_handler->get_errors();
 }
 
 const FilePosition Parser::get_error_position(const error::Error* error) const {
