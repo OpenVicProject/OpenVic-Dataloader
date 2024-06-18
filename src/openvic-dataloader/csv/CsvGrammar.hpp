@@ -9,22 +9,20 @@
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/csv/Parser.hpp>
 
+#include <lexy/_detail/config.hpp>
 #include <lexy/callback.hpp>
+#include <lexy/callback/string.hpp>
 #include <lexy/dsl.hpp>
+#include <lexy/dsl/ascii.hpp>
+#include <lexy/dsl/option.hpp>
+#include <lexy/encoding.hpp>
 
+#include "detail/Convert.hpp"
+#include "detail/InternalConcepts.hpp"
 #include "detail/dsl.hpp"
 
 // Grammar Definitions //
 namespace ovdl::csv::grammar {
-	using EncodingType = ovdl::csv::EncodingType;
-
-	template<typename T>
-	concept ParseChars = requires() {
-		{ T::character };
-		{ T::control };
-	};
-
-	template<ParseChars T>
 	struct ParseOptions {
 		/// @brief Seperator character
 		char SepChar;
@@ -33,11 +31,33 @@ namespace ovdl::csv::grammar {
 		/// @brief Paradox-style localization escape characters
 		/// @note Is ignored if SupportStrings is true
 		char EscapeChar;
-
-		static constexpr auto parse_chars = T {};
-		static constexpr auto character = parse_chars.character;
-		static constexpr auto control = parse_chars.control;
 	};
+
+	struct ConvertErrorHandler {
+		static constexpr void on_invalid_character(detail::IsStateType auto& state, auto reader) {
+			state.logger().warning("invalid character value '{}' found", static_cast<int>(reader.peek())) //
+				.primary(BasicNodeLocation { reader.position() }, "here")
+				.finish();
+		}
+	};
+
+	constexpr bool IsUtf8(auto encoding) {
+		return std::same_as<std::decay_t<decltype(encoding)>, lexy::utf8_char_encoding>;
+	}
+
+	template<ParseOptions Options, typename String>
+	constexpr auto convert_as_string = convert::convert_as_string<
+		String,
+		ConvertErrorHandler>;
+
+	constexpr auto ansi_character = lexy::dsl::ascii::character / dsl::lit_b_range<0x80, 0xFF>;
+	constexpr auto ansi_control =
+		lexy::dsl::ascii::control /
+		lexy::dsl::lit_b<0x81> / lexy::dsl::lit_b<0x8D> / lexy::dsl::lit_b<0x8F> /
+		lexy::dsl::lit_b<0x90> / lexy::dsl::lit_b<0x9D>;
+
+	constexpr auto utf_character = lexy::dsl::unicode::character;
+	constexpr auto utf_control = lexy::dsl::unicode::control;
 
 	constexpr auto escaped_symbols = lexy::symbol_table<char> //
 										 .map<'"'>('"')
@@ -55,38 +75,95 @@ namespace ovdl::csv::grammar {
 
 	template<ParseOptions Options>
 	struct CsvGrammar {
-		struct StringValue {
-			static constexpr auto rule = [] {
-				// Arbitrary code points
-				auto c = Options.character - Options.control;
+		struct StringValue : lexy::scan_production<std::string>,
+							 lexy::token_production {
 
-				auto back_escape = lexy::dsl::backslash_escape //
-									   .symbol<escaped_symbols>();
+			template<typename Context, typename Reader>
+			static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsFileParseState auto& state) {
+				using encoding = typename Reader::encoding;
 
-				auto quote_escape = lexy::dsl::escape(lexy::dsl::lit_c<'"'>) //
-										.template symbol<escaped_quote>();
+				constexpr auto rule = [] {
+					// Arbitrary code points
+					auto c = [] {
+						if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
+							return ansi_character - ansi_control;
+						} else {
+							return utf_character - utf_control;
+						}
+					}();
 
-				return lexy::dsl::delimited(lexy::dsl::lit_c<'"'>, lexy::dsl::not_followed_by(lexy::dsl::lit_c<'"'>, lexy::dsl::lit_c<'"'>))(c, back_escape, quote_escape);
-			}();
+					auto back_escape = lexy::dsl::backslash_escape //
+										   .symbol<escaped_symbols>();
 
-			static constexpr auto value = lexy::as_string<std::string>;
+					auto quote_escape = lexy::dsl::escape(lexy::dsl::lit_c<'"'>) //
+											.template symbol<escaped_quote>();
+
+					return lexy::dsl::delimited(lexy::dsl::lit_c<'"'>, lexy::dsl::not_followed_by(lexy::dsl::lit_c<'"'>, lexy::dsl::lit_c<'"'>))(c, back_escape, quote_escape);
+				}();
+
+				lexy::scan_result<std::string> str_result = scanner.template parse<std::string>(rule);
+				if (!scanner || !str_result)
+					return lexy::scan_failed;
+				return str_result.value();
+			}
+
+			static constexpr auto rule = lexy::dsl::peek(lexy::dsl::lit_c<'"'>) >> lexy::dsl::scan;
+
+			static constexpr auto value = convert_as_string<Options, std::string> >> lexy::forward<std::string>;
 		};
 
-		struct PlainValue {
-			static constexpr auto rule = [] {
+		struct PlainValue : lexy::scan_production<std::string>,
+							lexy::token_production {
+
+			template<auto character>
+			static constexpr auto _escape_check = character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline);
+
+			template<typename Context, typename Reader>
+			static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsFileParseState auto& state) {
+				using encoding = typename Reader::encoding;
+
+				constexpr auto rule = [] {
+					constexpr auto character = [] {
+						if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
+							return ansi_character;
+						} else {
+							return utf_character;
+						}
+					}();
+
+					if constexpr (Options.SupportStrings) {
+						return lexy::dsl::identifier(character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline));
+					} else {
+						auto escape_check_char = _escape_check<character>;
+						auto id_check_char = escape_check_char - lexy::dsl::lit_b<'\\'>;
+						auto id_segment = lexy::dsl::identifier(id_check_char);
+						auto escape_segement = lexy::dsl::token(escape_check_char);
+						auto escape_sym = lexy::dsl::symbol<escaped_symbols>(escape_segement);
+						auto escape_rule = lexy::dsl::lit_b<'\\'> >> escape_sym;
+						return lexy::dsl::list(id_segment | escape_rule);
+					}
+				}();
+
 				if constexpr (Options.SupportStrings) {
-					return lexy::dsl::identifier(Options.character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline));
+					auto lexeme_result = scanner.template parse<lexy::lexeme<Reader>>(rule);
+					if (!scanner || !lexeme_result)
+						return lexy::scan_failed;
+					return std::string { lexeme_result.value().begin(), lexeme_result.value().end() };
 				} else {
-					auto escape_check_char = Options.character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline);
-					auto id_check_char = escape_check_char - lexy::dsl::lit_b<'\\'>;
-					auto id_segment = lexy::dsl::identifier(id_check_char);
-					auto escape_segement = lexy::dsl::token(escape_check_char);
-					auto escape_sym = lexy::dsl::symbol<escaped_symbols>(escape_segement);
-					auto escape_rule = lexy::dsl::lit_b<'\\'> >> escape_sym;
-					return lexy::dsl::list(id_segment | escape_rule);
+					lexy::scan_result<std::string> str_result = scanner.template parse<std::string>(rule);
+					if (!scanner || !str_result)
+						return lexy::scan_failed;
+					return str_result.value();
 				}
-			}();
-			static constexpr auto value = lexy::as_string<std::string>;
+			}
+
+			static constexpr auto rule =
+				dsl::peek(
+					_escape_check<ansi_character>,
+					_escape_check<utf_character>) >>
+				lexy::dsl::scan;
+
+			static constexpr auto value = convert_as_string<Options, std::string> >> lexy::forward<std::string>;
 		};
 
 		struct Value {
@@ -114,17 +191,17 @@ namespace ovdl::csv::grammar {
 			static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<Value>, lexy::dsl::trailing_sep(lexy::dsl::p<Seperator>));
 			static constexpr auto value = lexy::fold_inplace<ovdl::csv::LineObject>(
 				std::initializer_list<ovdl::csv::LineObject::value_type> {},
-				[](ovdl::csv::LineObject& result, auto&& arg) {
-					if constexpr (std::is_same_v<std::decay_t<decltype(arg)>, std::size_t>) {
-						// Count seperators, adds to previous value, making it a position
-						using position_type = ovdl::csv::LineObject::position_type;
-						result.emplace_back(static_cast<position_type>(arg + result.back().first), "");
+				[](ovdl::csv::LineObject& result, std::size_t&& arg) {
+					// Count seperators, adds to previous value, making it a position
+					using position_type = ovdl::csv::LineObject::position_type;
+					result.emplace_back(static_cast<position_type>(arg + result.back().first), "");
+				},
+				[](ovdl::csv::LineObject& result, std::string&& arg) {
+					if (result.empty()) {
+						result.emplace_back(0u, LEXY_MOV(arg));
 					} else {
-						if (result.empty()) result.emplace_back(0u, LEXY_MOV(arg));
-						else {
-							auto& [pos, value] = result.back();
-							value = arg;
-						}
+						auto& [pos, value] = result.back();
+						value = LEXY_MOV(arg);
 					}
 				});
 		};
@@ -169,74 +246,17 @@ namespace ovdl::csv::grammar {
 		static constexpr auto value = lexy::as_list<std::vector<ovdl::csv::LineObject>>;
 	};
 
-	template<ParseChars T>
-	using CommaFile = File<ParseOptions<T> { ',', false, '$' }>;
-	template<ParseChars T>
-	using ColonFile = File<ParseOptions<T> { ':', false, '$' }>;
-	template<ParseChars T>
-	using SemiColonFile = File<ParseOptions<T> { ';', false, '$' }>;
-	template<ParseChars T>
-	using TabFile = File<ParseOptions<T> { '\t', false, '$' }>;
-	template<ParseChars T>
-	using BarFile = File<ParseOptions<T> { '|', false, '$' }>;
+	using CommaFile = File<ParseOptions { ',', false, '$' }>;
+	using ColonFile = File<ParseOptions { ':', false, '$' }>;
+	using SemiColonFile = File<ParseOptions { ';', false, '$' }>;
+	using TabFile = File<ParseOptions { '\t', false, '$' }>;
+	using BarFile = File<ParseOptions { '|', false, '$' }>;
 
 	namespace strings {
-		template<ParseChars T>
-		using CommaFile = File<ParseOptions<T> { ',', true, '$' }>;
-		template<ParseChars T>
-		using ColonFile = File<ParseOptions<T> { ':', true, '$' }>;
-		template<ParseChars T>
-		using SemiColonFile = File<ParseOptions<T> { ';', true, '$' }>;
-		template<ParseChars T>
-		using TabFile = File<ParseOptions<T> { '\t', true, '$' }>;
-		template<ParseChars T>
-		using BarFile = File<ParseOptions<T> { '|', true, '$' }>;
-	}
-}
-
-namespace ovdl::csv::grammar::windows1252 {
-	struct windows1252_t {
-		static constexpr auto character = dsl::make_range<0x01, 0xFF>();
-		static constexpr auto control =
-			lexy::dsl::ascii::control /
-			lexy::dsl::lit_b<0x81> / lexy::dsl::lit_b<0x8D> / lexy::dsl::lit_b<0x8F> /
-			lexy::dsl::lit_b<0x90> / lexy::dsl::lit_b<0x9D>;
-	};
-
-	using CommaFile = CommaFile<windows1252_t>;
-	using ColonFile = ColonFile<windows1252_t>;
-	using SemiColonFile = SemiColonFile<windows1252_t>;
-	using TabFile = TabFile<windows1252_t>;
-	using BarFile = BarFile<windows1252_t>;
-
-	namespace strings {
-		using CommaFile = grammar::strings::CommaFile<windows1252_t>;
-		using ColonFile = grammar::strings::ColonFile<windows1252_t>;
-		using SemiColonFile = grammar::strings::SemiColonFile<windows1252_t>;
-		using TabFile = grammar::strings::TabFile<windows1252_t>;
-		using BarFile = grammar::strings::BarFile<windows1252_t>;
-
-	}
-}
-
-namespace ovdl::csv::grammar::utf8 {
-	struct unicode_t {
-		static constexpr auto character = lexy::dsl::unicode::character;
-		static constexpr auto control = lexy::dsl::unicode::control;
-	};
-
-	using CommaFile = CommaFile<unicode_t>;
-	using ColonFile = ColonFile<unicode_t>;
-	using SemiColonFile = SemiColonFile<unicode_t>;
-	using TabFile = TabFile<unicode_t>;
-	using BarFile = BarFile<unicode_t>;
-
-	namespace strings {
-		using CommaFile = grammar::strings::CommaFile<unicode_t>;
-		using ColonFile = grammar::strings::ColonFile<unicode_t>;
-		using SemiColonFile = grammar::strings::SemiColonFile<unicode_t>;
-		using TabFile = grammar::strings::TabFile<unicode_t>;
-		using BarFile = grammar::strings::BarFile<unicode_t>;
-
+		using CommaFile = File<ParseOptions { ',', true, '$' }>;
+		using ColonFile = File<ParseOptions { ':', true, '$' }>;
+		using SemiColonFile = File<ParseOptions { ';', true, '$' }>;
+		using TabFile = File<ParseOptions { '\t', true, '$' }>;
+		using BarFile = File<ParseOptions { '|', true, '$' }>;
 	}
 }

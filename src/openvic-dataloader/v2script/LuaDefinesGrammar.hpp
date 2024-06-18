@@ -4,9 +4,12 @@
 
 #include <lexy/_detail/config.hpp>
 #include <lexy/dsl.hpp>
+#include <lexy/dsl/delimited.hpp>
+#include <lexy/dsl/recover.hpp>
+#include <lexy/dsl/unicode.hpp>
 
-#include "ParseState.hpp"
 #include "SimpleGrammar.hpp"
+#include "detail/InternalConcepts.hpp"
 #include "detail/dsl.hpp"
 
 namespace ovdl::v2script::lua::grammar {
@@ -21,90 +24,118 @@ namespace ovdl::v2script::lua::grammar {
 	template<typename T>
 	constexpr auto construct_list = v2script::grammar::construct_list<T>;
 
-	struct ParseOptions {
-	};
-
-	template<ParseOptions Options>
 	struct StatementListBlock;
 
 	static constexpr auto comment_specifier = LEXY_LIT("--") >> lexy::dsl::until(lexy::dsl::newline).or_eof();
 
-	template<ParseOptions Options>
 	struct Identifier {
 		static constexpr auto rule = lexy::dsl::identifier(lexy::dsl::ascii::alpha_underscore, lexy::dsl::ascii::alpha_digit_underscore);
-		static constexpr auto value = callback<ast::IdentifierValue*>(
-			[](ast::ParseState& state, auto lexeme) {
-				auto value = state.ast().intern(lexeme.data(), lexeme.size());
-				return state.ast().create<ast::IdentifierValue>(lexeme.begin(), lexeme.end(), value);
-			});
-	};
-
-	template<ParseOptions Options>
-	struct Value {
-		static constexpr auto rule = lexy::dsl::identifier(lexy::dsl::ascii::digit / lexy::dsl::lit_c<'.'> / lexy::dsl::lit_c<'-'>);
-		static constexpr auto value = callback<ast::IdentifierValue*>(
-			[](ast::ParseState& state, auto lexeme) {
-				auto value = state.ast().intern(lexeme.data(), lexeme.size());
-				return state.ast().create<ast::IdentifierValue>(lexeme.begin(), lexeme.end(), value);
-			});
-	};
-
-	template<ParseOptions Options>
-	struct String {
-		static constexpr auto rule = [] {
-			// Arbitrary code points that aren't control characters.
-			auto c = dsl::make_range<0x20, 0xFF>() - lexy::dsl::ascii::control;
-
-			return lexy::dsl::delimited(lexy::dsl::position(lexy::dsl::lit_b<'"'>))(c) | lexy::dsl::delimited(lexy::dsl::position(lexy::dsl::lit_b<'\''>))(c);
-		}();
-
 		static constexpr auto value =
-			lexy::as_string<std::string> >>
-			callback<ast::StringValue*>(
-				[](ast::ParseState& state, const char* begin, const std::string& str, const char* end) {
-					auto value = state.ast().intern(str.data(), str.length());
-					return state.ast().create<ast::StringValue>(begin, end, value);
+			callback<ast::IdentifierValue*>(
+				[](detail::IsParseState auto& state, auto lexeme) {
+					auto value = state.ast().intern(lexeme.data(), lexeme.size());
+					return state.ast().template create<ast::IdentifierValue>(lexeme.begin(), lexeme.end(), value);
 				});
 	};
 
-	template<ParseOptions Options>
+	struct Value {
+		static constexpr auto rule = lexy::dsl::identifier(lexy::dsl::ascii::digit / lexy::dsl::lit_c<'.'> / lexy::dsl::lit_c<'-'>);
+		static constexpr auto value =
+			callback<ast::IdentifierValue*>(
+				[](detail::IsParseState auto& state, auto lexeme) {
+					auto value = state.ast().intern(lexeme.data(), lexeme.size());
+					return state.ast().template create<ast::IdentifierValue>(lexeme.begin(), lexeme.end(), value);
+				});
+	};
+
+	struct String : lexy::scan_production<ast::StringValue*>,
+					lexy::token_production {
+		template<typename Context, typename Reader>
+		static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsParseState auto& state) {
+			using encoding = typename Reader::encoding;
+
+			constexpr auto c = [] {
+				if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
+					// Arbitrary code points that aren't control characters.
+					return dsl::lit_b_range<0x20, 0xFF> - lexy::dsl::ascii::control;
+				} else {
+					return -lexy::dsl::unicode::control;
+				}
+			}();
+			auto rule = lexy::dsl::quoted(c) | lexy::dsl::single_quoted(c);
+			auto begin = scanner.position();
+			lexy::scan_result<std::string> str_result;
+			scanner.parse(str_result, rule);
+			if (!scanner || !str_result)
+				return lexy::scan_failed;
+			auto end = scanner.position();
+			auto str = str_result.value();
+			auto value = state.ast().intern(str.data(), str.size());
+			return state.ast().template create<ast::StringValue>(begin, end, value);
+		}
+
+		static constexpr auto rule = lexy::dsl::peek(lexy::dsl::quoted.open() | lexy::dsl::single_quoted.open()) >> lexy::dsl::scan;
+		static constexpr auto value = ovdl::v2script::grammar::convert_as_string<std::string> >> lexy::forward<ast::StringValue*>;
+	};
+
 	struct Expression {
-		static constexpr auto rule = lexy::dsl::p<Value<Options>> | lexy::dsl::p<String<Options>>;
+		static constexpr auto rule = lexy::dsl::p<Value> | lexy::dsl::p<String>;
 		static constexpr auto value = lexy::forward<ast::Value*>;
 	};
 
-	template<ParseOptions Options>
 	struct AssignmentStatement {
-		static constexpr auto rule =
-			dsl::p<Identifier<Options>> >>
-			lexy::dsl::equal_sign >>
-			(lexy::dsl::p<Expression<Options>> | lexy::dsl::recurse_branch<StatementListBlock<Options>>);
+		static constexpr auto rule = [] {
+			auto right_brace = lexy::dsl::lit_c<'}'>;
+
+			auto expression = lexy::dsl::p<Expression>;
+			auto statement_list = lexy::dsl::recurse_branch<StatementListBlock>;
+
+			auto rhs_recover = lexy::dsl::recover(expression, statement_list).limit(right_brace);
+			auto rhs_try = lexy::dsl::try_(expression | statement_list, rhs_recover);
+
+			auto identifier = dsl::p<Identifier> >> lexy::dsl::equal_sign + rhs_try;
+
+			auto recover = lexy::dsl::recover(identifier).limit(right_brace);
+			return lexy::dsl::try_(identifier, recover);
+		}();
 
 		static constexpr auto value = callback<ast::AssignStatement*>(
-			[](ast::ParseState& state, const char* pos, ast::IdentifierValue* name, ast::Value* initializer) {
-				return state.ast().create<ast::AssignStatement>(pos, name, initializer);
+			[](detail::IsParseState auto& state, const char* pos, ast::IdentifierValue* name, ast::Value* initializer) -> ast::AssignStatement* {
+				if (initializer == nullptr) return nullptr;
+				return state.ast().template create<ast::AssignStatement>(pos, name, initializer);
+			},
+			[](detail::IsParseState auto& state, ast::Value*) {
+				return nullptr;
+			},
+			[](detail::IsParseState auto& state) {
+				return nullptr;
 			});
 	};
 
-	template<ParseOptions Options>
 	struct StatementListBlock {
-		static constexpr auto rule =
-			dsl::curly_bracketed(
-				lexy::dsl::opt(
-					lexy::dsl::list(
-						lexy::dsl::recurse_branch<AssignmentStatement<Options>>,
-						lexy::dsl::trailing_sep(lexy::dsl::lit_c<','>))));
+		static constexpr auto rule = [] {
+			auto right_brace = lexy::dsl::lit_c<'}'>;
+			auto comma = lexy::dsl::lit_c<','>;
+
+			auto assign_statement = lexy::dsl::recurse_branch<AssignmentStatement>;
+			auto assign_try = lexy::dsl::try_(assign_statement);
+
+			auto curly_bracket = dsl::curly_bracketed.opt_list(
+				assign_try,
+				lexy::dsl::trailing_sep(comma));
+
+			return lexy::dsl::try_(curly_bracket, lexy::dsl::find(right_brace));
+		}();
 
 		static constexpr auto value =
 			lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue>;
 	};
 
-	template<ParseOptions Options = ParseOptions {}>
 	struct File {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = ovdl::v2script::grammar::whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).opt_list(lexy::dsl::p<AssignmentStatement<Options>>);
+		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).opt_list(lexy::dsl::p<AssignmentStatement>);
 
 		static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct<ast::FileTree>;
 	};

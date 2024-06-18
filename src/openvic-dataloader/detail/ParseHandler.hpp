@@ -1,20 +1,26 @@
 #pragma once
 
+#include <cstddef>
+#include <optional>
+#include <string>
 #include <utility>
 
-#include <openvic-dataloader/ParseState.hpp>
-#include <openvic-dataloader/detail/utility/Concepts.hpp>
+#include <openvic-dataloader/detail/Concepts.hpp>
 
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 #include <lexy/input/file.hpp>
 
+#include "openvic-dataloader/detail/Encoding.hpp"
+#include "openvic-dataloader/detail/Utility.hpp"
+
 #include "detail/BufferError.hpp"
+#include "detail/Detect.hpp"
+#include "detail/InternalConcepts.hpp"
 
 namespace ovdl::detail {
-	template<typename Derived>
 	struct ParseHandler {
-		std::string make_error_from(buffer_error error) {
+		std::string make_error_from(buffer_error error) const {
 			switch (error) {
 				using enum ovdl::detail::buffer_error;
 				case buffer_is_null:
@@ -30,116 +36,179 @@ namespace ovdl::detail {
 			}
 		}
 
-		template<typename... Args>
-		constexpr void _run_load_func(detail::LoadCallback<Derived, Args...> auto func, Args... args);
-	};
-
-	template<IsFileParseState ParseState, typename MemoryResource = void>
-	struct BasicFileParseHandler : ParseHandler<BasicFileParseHandler<ParseState, MemoryResource>> {
-		using parse_state_type = ParseState;
-		using encoding_type = typename parse_state_type::file_type::encoding_type;
-
 		constexpr bool is_valid() const {
-			if (!_parse_state) return false;
-			return buffer().data() != nullptr;
+			return is_valid_impl();
 		}
 
-		constexpr buffer_error load_buffer_size(const char* data, std::size_t size) {
-			lexy::buffer<encoding_type, MemoryResource> buffer(data, size);
+		buffer_error load_buffer_size(const char* data, std::size_t size, std::optional<Encoding> fallback) {
+			lexy::buffer<lexy::default_encoding> buffer(data, size);
 			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
-			_parse_state.reset(new parse_state_type { std::move(buffer) });
-			return is_valid() ? buffer_error::success : buffer_error::buffer_is_null;
+			return load_buffer_impl(std::move(buffer), "", fallback);
 		}
 
-		constexpr buffer_error load_buffer(const char* start, const char* end) {
-			lexy::buffer<encoding_type, MemoryResource> buffer(start, end);
+		buffer_error load_buffer(const char* start, const char* end, std::optional<Encoding> fallback) {
+			lexy::buffer<lexy::default_encoding> buffer(start, end);
 			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
-			_parse_state.reset(new parse_state_type { std::move(buffer) });
-			return is_valid() ? buffer_error::success : buffer_error::buffer_is_null;
+			return load_buffer_impl(std::move(buffer), "", fallback);
 		}
 
-		buffer_error load_file(const char* path) {
-			lexy::read_file_result file = lexy::read_file<encoding_type, lexy::encoding_endianness::bom, MemoryResource>(path);
+		buffer_error load_file(const char* path, std::optional<Encoding> fallback) {
+			lexy::read_file_result file = lexy::read_file<lexy::default_encoding, lexy::encoding_endianness::bom>(path);
+
 			if (!file) {
-				_parse_state.reset(new parse_state_type { path, lexy::buffer<typename parse_state_type::file_type::encoding_type>() });
-				return ovdl::detail::from_underlying<buffer_error>(ovdl::detail::to_underlying(file.error()));
-			}
-			_parse_state.reset(new parse_state_type { path, std::move(file).buffer() });
-			return is_valid() ? buffer_error::success : buffer_error::buffer_is_null;
-		}
-
-		const char* path() const {
-			if (!_parse_state) return "";
-			return _parse_state->file().path();
-		}
-
-		parse_state_type& parse_state() {
-			return *_parse_state;
-		}
-
-		const parse_state_type& parse_state() const {
-			return *_parse_state;
-		}
-
-		constexpr const auto& buffer() const {
-			return _parse_state->file().buffer();
-		}
-
-	protected:
-		std::unique_ptr<parse_state_type> _parse_state;
-	};
-
-	template<IsParseState ParseState, typename MemoryResource = void>
-	struct BasicStateParseHandler : ParseHandler<BasicStateParseHandler<ParseState, MemoryResource>> {
-		using parse_state_type = ParseState;
-		using encoding_type = typename parse_state_type::ast_type::file_type::encoding_type;
-
-		constexpr bool is_valid() const {
-			if (!_parse_state) return false;
-			return buffer().data() != nullptr;
-		}
-
-		constexpr buffer_error load_buffer_size(const char* data, std::size_t size) {
-			lexy::buffer<encoding_type, MemoryResource> buffer(data, size);
-			_parse_state.reset(new parse_state_type { std::move(buffer) });
-			return is_valid() ? buffer_error::success : buffer_error::buffer_is_null;
-		}
-
-		constexpr buffer_error load_buffer(const char* start, const char* end) {
-			lexy::buffer<encoding_type, MemoryResource> buffer(start, end);
-			_parse_state.reset(new parse_state_type { std::move(buffer) });
-			return is_valid() ? buffer_error::success : buffer_error::buffer_is_null;
-		}
-
-		buffer_error load_file(const char* path) {
-			lexy::read_file_result file = lexy::read_file<encoding_type, lexy::encoding_endianness::bom, MemoryResource>(path);
-			if (!file) {
-				_parse_state.reset(new parse_state_type { path, lexy::buffer<typename parse_state_type::ast_type::file_type::encoding_type>() });
 				return ovdl::detail::from_underlying<buffer_error>(ovdl::detail::to_underlying(file.error()));
 			}
 
-			_parse_state.reset(new parse_state_type { path, std::move(file).buffer() });
-			return is_valid() ? buffer_error::success : buffer_error::buffer_is_null;
+			return load_buffer_impl(std::move(file).buffer(), path, fallback);
 		}
 
 		const char* path() const {
+			return path_impl();
+		}
+
+		static Encoding get_system_fallback() {
+			return _system_fallback_encoding.value_or(Encoding::Unknown);
+		}
+
+		virtual ~ParseHandler() = default;
+
+	protected:
+		constexpr virtual bool is_valid_impl() const = 0;
+		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path = "", std::optional<Encoding> fallback = std::nullopt) = 0;
+		virtual const char* path_impl() const = 0;
+
+		template<detail::IsStateType State, detail::IsEncoding BufferEncoding>
+		static constexpr auto generate_state = [](std::optional<State>* state, const char* path, auto&& buffer, Encoding encoding) {
+			if (path[0] != '\0') {
+				state->emplace(
+					path,
+					lexy::buffer<BufferEncoding>(std::move(buffer)),
+					encoding);
+				return;
+			}
+			state->emplace(lexy::buffer<BufferEncoding>(std::move(buffer)), encoding);
+		};
+
+		template<detail::IsStateType State>
+		static void create_state(std::optional<State>* state, const char* path, lexy::buffer<lexy::default_encoding>&& buffer, std::optional<Encoding> fallback) {
+			if (!_system_fallback_encoding.has_value()) {
+				_detect_system_fallback_encoding();
+			}
+			bool is_bad_fallback = false;
+			if (fallback.has_value()) {
+				is_bad_fallback = fallback.value() == Encoding::Ascii || fallback.value() == Encoding::Utf8;
+				if (is_bad_fallback)
+					fallback = _system_fallback_encoding.value();
+			} else {
+				fallback = _system_fallback_encoding.value();
+			}
+			auto [encoding, is_alone] = encoding_detect::Detector { .default_fallback = fallback.value() }.detect_assess(buffer);
+			switch (encoding) {
+				using enum Encoding;
+				case Ascii:
+				case Utf8: {
+					generate_state<State, lexy::utf8_char_encoding>(state, path, std::move(buffer), encoding);
+					break;
+				}
+				case Unknown:
+				case Windows1251:
+				case Windows1252: {
+					generate_state<State, lexy::default_encoding>(state, path, std::move(buffer), encoding);
+					break;
+				}
+				default:
+					ovdl::detail::unreachable();
+			}
+
+			if (!is_alone) {
+				(*state)->logger().info("encoding type could not be distinguished");
+			}
+
+			if (is_bad_fallback) {
+				(*state)->logger().warning("fallback encoding cannot be ascii or utf8");
+			}
+
+			if (encoding == ovdl::detail::Encoding::Unknown) {
+				(*state)->logger().warning("could not detect encoding");
+			}
+		}
+
+	private:
+		inline static std::optional<Encoding> _system_fallback_encoding = std::nullopt;
+		static void _detect_system_fallback_encoding();
+	};
+
+	template<detail::IsFileParseState ParseState>
+	struct BasicFileParseHandler : ParseHandler {
+		using parse_state_type = ParseState;
+
+		virtual constexpr bool is_valid_impl() const {
+			if (!_parse_state) return false;
+			return _parse_state.value().file().is_valid();
+		}
+
+		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path, std::optional<Encoding> fallback) {
+			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
+			create_state(&_parse_state, path, std::move(buffer), fallback);
+			return is_valid_impl() ? buffer_error::success : buffer_error::buffer_is_null;
+		}
+
+		virtual const char* path_impl() const {
 			if (!_parse_state) return "";
-			return _parse_state->ast().file().path();
+			return _parse_state.value().file().path();
 		}
 
 		parse_state_type& parse_state() {
-			return *_parse_state;
+			return _parse_state.value();
 		}
 
 		const parse_state_type& parse_state() const {
-			return *_parse_state;
+			return _parse_state.value();
 		}
 
+		template<typename Encoding>
 		constexpr const auto& buffer() const {
-			return _parse_state->ast().file().buffer();
+			return _parse_state.value().file().template get_buffer_as<Encoding>();
 		}
 
 	protected:
-		std::unique_ptr<parse_state_type> _parse_state;
+		std::optional<parse_state_type> _parse_state;
+	};
+
+	template<detail::IsParseState ParseState>
+	struct BasicStateParseHandler : ParseHandler {
+		using parse_state_type = ParseState;
+
+		virtual constexpr bool is_valid_impl() const {
+			if (!_parse_state) return false;
+			return _parse_state.value().ast().file().is_valid();
+		}
+
+		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path, std::optional<Encoding> fallback) {
+			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
+			create_state(&_parse_state, path, std::move(buffer), fallback);
+			return is_valid_impl() ? buffer_error::success : buffer_error::buffer_is_null;
+		}
+
+		virtual const char* path_impl() const {
+			if (!_parse_state) return "";
+			return _parse_state.value().ast().file().path();
+		}
+
+		parse_state_type& parse_state() {
+			return _parse_state.value();
+		}
+
+		const parse_state_type& parse_state() const {
+			return _parse_state.value();
+		}
+
+		template<typename Encoding>
+		constexpr const auto& buffer() const {
+			return _parse_state.value().ast().file().template get_buffer_as<Encoding>();
+		}
+
+	protected:
+		std::optional<parse_state_type> _parse_state;
 	};
 }

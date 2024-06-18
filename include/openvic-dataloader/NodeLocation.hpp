@@ -3,27 +3,67 @@
 #include <cstdint>
 
 namespace ovdl {
-	struct NodeLocation {
-		const char* _begin = nullptr;
-		const char* _end = nullptr;
+	template<typename CharT>
+	struct BasicNodeLocation {
+		using char_type = CharT;
 
-		NodeLocation();
-		NodeLocation(const char* pos);
-		NodeLocation(const char* begin, const char* end);
+		const char_type* _begin = nullptr;
+		const char_type* _end = nullptr;
 
-		NodeLocation(const NodeLocation&) noexcept;
-		NodeLocation& operator=(const NodeLocation&);
+		BasicNodeLocation() = default;
+		BasicNodeLocation(const char_type* pos) : _begin(pos),
+												  _end(pos) {}
+		BasicNodeLocation(const char_type* begin, const char_type* end) : _begin(begin),
+																		  _end(end) {}
 
-		NodeLocation(NodeLocation&&);
-		NodeLocation& operator=(NodeLocation&&);
+		BasicNodeLocation(const BasicNodeLocation&) noexcept = default;
+		BasicNodeLocation& operator=(const BasicNodeLocation&) = default;
 
-		const char* begin() const;
-		const char* end() const;
+		BasicNodeLocation(BasicNodeLocation&&) = default;
+		BasicNodeLocation& operator=(BasicNodeLocation&&) = default;
 
-		bool is_synthesized() const;
+		template<typename OtherCharT>
+		void set_from(const BasicNodeLocation<OtherCharT>& other) {
+			if constexpr (sizeof(CharT) <= sizeof(OtherCharT)) {
+				_begin = reinterpret_cast<const CharT*>(other.begin());
+				if (other.begin() == other.end())
+					_end = _begin;
+				else
+					_end = reinterpret_cast<const CharT*>(other.end()) + (sizeof(OtherCharT) - sizeof(CharT));
+			} else {
+				_begin = reinterpret_cast<const CharT*>(other.begin());
+				if (other.end() - other.begin() <= 0) {
+					_end = reinterpret_cast<const CharT*>(other.begin());
+				} else {
+					_end = reinterpret_cast<const CharT*>(other.end() - (sizeof(CharT) - sizeof(OtherCharT)));
+				}
+			}
+		}
 
-		static NodeLocation make_from(const char* begin, const char* end);
+		template<typename OtherCharT>
+		BasicNodeLocation(const BasicNodeLocation<OtherCharT>& other) {
+			set_from(other);
+		}
+
+		template<typename OtherCharT>
+		BasicNodeLocation& operator=(const BasicNodeLocation<OtherCharT>& other) {
+			set_from(other);
+			return *this;
+		}
+
+		const char_type* begin() const { return _begin; }
+		const char_type* end() const { return _end; }
+
+		bool is_synthesized() const { return _begin == nullptr && _end == nullptr; }
+
+		static BasicNodeLocation make_from(const char_type* begin, const char_type* end) {
+			end++;
+			if (begin >= end) return BasicNodeLocation(begin);
+			return BasicNodeLocation(begin, end);
+		}
 	};
+
+	using NodeLocation = BasicNodeLocation<char>;
 
 	struct FilePosition {
 		std::uint32_t start_line = std::uint32_t(-1), end_line = std::uint32_t(-1), start_column = std::uint32_t(-1), end_column = std::uint32_t(-1);

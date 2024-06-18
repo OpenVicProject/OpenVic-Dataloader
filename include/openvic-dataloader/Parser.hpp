@@ -3,9 +3,6 @@
 #include <string>
 #include <string_view>
 
-#include <openvic-dataloader/ParseError.hpp>
-#include <openvic-dataloader/ParseWarning.hpp>
-
 namespace ovdl::detail {
 	struct BasicParser {
 		BasicParser();
