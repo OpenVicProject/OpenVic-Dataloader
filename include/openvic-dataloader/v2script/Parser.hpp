@@ -33,9 +33,9 @@ namespace ovdl::v2script {
 		static Parser from_file(const char* path, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
 		static Parser from_file(const std::filesystem::path& path, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
 
-		constexpr Parser& load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
-		constexpr Parser& load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
-		constexpr Parser& load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
+		Parser& load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
+		Parser& load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
+		Parser& load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
 		Parser& load_from_file(const char* path, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
 		Parser& load_from_file(const std::filesystem::path& path, std::optional<detail::Encoding> encoding_fallback = std::nullopt);
 

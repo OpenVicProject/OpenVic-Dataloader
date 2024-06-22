@@ -80,12 +80,30 @@ namespace ovdl::csv {
 
 		constexpr std::size_t value_count() const { return _suffix_end; }
 
+		struct SepTransformer {
+			const LineObject& line_object;
+			std::string_view separator;
+		};
+
+		constexpr SepTransformer use_sep(std::string_view seperator) const {
+			return { *this, seperator };
+		}
+
 	private:
 		// Should be position of first valid value on line
 		position_type _prefix_end = 0;
 		// Should be position after last value or position after last seperator
 		position_type _suffix_end = 0;
 	};
+
+	struct VectorSepTransformer {
+		const std::vector<LineObject>& vector;
+		std::string_view separator;
+	};
+
+	constexpr VectorSepTransformer use_sep(const std::vector<LineObject>& vector, std::string_view separator) {
+		return { vector, separator };
+	}
 
 	inline std::ostream& operator<<(std::ostream& stream, const LineObject& line) {
 		static constexpr char SEP = ';';
@@ -107,6 +125,38 @@ namespace ovdl::csv {
 	inline std::ostream& operator<<(std::ostream& stream, const std::vector<LineObject>& lines) {
 		for (const LineObject& line : lines) {
 			stream << line << '\n';
+		}
+		return stream;
+	}
+
+	inline std::ostream& operator<<(std::ostream& stream, const LineObject::SepTransformer& transformer) {
+		auto quote_check = [&transformer, is_one = transformer.separator.size() == 1](const std::string_view str) {
+			if (is_one) {
+				char SEP = transformer.separator[0];
+				return std::any_of(str.begin(), str.end(), [SEP](char c) { return c == SEP || std::isspace(c); });
+			}
+			return std::any_of(str.begin(), str.end(), [](char c) { return std::isspace(c); }) ||
+				   str.find(transformer.separator) != std::string::npos;
+		};
+
+		LineObject::position_type sep_index = 0;
+		for (const auto& [pos, val] : transformer.line_object) {
+			while (sep_index < pos) {
+				stream << transformer.separator;
+				sep_index++;
+			}
+			if (quote_check(val)) {
+				stream << '"' << val << '"';
+			} else {
+				stream << val;
+			}
+		}
+		return stream;
+	}
+
+	inline std::ostream& operator<<(std::ostream& stream, const VectorSepTransformer& transformer) {
+		for (const LineObject& line : transformer.vector) {
+			stream << line.use_sep(transformer.separator) << '\n';
 		}
 		return stream;
 	}

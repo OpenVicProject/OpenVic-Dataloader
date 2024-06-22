@@ -14,7 +14,8 @@ env.PrependENVPath("PATH", os.getenv("PATH"))
 
 opts = env.SetupOptions()
 
-opts.Add(BoolVariable(key="build_ovdl_library", help="Build the openvic dataloader library.", default=env.get("build_ovdl_library", not env.is_standalone)))
+opts.Add(BoolVariable("run_ovdl_tests", "Build and run the openvic dataloader tests", env.is_standalone))
+opts.Add(BoolVariable("build_ovdl_library", "Build the openvic dataloader library.", env.get("build_ovdl_library", not env.is_standalone)))
 opts.Add(BoolVariable("build_ovdl_headless", "Build the openvic dataloader headless executable", env.is_standalone))
 
 env.FinalizeOptions()
@@ -56,6 +57,9 @@ library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
 
 default_args = []
 
+if env["run_ovdl_tests"]:
+    env["build_ovdl_library"] = True
+
 if env["build_ovdl_library"]:
     library = env.StaticLibrary(target=os.path.join(BINDIR, library_name), source=sources)
     default_args += [library]
@@ -85,6 +89,9 @@ if env["build_ovdl_headless"]:
         PROGSUFFIX=".headless" + env["PROGSUFFIX"]
     )
     default_args += [headless_program]
+
+if env["run_ovdl_tests"]:
+    SConscript("tests/SCsub", "env")
 
 # Add compiledb if the option is set
 if env.get("compiledb", False):

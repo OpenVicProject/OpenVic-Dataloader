@@ -117,11 +117,10 @@ namespace ovdl::error {
 	protected:
 		explicit AnnotatedError(dryad::node_ctor ctor, ErrorKind kind) : node_base(ctor, kind) {
 			insert_child_list_after(nullptr, AnnotationList {});
-			_last_annotation = nullptr;
 		}
 
 	private:
-		Annotation* _last_annotation;
+		Annotation* _last_annotation = nullptr;
 	};
 
 	struct ParseError : dryad::abstract_node_range<AnnotatedError, ErrorKind::FirstParseError, ErrorKind::LastParseError> {
@@ -207,7 +206,7 @@ namespace ovdl::error {
 
 	inline void AnnotatedError::push_back(AnnotationList p_annotations) {
 		if (p_annotations.empty()) return;
-		insert_child_list_after(annotations().end().deref(), p_annotations);
-		_last_annotation = *p_annotations.end();
+		insert_child_list_after(_last_annotation, p_annotations);
+		_last_annotation = p_annotations.back();
 	}
 }

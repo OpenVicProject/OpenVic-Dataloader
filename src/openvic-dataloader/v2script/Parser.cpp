@@ -76,6 +76,9 @@ struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast
 	}
 
 	Parser::error_range get_errors() {
+		using iterator = typename decltype(std::declval<const error::Root*>()->children())::iterator;
+		if (!is_valid())
+			return dryad::make_node_range<error::Error>(iterator::from_ptr(nullptr), iterator::from_ptr(nullptr));
 		return parse_state().logger().get_errors();
 	}
 };
@@ -149,19 +152,19 @@ constexpr void Parser::_run_load_func(detail::LoadCallback<Parser::ParseHandler*
 	}
 }
 
-constexpr Parser& Parser::load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback) {
+Parser& Parser::load_from_buffer(const char* data, std::size_t size, std::optional<detail::Encoding> encoding_fallback) {
 	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&ParseHandler::load_buffer_size), data, size, encoding_fallback);
 	return *this;
 }
 
-constexpr Parser& Parser::load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback) {
+Parser& Parser::load_from_buffer(const char* start, const char* end, std::optional<detail::Encoding> encoding_fallback) {
 	// Type can't be deduced?
 	_run_load_func(std::mem_fn(&ParseHandler::load_buffer), start, end, encoding_fallback);
 	return *this;
 }
 
-constexpr Parser& Parser::load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback) {
+Parser& Parser::load_from_string(const std::string_view string, std::optional<detail::Encoding> encoding_fallback) {
 	return load_from_buffer(string.data(), string.size(), encoding_fallback);
 }
 

@@ -11,6 +11,12 @@
 [submodule "deps/fmt"]
 	path = deps/fmt
 	url = https://github.com/fmtlib/fmt
+	ignore = dirty
 [submodule "deps/range-v3"]
 	path = deps/range-v3
 	url = https://github.com/ericniebler/range-v3
+	ignore = dirty
+[submodule "tests/deps/snitch"]
+	path = tests/deps/snitch
+	url = https://github.com/snitch-org/snitch
+	ignore = dirty

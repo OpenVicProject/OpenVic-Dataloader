@@ -108,9 +108,7 @@ namespace ovdl::v2script::ast {
 	struct ListValue : dryad::basic_node<NodeKind::ListValue, dryad::container_node<Value>> {
 		explicit ListValue(dryad::node_ctor ctor, StatementList statements);
 		explicit ListValue(dryad::node_ctor ctor, AssignStatementList statements);
-
-		explicit ListValue(dryad::node_ctor ctor) : ListValue(ctor, StatementList {}) {
-		}
+		explicit ListValue(dryad::node_ctor ctor);
 
 		DRYAD_CHILD_NODE_RANGE_GETTER(Statement, statements, nullptr, this->node_after(_last_statement));
 
@@ -167,8 +165,7 @@ namespace ovdl::v2script::ast {
 	struct FileTree : dryad::basic_node<NodeKind::FileTree, dryad::container_node<Node>> {
 		explicit FileTree(dryad::node_ctor ctor, StatementList statements);
 		explicit FileTree(dryad::node_ctor ctor, AssignStatementList statements);
-		explicit FileTree(dryad::node_ctor ctor) : FileTree(ctor, StatementList {}) {
-		}
+		explicit FileTree(dryad::node_ctor ctor);
 
 		DRYAD_CHILD_NODE_RANGE_GETTER(Statement, statements, nullptr, this->node_after(_last_node));
 
