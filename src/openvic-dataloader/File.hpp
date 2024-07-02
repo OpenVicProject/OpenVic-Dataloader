@@ -29,6 +29,8 @@ namespace ovdl {
 
 		bool is_valid() const noexcept;
 
+		std::size_t size() const noexcept;
+
 		template<typename Encoding, typename MemoryResource = void>
 		constexpr bool is_buffer() const {
 			return buffer_ids::type_id<lexy::buffer<Encoding, MemoryResource>>() + 1 == _buffer.index();
@@ -104,6 +106,7 @@ namespace ovdl {
 
 	protected:
 		const char* _path;
+		std::size_t _buffer_size = 0;
 		detail::type_prepend_t<buffer_ids::variant_type, std::monostate> _buffer;
 	};
 
@@ -114,12 +117,14 @@ namespace ovdl {
 		template<typename Encoding, typename MemoryResource = void>
 		explicit BasicFile(const char* path, lexy::buffer<Encoding, MemoryResource>&& buffer)
 			: File(path) {
+			_buffer_size = buffer.size();
 			_buffer = static_cast<std::remove_reference_t<decltype(buffer)>&&>(buffer);
 		}
 
 		template<typename Encoding, typename MemoryResource = void>
 		explicit BasicFile(lexy::buffer<Encoding, MemoryResource>&& buffer)
 			: File("") {
+			_buffer_size = buffer.size();
 			_buffer = static_cast<std::remove_reference_t<decltype(buffer)>&&>(buffer);
 		}
 

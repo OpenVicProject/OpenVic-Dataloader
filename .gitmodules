@@ -14,9 +14,12 @@
 	ignore = dirty
 [submodule "deps/range-v3"]
 	path = deps/range-v3
-	url = https://github.com/ericniebler/range-v3
+	url = https://github.com/spartan322/range-v3
 	ignore = dirty
 [submodule "tests/deps/snitch"]
 	path = tests/deps/snitch
 	url = https://github.com/snitch-org/snitch
 	ignore = dirty
+[submodule "deps/vmcontainer"]
+	path = deps/vmcontainer
+	url = https://github.com/spartan322/vmcontainer

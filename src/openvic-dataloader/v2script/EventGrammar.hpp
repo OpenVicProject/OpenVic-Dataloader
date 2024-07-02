@@ -30,7 +30,7 @@ namespace ovdl::v2script::grammar {
 			static constexpr auto value = dsl::callback<ast::IdentifierValue*>(
 				[](detail::IsParseState auto& state, ast::IdentifierValue* value) {
 					bool is_number = true;
-					for (auto* current = value->value(state.ast().symbol_interner()); *current; current++) {
+					for (auto* current = value->value().c_str(); *current; current++) {
 						is_number = is_number && std::isdigit(*current);
 						if (!is_number) break;
 					}
@@ -95,16 +95,16 @@ namespace ovdl::v2script::grammar {
 		static constexpr auto value =
 			dsl::callback<ast::EventStatement*>(
 				[](detail::IsParseState auto& state, NodeLocation loc, ast::IdentifierValue* name, ast::ListValue* list) {
-					static auto country_decl = state.ast().intern_cstr("country_event");
-					static auto province_decl = state.ast().intern_cstr("province_event");
+					auto country_decl = state.ast().intern("country_event");
+					auto province_decl = state.ast().intern("province_event");
 
-					if (name->value(state.ast().symbol_interner()) != country_decl || name->value(state.ast().symbol_interner()) != province_decl) {
-						state.logger().warning("event declarator \"{}\" is not {} or {}", name->value(state.ast().symbol_interner()), country_decl, province_decl) //
+					if (name->value() != country_decl || name->value() != province_decl) {
+						state.logger().warning("event declarator \"{}\" is not {} or {}", name->value().c_str(), country_decl.c_str(), province_decl.c_str()) //
 							.primary(loc, "here")
 							.finish();
 					}
 
-					return state.ast().template create<ast::EventStatement>(loc, name->value(state.ast().symbol_interner()) == province_decl, list);
+					return state.ast().template create<ast::EventStatement>(loc, name->value() == province_decl, list);
 				});
 	};
 

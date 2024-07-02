@@ -11,7 +11,7 @@ AbstractSyntaxTree::symbol_type AbstractSyntaxTree::intern(std::string_view str)
 }
 
 const char* AbstractSyntaxTree::intern_cstr(const char* str, std::size_t length) {
-	return intern(str, length).c_str(_symbol_interner);
+	return intern(str, length).c_str();
 }
 
 const char* AbstractSyntaxTree::intern_cstr(std::string_view str) {

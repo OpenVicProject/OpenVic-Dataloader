@@ -266,7 +266,7 @@ const FileTree* Parser::get_file_node() const {
 }
 
 std::string_view Parser::value(const ovdl::v2script::ast::FlatValue* node) const {
-	return node->value(_parse_handler->parse_state().ast().symbol_interner());
+	return node->value().view();
 }
 
 std::string Parser::make_native_string() const {

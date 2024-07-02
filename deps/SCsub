@@ -56,7 +56,7 @@ def build_dryad(env):
         env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
         env.Append(CXXFLAGS=["-isystem", include_dir])
-    
+
     env.exposed_includes += env.dryad["INCPATH"]
 
 def build_fmt(env):
@@ -117,7 +117,7 @@ def build_fmt(env):
     env.Append(CXXFLAGS=[""])
     env.Append(LIBPATH=[fmt_env.Dir(source_path)])
     env.Prepend(LIBS=[library_name])
-    
+
     env.exposed_includes += env.fmt["INCPATH"]
 
 def build_range_v3(env):
@@ -135,10 +135,41 @@ def build_range_v3(env):
         env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
         env.Append(CXXFLAGS=["-isystem", include_dir])
-    
+
     env.exposed_includes += env.range_v3["INCPATH"]
+
+def build_vmcontainer(env):
+    vmcontainer_env = env.Clone()
+
+    include_path = "vmcontainer/lib/include"
+    source_path = "vmcontainer/lib/src"
+    paths = [include_path, source_path]
+    vmcontainer_env.Append(CPPPATH=[[vmcontainer_env.Dir(p) for p in paths]])
+    sources = env.GlobRecursive("*.cpp", paths)
+    env.vmcontainer_sources = sources
+
+    library_name = "libvmcontainer" + env["LIBSUFFIX"]
+    library = vmcontainer_env.StaticLibrary(target=os.path.join(source_path, library_name), source=sources)
+    Default(library)
+
+    include_dir = vmcontainer_env.Dir(include_path)
+
+    env.vmcontainer = {}
+    env.vmcontainer["INCPATH"] = [include_dir]
+
+    env.Append(CPPPATH=env.vmcontainer["INCPATH"])
+    if env.get("is_msvc", False):
+        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
+    else:
+        env.Append(CXXFLAGS=["-isystem", include_dir])
+    env.Append(CXXFLAGS=[""])
+    env.Append(LIBPATH=[vmcontainer_env.Dir(source_path)])
+    env.Prepend(LIBS=[library_name])
+
+    env.exposed_includes += env.vmcontainer["INCPATH"]
 
 build_dryad(env)
 build_fmt(env)
 build_lexy(env)
 build_range_v3(env)
+build_vmcontainer(env)
