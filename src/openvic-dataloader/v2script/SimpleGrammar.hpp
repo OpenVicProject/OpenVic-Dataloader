@@ -126,6 +126,15 @@ namespace ovdl::v2script::grammar {
 				do {
 					if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
 						if (lexy::scan_result<lexy::lexeme<Reader>> ascii_result; scanner.branch(ascii_result, lexy::dsl::identifier(ascii))) {
+							if (!scanner.peek(data_char_class)) {
+								if (ascii_result.value().size() == 0) {
+									return lexy::scan_failed;
+								}
+
+								auto value = state.ast().intern(ascii_result.value());
+								return state.ast().template create<ast::IdentifierValue>(ovdl::NodeLocation::make_from(content_begin, scanner.position()), value);
+							}
+
 							value_result.append(ascii_result.value().begin(), ascii_result.value().end());
 							continue;
 						}
@@ -150,8 +159,12 @@ namespace ovdl::v2script::grammar {
 					} else {
 						auto lexeme_result = scanner.template parse<lexy::lexeme<Reader>>(lexy::dsl::identifier(utf_char_class));
 						if (lexeme_result) {
-							value_result.append(lexeme_result.value().begin(), lexeme_result.value().size());
-							break;
+							if (lexeme_result.value().size() == 0) {
+								return lexy::scan_failed;
+							}
+
+							auto value = state.ast().intern(lexeme_result.value());
+							return state.ast().template create<ast::IdentifierValue>(ovdl::NodeLocation::make_from(content_begin, scanner.position()), value);
 						}
 					}
 				} while (scanner);

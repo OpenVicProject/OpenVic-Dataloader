@@ -1,5 +1,4 @@
 #include <string_view>
-#include <type_traits>
 
 #include <openvic-dataloader/NodeLocation.hpp>
 #include <openvic-dataloader/detail/SymbolIntern.hpp>
@@ -69,13 +68,13 @@ TEST_CASE("V2Script Nodes", "[v2script-nodes]") {
 	auto* id = ast.create_with_intern<IdentifierValue>("id");
 	CHECK_IF(id) {
 		CHECK(id->kind() == NodeKind::IdentifierValue);
-		CHECK(id->value(ast.symbol_interner) == "id"sv);
+		CHECK(id->value().view() == "id"sv);
 	}
 
 	auto* str = ast.create_with_intern<StringValue>("str");
 	CHECK_IF(str) {
 		CHECK(str->kind() == NodeKind::StringValue);
-		CHECK(str->value(ast.symbol_interner) == "str"sv);
+		CHECK(str->value().view() == "str"sv);
 	}
 
 	auto* list = ast.create<ListValue>();
@@ -162,7 +161,7 @@ TEST_CASE("V2Script Nodes Location", "[v2script-nodes-location]") {
 	auto* id = ast.create_with_loc_and_intern<IdentifierValue>(NodeLocation::make_from(&fake_buffer[0], &fake_buffer[1]), "id");
 
 	CHECK_IF(id) {
-		CHECK(id->value(ast.symbol_interner) == "id"sv);
+		CHECK(id->value().view() == "id"sv);
 
 		auto location = ast.location_of(id);
 		CHECK_FALSE(location.is_synthesized());

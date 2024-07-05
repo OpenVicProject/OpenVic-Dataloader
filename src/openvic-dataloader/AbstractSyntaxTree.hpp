@@ -9,6 +9,8 @@
 #include <openvic-dataloader/detail/SymbolIntern.hpp>
 #include <openvic-dataloader/detail/Utility.hpp>
 
+#include <lexy/lexeme.hpp>
+
 #include <dryad/node.hpp>
 #include <dryad/node_map.hpp>
 #include <dryad/symbol.hpp>
@@ -16,16 +18,27 @@
 
 #include <fmt/core.h>
 
-#include "detail/InternalConcepts.hpp"
+#include <detail/InternalConcepts.hpp>
 
 namespace ovdl {
 	struct AbstractSyntaxTree : SymbolIntern {
+		explicit AbstractSyntaxTree(std::size_t max_elements) : _symbol_interner(max_elements) {}
+
 		symbol_type intern(const char* str, std::size_t length);
 		symbol_type intern(std::string_view str);
 		const char* intern_cstr(const char* str, std::size_t length);
 		const char* intern_cstr(std::string_view str);
 		symbol_interner_type& symbol_interner();
 		const symbol_interner_type& symbol_interner() const;
+
+		template<typename Reader>
+		symbol_type intern(lexy::lexeme<Reader> lexeme) {
+			return intern(lexeme.begin(), lexeme.size());
+		}
+		template<typename Reader>
+		const char* intern_cstr(lexy::lexeme<Reader> lexeme) {
+			return intern_cstr(lexeme.begin(), lexeme.size());
+		}
 
 	protected:
 		symbol_interner_type _symbol_interner;
@@ -37,10 +50,14 @@ namespace ovdl {
 		using root_node_type = RootNodeT;
 		using node_type = typename file_type::node_type;
 
-		explicit BasicAbstractSyntaxTree(file_type&& file) : _file { std::move(file) } {}
+		explicit BasicAbstractSyntaxTree(file_type&& file)
+			: AbstractSyntaxTree(file.size()),
+			  _file { std::move(file) } {}
 
 		template<typename Encoding, typename MemoryResource = void>
-		explicit BasicAbstractSyntaxTree(lexy::buffer<Encoding, MemoryResource>&& buffer) : _file { std::move(buffer) } {}
+		explicit BasicAbstractSyntaxTree(lexy::buffer<Encoding, MemoryResource>&& buffer)
+			: AbstractSyntaxTree(buffer.size()),
+			  _file { std::move(buffer) } {}
 
 		void set_location(const node_type* n, NodeLocation loc) {
 			_file.set_location(n, loc);

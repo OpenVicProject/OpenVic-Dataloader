@@ -19,6 +19,7 @@
 #include <lexy/input/base.hpp>
 #include <lexy/input/buffer.hpp>
 #include <lexy/input_location.hpp>
+#include <lexy/lexeme.hpp>
 #include <lexy/visualize.hpp>
 
 #include <dryad/_detail/config.hpp>
@@ -36,7 +37,12 @@ namespace ovdl {
 	template<typename ParseState>
 	struct BasicDiagnosticLogger;
 
-	struct DiagnosticLogger : SymbolIntern {
+	struct DiagnosticLogger {
+		struct SymbolId;
+		using index_type = std::uint32_t;
+		using symbol_type = dryad::symbol<SymbolId, index_type>;
+		using symbol_interner_type = dryad::symbol_interner<SymbolId, char, index_type>;
+
 		using AnnotationKind = lexy_ext::annotation_kind;
 		using DiagnosticKind = lexy_ext::diagnostic_kind;
 
@@ -199,6 +205,15 @@ namespace ovdl {
 		}
 		const symbol_interner_type& symbol_interner() const {
 			return _symbol_interner;
+		}
+
+		template<typename Reader>
+		symbol_type intern(lexy::lexeme<Reader> lexeme) {
+			return intern(lexeme.data(), lexeme.size());
+		}
+		template<typename Reader>
+		const char* intern_cstr(lexy::lexeme<Reader> lexeme) {
+			return intern_cstr(lexeme.data(), lexeme.size());
 		}
 	};
 

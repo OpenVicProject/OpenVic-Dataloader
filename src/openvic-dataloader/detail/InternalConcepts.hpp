@@ -6,9 +6,12 @@
 #include <openvic-dataloader/NodeLocation.hpp>
 #include <openvic-dataloader/detail/Encoding.hpp>
 #include <openvic-dataloader/detail/SymbolIntern.hpp>
+#include <openvic-dataloader/detail/Utility.hpp>
 
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
+
+#include <dryad/symbol.hpp>
 
 #include <fmt/core.h>
 
@@ -17,8 +20,9 @@
 namespace ovdl::detail {
 	template<typename T>
 	concept IsFile =
-		requires(T t, const typename T::node_type* node, NodeLocation location) {
+		requires(T t, const T ct, const typename T::node_type* node, NodeLocation location) {
 			typename T::node_type;
+			{ ct.size() } -> std::same_as<size_t>;
 			{ t.set_location(node, location) } -> std::same_as<void>;
 			{ t.location_of(node) } -> std::same_as<NodeLocation>;
 		};
@@ -58,12 +62,12 @@ namespace ovdl::detail {
 		{ ct.errored() } -> std::same_as<bool>;
 		{ ct.warned() } -> std::same_as<bool>;
 		{ ct.get_errors() } -> std::same_as<typename T::error_range>;
-		{ t.intern(str, length) } -> std::same_as<ovdl::SymbolIntern::symbol_type>;
-		{ t.intern(sv) } -> std::same_as<ovdl::SymbolIntern::symbol_type>;
+		{ t.intern(str, length) } -> detail::InstanceOf<dryad::symbol>;
+		{ t.intern(sv) } -> detail::InstanceOf<dryad::symbol>;
 		{ t.intern_cstr(str, length) } -> std::same_as<const char*>;
 		{ t.intern_cstr(sv) } -> std::same_as<const char*>;
-		{ t.symbol_interner() } -> std::same_as<SymbolIntern::symbol_interner_type&>;
-		{ ct.symbol_interner() } -> std::same_as<const SymbolIntern::symbol_interner_type&>;
+		{ t.symbol_interner() } -> detail::InstanceOf<dryad::symbol_interner>;
+		{ ct.symbol_interner() } -> detail::InstanceOf<dryad::symbol_interner>;
 		{ t.error(std::declval<typename T::template format_str<>>()) } -> std::same_as<typename T::Writer>;
 		{ t.warning(std::declval<typename T::template format_str<>>()) } -> std::same_as<typename T::Writer>;
 		{ t.note(std::declval<typename T::template format_str<>>()) } -> std::same_as<typename T::Writer>;

@@ -75,7 +75,7 @@ std::string FileAbstractSyntaxTree::make_list_visualizer() const {
 		dryad::visit_node(
 			node,
 			[&](const FlatValue* value) {
-				result.append(value->value(this->_symbol_interner));
+				result.append(value->value().c_str());
 			},
 			[&](const ListValue* value) {
 			},
@@ -107,10 +107,10 @@ std::string FileAbstractSyntaxTree::make_native_visualizer() const {
 	dryad::visit_tree(
 		this->_tree,
 		[&](const IdentifierValue* value) {
-			result.append(value->value(this->_symbol_interner));
+			result.append(value->value().c_str());
 		},
 		[&](const StringValue* value) {
-			result.append(1, '"').append(value->value(this->_symbol_interner)).append(1, '"');
+			result.append(1, '"').append(value->value().c_str()).append(1, '"');
 		},
 		[&](dryad::child_visitor<NodeKind> visitor, const ValueStatement* statement) {
 			visitor(statement->value());

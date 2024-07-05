@@ -84,10 +84,6 @@ namespace ovdl::v2script::ast {
 			return _value;
 		}
 
-		const char* value(const SymbolIntern::symbol_interner_type& symbols) const {
-			return _value.c_str(symbols);
-		}
-
 	protected:
 		explicit FlatValue(dryad::node_ctor ctor, NodeKind kind, SymbolIntern::symbol_type value)
 			: node_base(ctor, kind),

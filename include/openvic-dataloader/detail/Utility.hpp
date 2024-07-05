@@ -86,4 +86,7 @@ namespace ovdl::detail {
 
 	template<typename Type, template<typename...> typename Template>
 	static constexpr auto is_instance_of_v = is_instance_of<Type, Template>::value;
+
+	template<typename T, template<typename...> typename Template>
+	concept InstanceOf = is_instance_of_v<std::remove_cv_t<std::remove_reference_t<T>>, Template>;
 }
