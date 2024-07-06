@@ -12,6 +12,7 @@
 #include <openvic-dataloader/detail/Concepts.hpp>
 #include <openvic-dataloader/detail/Encoding.hpp>
 #include <openvic-dataloader/detail/OStreamOutputIterator.hpp>
+#include <openvic-dataloader/detail/SymbolIntern.hpp>
 #include <openvic-dataloader/detail/Utility.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
@@ -267,6 +268,13 @@ const FileTree* Parser::get_file_node() const {
 
 std::string_view Parser::value(const ovdl::v2script::ast::FlatValue* node) const {
 	return node->value().view();
+}
+
+ovdl::symbol<char> Parser::find_intern(std::string_view string) const {
+	if (!_parse_handler->is_valid()) {
+		return ovdl::symbol<char>();
+	}
+	return _parse_handler->parse_state().ast().symbol_interner().find_intern(string.data(), string.size());
 }
 
 std::string Parser::make_native_string() const {

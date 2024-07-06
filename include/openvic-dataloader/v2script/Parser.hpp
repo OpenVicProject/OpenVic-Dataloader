@@ -51,6 +51,7 @@ namespace ovdl::v2script {
 		const FileTree* get_file_node() const;
 
 		std::string_view value(const ovdl::v2script::ast::FlatValue* node) const;
+		ovdl::symbol<char> find_intern(std::string_view string) const;
 
 		std::string make_native_string() const;
 		std::string make_list_string() const;
