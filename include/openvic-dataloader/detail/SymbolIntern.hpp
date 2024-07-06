@@ -173,6 +173,19 @@ namespace ovdl {
 			return success;
 		}
 
+		symbol find_intern(const CharT* str, std::size_t length) {
+			auto entry = _map.lookup_entry(typename traits::string_view { str, length }, traits { &_buffer });
+			if (entry)
+				return symbol(_buffer.c_str(entry.get()));
+
+			return symbol();
+		}
+		template<std::size_t N>
+		symbol find_intern(const CharT (&literal)[N]) {
+			DRYAD_PRECONDITION(literal[N - 1] == CharT(0));
+			return find_intern(literal, N - 1);
+		}
+
 		symbol intern(const CharT* str, std::size_t length) {
 			if (_map.should_rehash())
 				_map.rehash(_resource, traits { &_buffer });
