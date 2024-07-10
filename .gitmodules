@@ -23,3 +23,4 @@
 [submodule "deps/vmcontainer"]
 	path = deps/vmcontainer
 	url = https://github.com/spartan322/vmcontainer
+	ignore = dirty
