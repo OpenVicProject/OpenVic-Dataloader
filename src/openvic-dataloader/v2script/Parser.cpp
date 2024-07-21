@@ -320,6 +320,10 @@ Parser::error_range Parser::get_errors() const {
 	return _parse_handler->get_errors();
 }
 
+std::string_view Parser::error(const ovdl::error::Error* error) const {
+	return error->message(_parse_handler->parse_state().logger().symbol_interner());
+}
+
 const FilePosition Parser::get_error_position(const error::Error* error) const {
 	if (!error || !error->is_linked_in_tree()) {
 		return {};
@@ -352,20 +356,20 @@ void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 		dryad::visit_tree(
 			error,
 			[&](const error::BufferError* buffer_error) {
-				stream << "buffer error: " << buffer_error->message() << '\n';
+				stream << "buffer error: " << this->error(buffer_error) << '\n';
 			},
 			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::AnnotatedError* annotated_error) {
-				stream << annotated_error->message() << '\n';
+				stream << this->error(annotated_error) << '\n';
 				auto annotations = annotated_error->annotations();
 				for (auto annotation : annotations) {
 					visitor(annotation);
 				}
 			},
 			[&](const error::PrimaryAnnotation* primary) {
-				stream << primary->message() << '\n';
+				stream << this->error(primary) << '\n';
 			},
 			[&](const error::SecondaryAnnotation* secondary) {
-				stream << secondary->message() << '\n';
+				stream << this->error(secondary) << '\n';
 			});
 	}
 }

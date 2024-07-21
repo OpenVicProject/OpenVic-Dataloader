@@ -2,6 +2,7 @@
 
 #include <concepts> // IWYU pragma: keep
 #include <cstdio>
+#include <iostream>
 #include <ostream>
 #include <string>
 #include <type_traits>
@@ -37,12 +38,7 @@ namespace ovdl {
 	template<typename ParseState>
 	struct BasicDiagnosticLogger;
 
-	struct DiagnosticLogger {
-		struct SymbolId;
-		using index_type = std::uint32_t;
-		using symbol_type = dryad::symbol<SymbolId, index_type>;
-		using symbol_interner_type = dryad::symbol_interner<SymbolId, char, index_type>;
-
+	struct DiagnosticLogger : error::ErrorSymbolInterner {
 		using AnnotationKind = lexy_ext::annotation_kind;
 		using DiagnosticKind = lexy_ext::diagnostic_kind;
 
@@ -116,23 +112,23 @@ namespace ovdl {
 						}
 						result = writer.error();
 					} else {
-						auto production = _logger.intern_cstr(production_name);
+						auto production = production_name;
 						if constexpr (std::is_same_v<Tag, lexy::expected_literal>) {
 							auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
 							NodeLocation loc = NodeLocation::make_from(context.position(), error.position() - 1);
-							auto message = _logger.intern_cstr(fmt::format("expected '{}'", string.data()));
+							auto message = _logger.intern(fmt::format("expected '{}'", string.data()));
 							result = _logger.template create<error::ExpectedLiteral>(loc, message, production);
 						} else if constexpr (std::is_same_v<Tag, lexy::expected_keyword>) {
 							auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
 							NodeLocation loc = NodeLocation::make_from(context.position(), error.position() - 1);
-							auto message = _logger.intern_cstr(fmt::format("expected keyword '{}'", string.data()));
+							auto message = _logger.intern(fmt::format("expected keyword '{}'", string.data()));
 							result = _logger.template create<error::ExpectedKeyword>(loc, message, production);
 						} else if constexpr (std::is_same_v<Tag, lexy::expected_char_class>) {
-							auto message = _logger.intern_cstr(fmt::format("expected {}", error.name()));
+							auto message = _logger.intern(fmt::format("expected {}", error.name()));
 							result = _logger.template create<error::ExpectedCharClass>(error.position(), message, production);
 						} else {
 							NodeLocation loc = NodeLocation::make_from(error.begin(), error.end());
-							auto message = _logger.intern_cstr(error.message());
+							auto message = _logger.intern(error.message());
 							result = _logger.template create<error::GenericParseError>(loc, message, production);
 						}
 					}
@@ -361,7 +357,7 @@ namespace ovdl {
 				});
 
 				error::Annotation* annotation;
-				auto message = _logger.intern_cstr(output);
+				auto message = _logger.intern(output);
 				switch (kind) {
 					case AnnotationKind::primary:
 						annotation = _logger.create<error::PrimaryAnnotation>(loc, message);
@@ -404,7 +400,7 @@ namespace ovdl {
 				});
 			impl.write_path(iter, file().path());
 
-			auto message = intern_cstr(output);
+			auto message = intern(output);
 			error->_set_message(message);
 			if (!error->is_linked_in_tree())
 				insert(error);
@@ -422,8 +418,8 @@ namespace ovdl {
 				});
 			impl.write_path(iter, file().path());
 
-			auto production = intern_cstr(production_name);
-			auto message = intern_cstr(output);
+			auto production = production_name;
+			auto message = intern(output);
 			auto* error = [&] {
 				if constexpr (std::is_same_v<Tag, lexy::expected_literal>) {
 					return create<error::ExpectedLiteral>(loc, message, production);

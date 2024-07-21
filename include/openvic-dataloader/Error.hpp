@@ -7,6 +7,7 @@
 
 #include <dryad/abstract_node.hpp>
 #include <dryad/node.hpp>
+#include <dryad/symbol.hpp>
 
 namespace ovdl {
 	template<typename>
@@ -50,6 +51,13 @@ namespace ovdl::error {
 		LastAnnotation = SecondaryAnnotation,
 	};
 
+	struct ErrorSymbolInterner {
+		struct SymbolId;
+		using index_type = std::uint32_t;
+		using symbol_type = dryad::symbol<SymbolId, index_type>;
+		using symbol_interner_type = dryad::symbol_interner<SymbolId, char, index_type>;
+	};
+
 	static constexpr std::string_view get_kind_name(ErrorKind kind) {
 		switch (kind) {
 			using enum ErrorKind;
@@ -62,13 +70,13 @@ namespace ovdl::error {
 	}
 
 	struct Error : dryad::abstract_node_all<ErrorKind> {
-		const char* message() const { return _message; }
+		const char* message(const ErrorSymbolInterner::symbol_interner_type& symbols) const { return _message.c_str(symbols); }
 
 	protected:
 		DRYAD_ABSTRACT_NODE_CTOR(Error);
 
-		void _set_message(const char* message) { _message = message; }
-		const char* _message = "";
+		void _set_message(ErrorSymbolInterner::symbol_type message) { _message = message; }
+		ErrorSymbolInterner::symbol_type _message;
 
 		template<typename>
 		friend struct ovdl::BasicDiagnosticLogger;
@@ -94,7 +102,7 @@ namespace ovdl::error {
 	};
 
 	struct BufferError : dryad::basic_node<ErrorKind::BufferError, Error> {
-		explicit BufferError(dryad::node_ctor ctor, const char* message) : node_base(ctor) {
+		explicit BufferError(dryad::node_ctor ctor, ErrorSymbolInterner::symbol_type message) : node_base(ctor) {
 			_set_message(message);
 		}
 
@@ -103,7 +111,7 @@ namespace ovdl::error {
 
 	struct Annotation : dryad::abstract_node_range<Error, ErrorKind::FirstAnnotation, ErrorKind::LastAnnotation> {
 	protected:
-		explicit Annotation(dryad::node_ctor ctor, ErrorKind kind, const char* message) : node_base(ctor, kind) {
+		explicit Annotation(dryad::node_ctor ctor, ErrorKind kind, ErrorSymbolInterner::symbol_type message) : node_base(ctor, kind) {
 			_set_message(message);
 		}
 	};
@@ -129,7 +137,7 @@ namespace ovdl::error {
 	protected:
 		explicit ParseError(dryad::node_ctor ctor,
 			ErrorKind kind,
-			const char* message,
+			ErrorSymbolInterner::symbol_type message,
 			const char* production_name)
 			: node_base(ctor, kind),
 			  _production_name(production_name) {
@@ -143,7 +151,7 @@ namespace ovdl::error {
 	struct _ParseError_t : dryad::basic_node<NodeKind, ParseError> {
 		using base_node = dryad::basic_node<NodeKind, ParseError>;
 
-		explicit _ParseError_t(dryad::node_ctor ctor, const char* message, const char* production_name)
+		explicit _ParseError_t(dryad::node_ctor ctor, ErrorSymbolInterner::symbol_type message, const char* production_name)
 			: base_node(ctor, message, production_name) {}
 	};
 
@@ -157,12 +165,12 @@ namespace ovdl::error {
 		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind)
 			: node_base(ctor, kind) {};
 
-		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind, const char* message)
+		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind, ErrorSymbolInterner::symbol_type message)
 			: node_base(ctor, kind) {
 			_set_message(message);
 		};
 
-		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind, const char* message, AnnotationList annotations)
+		explicit Semantic(dryad::node_ctor ctor, ErrorKind kind, ErrorSymbolInterner::symbol_type message, AnnotationList annotations)
 			: node_base(ctor, kind) {
 			push_back(annotations);
 			_set_message(message);
@@ -176,10 +184,10 @@ namespace ovdl::error {
 		explicit _SemanticError_t(dryad::node_ctor ctor)
 			: base_node(ctor) {}
 
-		explicit _SemanticError_t(dryad::node_ctor ctor, const char* message)
+		explicit _SemanticError_t(dryad::node_ctor ctor, ErrorSymbolInterner::symbol_type message)
 			: base_node(ctor, message) {}
 
-		explicit _SemanticError_t(dryad::node_ctor ctor, const char* message, AnnotationList annotations)
+		explicit _SemanticError_t(dryad::node_ctor ctor, ErrorSymbolInterner::symbol_type message, AnnotationList annotations)
 			: base_node(ctor, message, annotations) {}
 	};
 
@@ -192,7 +200,7 @@ namespace ovdl::error {
 
 	template<ErrorKind NodeKind>
 	struct _Annotation_t : dryad::basic_node<NodeKind, Annotation> {
-		explicit _Annotation_t(dryad::node_ctor ctor, const char* message)
+		explicit _Annotation_t(dryad::node_ctor ctor, ErrorSymbolInterner::symbol_type message)
 			: dryad::basic_node<NodeKind, Annotation>(ctor, message) {}
 	};
 
