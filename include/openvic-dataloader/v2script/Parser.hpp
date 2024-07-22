@@ -61,6 +61,8 @@ namespace ovdl::v2script {
 		using error_range = ovdl::detail::error_range<error::Root>;
 		Parser::error_range get_errors() const;
 
+		std::string_view error(const ovdl::error::Error* error) const;
+
 		const FilePosition get_error_position(const error::Error* error) const;
 
 		void print_errors_to(std::basic_ostream<char>& stream) const;

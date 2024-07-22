@@ -11,10 +11,7 @@
 
 #include <lexy/_detail/config.hpp>
 #include <lexy/callback.hpp>
-#include <lexy/callback/string.hpp>
 #include <lexy/dsl.hpp>
-#include <lexy/dsl/ascii.hpp>
-#include <lexy/dsl/option.hpp>
 #include <lexy/encoding.hpp>
 
 #include "detail/Convert.hpp"
@@ -73,6 +70,9 @@ namespace ovdl::csv::grammar {
 	constexpr auto escaped_quote = lexy::symbol_table<char> //
 									   .map<'"'>('"');
 
+	constexpr auto escaped_newline = lexy::symbol_table<char> //
+										 .map<'n'>('\n');
+
 	template<ParseOptions Options>
 	struct CsvGrammar {
 		struct StringValue : lexy::scan_production<std::string>,
@@ -118,6 +118,11 @@ namespace ovdl::csv::grammar {
 			template<auto character>
 			static constexpr auto _escape_check = character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline);
 
+			struct Backslash {
+				static constexpr auto rule = LEXY_LIT("\\n");
+				static constexpr auto value = lexy::constant('\n');
+			};
+
 			template<typename Context, typename Reader>
 			static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsFileParseState auto& state) {
 				using encoding = typename Reader::encoding;
@@ -134,13 +139,16 @@ namespace ovdl::csv::grammar {
 					if constexpr (Options.SupportStrings) {
 						return lexy::dsl::identifier(character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline));
 					} else {
-						auto escape_check_char = _escape_check<character>;
-						auto id_check_char = escape_check_char - lexy::dsl::lit_b<'\\'>;
-						auto id_segment = lexy::dsl::identifier(id_check_char);
-						auto escape_segement = lexy::dsl::token(escape_check_char);
-						auto escape_sym = lexy::dsl::symbol<escaped_symbols>(escape_segement);
-						auto escape_rule = lexy::dsl::lit_b<'\\'> >> escape_sym;
-						return lexy::dsl::list(id_segment | escape_rule);
+						constexpr auto backslash = lexy::dsl::lit_b<'\\'>;
+
+						constexpr auto escape_check_char = _escape_check<character>;
+						constexpr auto escape_rule = lexy::dsl::p<Backslash>;
+
+						return lexy::dsl::list(
+							lexy::dsl::identifier(escape_check_char - backslash) |
+							escape_rule |
+							lexy::dsl::capture(escape_check_char) //
+						);
 					}
 				}();
 

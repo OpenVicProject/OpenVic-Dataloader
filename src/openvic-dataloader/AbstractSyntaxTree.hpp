@@ -3,6 +3,7 @@
 #include <concepts>
 #include <cstdio>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include <openvic-dataloader/NodeLocation.hpp>
@@ -51,12 +52,12 @@ namespace ovdl {
 		using node_type = typename file_type::node_type;
 
 		explicit BasicAbstractSyntaxTree(file_type&& file)
-			: AbstractSyntaxTree(file.size()),
+			: AbstractSyntaxTree(file.size() * file.visit_buffer([](auto&& buffer) -> size_t { return sizeof(typename std::decay_t<decltype(buffer)>::char_type); })),
 			  _file { std::move(file) } {}
 
 		template<typename Encoding, typename MemoryResource = void>
 		explicit BasicAbstractSyntaxTree(lexy::buffer<Encoding, MemoryResource>&& buffer)
-			: AbstractSyntaxTree(buffer.size()),
+			: AbstractSyntaxTree(buffer.size() * sizeof(Encoding::char_type)),
 			  _file { std::move(buffer) } {}
 
 		void set_location(const node_type* n, NodeLocation loc) {

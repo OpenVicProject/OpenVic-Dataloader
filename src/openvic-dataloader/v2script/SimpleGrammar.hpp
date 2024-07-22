@@ -5,15 +5,6 @@
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
-#include <lexy/dsl/any.hpp>
-#include <lexy/dsl/identifier.hpp>
-#include <lexy/dsl/option.hpp>
-#include <lexy/dsl/peek.hpp>
-#include <lexy/dsl/punctuator.hpp>
-#include <lexy/dsl/recover.hpp>
-#include <lexy/dsl/scan.hpp>
-#include <lexy/dsl/symbol.hpp>
-#include <lexy/dsl/unicode.hpp>
 #include <lexy/encoding.hpp>
 #include <lexy/input/base.hpp>
 #include <lexy/input/buffer.hpp>
@@ -63,7 +54,7 @@ namespace ovdl::v2script::grammar {
 	/* REQUIREMENTS: DAT-631 */
 	static constexpr auto comment_specifier = LEXY_LIT("#") >> lexy::dsl::until(lexy::dsl::newline).or_eof();
 
-	static constexpr auto ascii = lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.");
+	static constexpr auto ascii = lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.\\");
 
 	/* REQUIREMENTS:
 	 * DAT-632
@@ -91,7 +82,7 @@ namespace ovdl::v2script::grammar {
 
 	static constexpr auto data_char_class = LEXY_CHAR_CLASS("DataSpecifier", data_specifier);
 
-	static constexpr auto utf_data_specifier = lexy::dsl::unicode::xid_continue / LEXY_ASCII_ONE_OF("+:@%&'-.");
+	static constexpr auto utf_data_specifier = lexy::dsl::unicode::xid_continue / LEXY_ASCII_ONE_OF("+:@%&'-.\\");
 
 	static constexpr auto utf_char_class = LEXY_CHAR_CLASS("DataSpecifier", utf_data_specifier);
 
@@ -196,9 +187,9 @@ namespace ovdl::v2script::grammar {
 					if constexpr (Options.NoStringEscape) {
 						auto c = [] {
 							if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
-								return dsl::lit_b_range<0x20, 0xFF> / lexy::dsl::lit_b<0x07> / lexy::dsl::lit_b<0x09> / lexy::dsl::lit_b<0x0A> / lexy::dsl::lit_b<0x0D>;
+								return dsl::lit_b_range<0x01, 0xFF>;
 							} else {
-								return -lexy::dsl::unicode::control;
+								return lexy::dsl::unicode::character;
 							}
 						}();
 						return lexy::dsl::quoted(c);
@@ -287,7 +278,7 @@ namespace ovdl::v2script::grammar {
 			}();
 
 			static constexpr auto value = dsl::callback<ast::Statement*>(
-				[](detail::IsParseState auto& state, const char* pos, ast::IdentifierValue* name, ast::Value* initializer) {
+				[](detail::IsParseState auto& state, const char* pos, ast::IdentifierValue* name, ast::Value* initializer) -> ast::AssignStatement* {
 					return state.ast().template create<ast::AssignStatement>(pos, name, initializer);
 				},
 				[](detail::IsParseState auto& state, bool&, const char* pos, ast::IdentifierValue* name, ast::Value* initializer) {
@@ -306,11 +297,15 @@ namespace ovdl::v2script::grammar {
 					return state.ast().template create<ast::ValueStatement>(pos, left);
 				},
 				[](detail::IsParseState auto& state, ast::Value* left) -> ast::ValueStatement* {
-					if (left == nullptr) return nullptr;
+					if (left == nullptr) { // May no longer be neccessary
+						return nullptr;
+					}
 					return state.ast().template create<ast::ValueStatement>(state.ast().location_of(left), left);
 				},
 				[](detail::IsParseState auto& state, bool&, ast::Value* left) -> ast::ValueStatement* {
-					if (left == nullptr) return nullptr;
+					if (left == nullptr) { // May no longer be neccessary
+						return nullptr;
+					}
 					return state.ast().template create<ast::ValueStatement>(state.ast().location_of(left), left);
 				});
 		};
@@ -322,12 +317,12 @@ namespace ovdl::v2script::grammar {
 
 				auto assign_statement = lexy::dsl::recurse_branch<AssignmentStatement>;
 
-				auto assign_try = lexy::dsl::try_(assign_statement);
+				auto assign_try = lexy::dsl::try_(assign_statement, lexy::dsl::nullopt);
 				auto assign_opt = lexy::dsl::opt(lexy::dsl::list(assign_try));
 
 				auto curly_bracket = dsl::curly_bracketed(assign_opt + lexy::dsl::opt(lexy::dsl::semicolon));
 
-				return lexy::dsl::try_(curly_bracket, lexy::dsl::find(right_brace));
+				return curly_bracket;
 			}();
 
 			static constexpr auto value =
@@ -346,9 +341,6 @@ namespace ovdl::v2script::grammar {
 						} else {
 							return state.ast().template create<ast::ListValue>(ovdl::NodeLocation::make_from(begin, end), LEXY_MOV(list));
 						}
-					},
-					[](detail::IsParseState auto& state, lexy::nullopt fail = {}) {
-						return fail;
 					});
 		};
 	};
