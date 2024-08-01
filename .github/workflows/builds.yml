@@ -97,7 +97,7 @@ jobs:
         with:
           platform: ${{ matrix.platform }}
           target: ${{ matrix.target }}
-          sconsflags: arch=${{ matrix.arch }} build_ovdl_library=yes run_ovdl_tests=yes
+          sconsflags: arch=${{ matrix.arch }} build_ovdl_library=yes run_ovdl_tests=yes ubuntu_gcc_invalid_char_hang_bug=${{ matrix.runner == 'ubuntu-20.04' }}
 
       - name: Delete compilation files
         if: ${{ matrix.platform == 'windows' }}

@@ -18,6 +18,8 @@ opts.Add(BoolVariable("run_ovdl_tests", "Build and run the openvic dataloader te
 opts.Add(BoolVariable("build_ovdl_library", "Build the openvic dataloader library.", env.get("build_ovdl_library", not env.is_standalone)))
 opts.Add(BoolVariable("build_ovdl_headless", "Build the openvic dataloader headless executable", env.is_standalone))
 
+opts.Add(BoolVariable("ubuntu_gcc_invalid_char_hang_bug", "Skips test section which triggers a hang build for gcc-12 on ubuntu-20", False))
+
 env.FinalizeOptions()
 
 env.exposed_includes = []

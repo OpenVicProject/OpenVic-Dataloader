@@ -23,28 +23,22 @@
 #include "v2script/ParseState.hpp"
 
 namespace ovdl::convert {
-	struct MappedChar {
-		char value;
-		std::string_view utf8;
-
-		constexpr bool is_invalid() const { return value == 0; }
-		constexpr bool is_pass() const { return value == 1; }
-	};
-	constexpr MappedChar invalid_map { 0, "" };
-	constexpr MappedChar pass_map { 1, "" };
-
 	struct map_value {
 		std::string_view _value;
 
 		constexpr map_value() noexcept : _value("") {}
-		constexpr map_value(std::nullptr_t) noexcept : _value("\0") {}
+		constexpr map_value(std::nullptr_t) noexcept : _value("\0", 1) {}
 		constexpr explicit map_value(std::string_view val) noexcept : _value(val) {}
 
-		constexpr bool is_invalid() const {
+		static constexpr map_value invalid_value() noexcept {
+			return map_value(nullptr);
+		}
+
+		constexpr bool is_invalid() const noexcept {
 			return !_value.empty() && _value[0] == '\0';
 		}
 
-		constexpr bool is_pass() const {
+		constexpr bool is_pass() const noexcept {
 			return _value.empty();
 		}
 
@@ -203,13 +197,19 @@ namespace ovdl::convert {
 										.map<'\xFC'>("ü")
 										.map<'\xFD'>("ý")
 										.map<'\xFE'>("þ")
-										.map<'\xFF'>("ÿ");
+										.map<'\xFF'>("ÿ")
+
+										// Paradox being special, invalid Windows-1252
+										// Used for (semantically incorrect) Polish localization TODOs
+										.map<'\x8F'>("Ę");
 
 		template<typename Reader>
 		static constexpr map_value try_parse(Reader& reader) {
 			auto index = map.try_parse(reader);
 			if (index) {
 				return map_value(map[index]);
+			} else if (*reader.position() < 0) {
+				return map_value::invalid_value();
 			}
 			return {};
 		}
@@ -358,6 +358,8 @@ namespace ovdl::convert {
 			auto index = map.try_parse(reader);
 			if (index) {
 				return map_value(map[index]);
+			} else if (*reader.position() < 0) {
+				return map_value::invalid_value();
 			}
 			return {};
 		}
@@ -405,6 +407,11 @@ namespace ovdl::convert {
 								break;
 							// Skip Ascii and Utf8 encoding
 							default: {
+								// If within ASCII range
+								if (c >= CharT {}) {
+									break;
+								}
+
 								map_value val = {};
 								CharT char_array[] { c, CharT() };
 								auto input = lexy::range_input(&char_array[0], &char_array[1]);
@@ -454,19 +461,24 @@ namespace ovdl::convert {
 								auto begin = reader.position();
 								auto last_it = begin;
 								while (reader.peek() != eof) {
-									map_value val = try_parse_map(state.encoding(), reader);
+									// If not within ASCII range
+									if (*reader.position() < 0) {
+										map_value val = try_parse_map(state.encoding(), reader);
 
-									if (val.is_invalid()) {
-										Error::on_invalid_character(state, reader);
-										reader.bump();
-										continue;
-									} else if (!val.is_pass()) {
-										result.append(val._value);
-										last_it = reader.position();
-										continue;
+										if (val.is_invalid()) {
+											Error::on_invalid_character(state, reader);
+											reader.bump();
+											continue;
+										} else if (!val.is_pass()) {
+											result.append(val._value);
+											last_it = reader.position();
+											continue;
+										}
 									}
 
-									reader.bump();
+									while (reader.peek() != eof && *reader.position() > 0) {
+										reader.bump();
+									}
 									result.append(last_it, reader.position());
 									last_it = reader.position();
 								}
@@ -503,19 +515,24 @@ namespace ovdl::convert {
 								auto begin = reader.position();
 								auto last_it = begin;
 								while (reader.peek() != eof) {
-									map_value val = try_parse_map(state.encoding(), reader);
+									// If not within ASCII range
+									if (*reader.position() < 0) {
+										map_value val = try_parse_map(state.encoding(), reader);
 
-									if (val.is_invalid()) {
-										Error::on_invalid_character(state, reader);
-										reader.bump();
-										continue;
-									} else if (!val.is_pass()) {
-										result.append(val._value);
-										last_it = reader.position();
-										continue;
+										if (val.is_invalid()) {
+											Error::on_invalid_character(state, reader);
+											reader.bump();
+											continue;
+										} else if (!val.is_pass()) {
+											result.append(val._value);
+											last_it = reader.position();
+											continue;
+										}
 									}
 
-									reader.bump();
+									while (reader.peek() != eof && *reader.position() > 0) {
+										reader.bump();
+									}
 									result.append(last_it, reader.position());
 									last_it = reader.position();
 								}
@@ -550,19 +567,24 @@ namespace ovdl::convert {
 						auto begin = reader.position();
 						auto last_it = begin;
 						while (reader.peek() != eof) {
-							map_value val = try_parse_map(state.encoding(), reader);
+							// If not within ASCII range
+							if (*reader.position() < 0) {
+								map_value val = try_parse_map(state.encoding(), reader);
 
-							if (val.is_invalid()) {
-								Error::on_invalid_character(state, reader);
-								reader.bump();
-								continue;
-							} else if (!val.is_pass()) {
-								result.append(val._value);
-								last_it = reader.position();
-								continue;
+								if (val.is_invalid()) {
+									Error::on_invalid_character(state, reader);
+									reader.bump();
+									continue;
+								} else if (!val.is_pass()) {
+									result.append(val._value);
+									last_it = reader.position();
+									continue;
+								}
 							}
 
-							reader.bump();
+							while (reader.peek() != eof && *reader.position() > 0) {
+								reader.bump();
+							}
 							result.append(last_it, reader.position());
 							last_it = reader.position();
 						}
