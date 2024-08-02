@@ -47,6 +47,11 @@ tests_env.tests_sources = env.GlobRecursive("*.cpp", [source_path])
 
 SConscript("deps/SCsub", {"env": tests_env })
 
+# Blame Ubuntu 22's GCC-12 distribution for this crap
+# Compiler bug hangs if it can see if there is any reference to \x8F in a character
+if env["ubuntu_gcc_invalid_char_hang_bug"]:
+    tests_env.Append(CPPDEFINES=["_OVDL_TEST_UBUNTU_GCC_12_BUG_"])
+
 tests_program = tests_env.UnitTest(
     source=tests_env.tests_sources,
     target=os.path.join(BINDIR, tests_name),
