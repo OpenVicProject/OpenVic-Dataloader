@@ -48,6 +48,14 @@ TEST_CASE("CSV Memory Buffer (begin, end) Parse", "[csv-memory-parse][buffer][be
 	CHECK_PARSE(false);
 }
 
+TEST_CASE("CSV Buffer nullptr Parse", "[csv-memory-parse][buffer][nullptr]") {
+	Parser parser(ovdl::detail::cnull);
+
+	parser.load_from_buffer(nullptr, std::size_t { 0 });
+
+	CHECK_PARSE(true);
+}
+
 TEST_CASE("CSV Memory String Parse", "[csv-memory-parse][string]") {
 	Parser parser(ovdl::detail::cnull);
 
@@ -150,6 +158,22 @@ TEST_CASE("CSV File (HasCstr) Handle String Parse", "[csv-file-parse][handle-str
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(true);
+}
+
+TEST_CASE("CSV File (const char*) Handle Empty Path String Parse", "[csv-file-parse][handle-string][char-ptr][empty-path]") {
+	Parser parser(ovdl::detail::cnull);
+
+	parser.load_from_file("");
+
+	CHECK_OR_RETURN(!parser.get_errors().empty());
+}
+
+TEST_CASE("CSV File (const char*) Handle Non-existent Path String Parse", "[csv-file-parse][handle-string][char-ptr][nonexistent-path]") {
+	Parser parser(ovdl::detail::cnull);
+
+	parser.load_from_file("./Idontexist");
+
+	CHECK_OR_RETURN(!parser.get_errors().empty());
 }
 
 TEST_CASE("CSV Parse", "[csv-parse]") {

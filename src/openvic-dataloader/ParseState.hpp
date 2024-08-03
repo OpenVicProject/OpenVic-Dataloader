@@ -30,6 +30,8 @@ namespace ovdl {
 		using file_type = typename ast_type::file_type;
 		using diagnostic_logger_type = BasicDiagnosticLogger<ParseState>;
 
+		ParseState() : _ast {}, _logger { this->ast().file() } {}
+
 		ParseState(typename ast_type::file_type&& file, detail::Encoding encoding)
 			: _ast { std::move(file) },
 			  _logger { this->ast().file() },
@@ -68,6 +70,8 @@ namespace ovdl {
 	struct FileParseState : BasicParseState {
 		using file_type = FileT;
 		using diagnostic_logger_type = BasicDiagnosticLogger<FileParseState>;
+
+		FileParseState() : _file {}, _logger { this->file() } {}
 
 		FileParseState(file_type&& file, detail::Encoding encoding)
 			: _file { std::move(file) },

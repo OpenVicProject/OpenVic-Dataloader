@@ -77,9 +77,6 @@ struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast
 	}
 
 	Parser::error_range get_errors() {
-		using iterator = typename decltype(std::declval<const error::Root*>()->children())::iterator;
-		if (!is_valid())
-			return dryad::make_node_range<error::Error>(iterator::from_ptr(nullptr), iterator::from_ptr(nullptr));
 		return parse_state().logger().get_errors();
 	}
 };
@@ -146,7 +143,7 @@ constexpr void Parser::_run_load_func(detail::LoadCallback<Parser::ParseHandler*
 	if (!error_message.empty()) {
 		_has_error = true;
 		_has_fatal_error = true;
-		_parse_handler->parse_state().logger().template create_log<error::BufferError>(DiagnosticLogger::DiagnosticKind::error, fmt::runtime(error_message));
+		_parse_handler->parse_state().logger().template create_log<error::BufferError>(DiagnosticLogger::DiagnosticKind::error, fmt::runtime(error_message), _file_path);
 	}
 	if (has_error() && &_error_stream.get() != &detail::cnull) {
 		print_errors_to(_error_stream.get());
@@ -356,7 +353,7 @@ void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 		dryad::visit_tree(
 			error,
 			[&](const error::BufferError* buffer_error) {
-				stream << "buffer error: " << this->error(buffer_error) << '\n';
+				stream << this->error(buffer_error) << '\n';
 			},
 			[&](dryad::child_visitor<error::ErrorKind> visitor, const error::AnnotatedError* annotated_error) {
 				stream << this->error(annotated_error) << '\n';

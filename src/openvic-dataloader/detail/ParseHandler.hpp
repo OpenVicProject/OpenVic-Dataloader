@@ -26,11 +26,11 @@ namespace ovdl::detail {
 				case buffer_is_null:
 					return "Buffer could not be loaded.";
 				case os_error:
-					return "OS file error.";
+					return "OS file error for '{}'.";
 				case file_not_found:
-					return "File not found.";
+					return "File '{}' not found.";
 				case permission_denied:
-					return "Read Permission denied.";
+					return "Read Permission for '{}' denied.";
 				default:
 					return "";
 			}
@@ -78,19 +78,20 @@ namespace ovdl::detail {
 		virtual const char* path_impl() const = 0;
 
 		template<detail::IsStateType State, detail::IsEncoding BufferEncoding>
-		static constexpr auto generate_state = [](std::optional<State>* state, const char* path, auto&& buffer, Encoding encoding) {
+		static constexpr auto generate_state = [](State* state, const char* path, auto&& buffer, Encoding encoding) {
 			if (path[0] != '\0') {
-				state->emplace(
+				*state = {
 					path,
 					lexy::buffer<BufferEncoding>(std::move(buffer)),
-					encoding);
+					encoding
+				};
 				return;
 			}
-			state->emplace(lexy::buffer<BufferEncoding>(std::move(buffer)), encoding);
+			*state = { lexy::buffer<BufferEncoding>(std::move(buffer)), encoding };
 		};
 
 		template<detail::IsStateType State>
-		static void create_state(std::optional<State>* state, const char* path, lexy::buffer<lexy::default_encoding>&& buffer, std::optional<Encoding> fallback) {
+		static void create_state(State* state, const char* path, lexy::buffer<lexy::default_encoding>&& buffer, std::optional<Encoding> fallback) {
 			if (!_system_fallback_encoding.has_value()) {
 				_detect_system_fallback_encoding();
 			}
@@ -121,15 +122,15 @@ namespace ovdl::detail {
 			}
 
 			if (!is_alone) {
-				(*state)->logger().info("encoding type could not be distinguished");
+				state->logger().info("encoding type could not be distinguished");
 			}
 
 			if (is_bad_fallback) {
-				(*state)->logger().warning("fallback encoding cannot be ascii or utf8");
+				state->logger().warning("fallback encoding cannot be ascii or utf8");
 			}
 
 			if (encoding == ovdl::detail::Encoding::Unknown) {
-				(*state)->logger().warning("could not detect encoding");
+				state->logger().warning("could not detect encoding");
 			}
 		}
 
@@ -143,36 +144,37 @@ namespace ovdl::detail {
 		using parse_state_type = ParseState;
 
 		virtual constexpr bool is_valid_impl() const {
-			if (!_parse_state) return false;
-			return _parse_state.value().file().is_valid();
+			return _parse_state.file().is_valid();
 		}
 
 		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path, std::optional<Encoding> fallback) {
-			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
+			if (buffer.data() == nullptr) {
+				_parse_state = {};
+				return buffer_error::buffer_is_null;
+			}
 			create_state(&_parse_state, path, std::move(buffer), fallback);
 			return is_valid_impl() ? buffer_error::success : buffer_error::buffer_is_null;
 		}
 
 		virtual const char* path_impl() const {
-			if (!_parse_state) return "";
-			return _parse_state.value().file().path();
+			return _parse_state.file().path();
 		}
 
 		parse_state_type& parse_state() {
-			return _parse_state.value();
+			return _parse_state;
 		}
 
 		const parse_state_type& parse_state() const {
-			return _parse_state.value();
+			return _parse_state;
 		}
 
 		template<typename Encoding>
 		constexpr const auto& buffer() const {
-			return _parse_state.value().file().template get_buffer_as<Encoding>();
+			return _parse_state.file().template get_buffer_as<Encoding>();
 		}
 
 	protected:
-		std::optional<parse_state_type> _parse_state;
+		parse_state_type _parse_state;
 	};
 
 	template<detail::IsParseState ParseState>
@@ -180,8 +182,7 @@ namespace ovdl::detail {
 		using parse_state_type = ParseState;
 
 		virtual constexpr bool is_valid_impl() const {
-			if (!_parse_state) return false;
-			return _parse_state.value().ast().file().is_valid();
+			return _parse_state.ast().file().is_valid();
 		}
 
 		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path, std::optional<Encoding> fallback) {
@@ -191,24 +192,23 @@ namespace ovdl::detail {
 		}
 
 		virtual const char* path_impl() const {
-			if (!_parse_state) return "";
-			return _parse_state.value().ast().file().path();
+			return _parse_state.ast().file().path();
 		}
 
 		parse_state_type& parse_state() {
-			return _parse_state.value();
+			return _parse_state;
 		}
 
 		const parse_state_type& parse_state() const {
-			return _parse_state.value();
+			return _parse_state;
 		}
 
 		template<typename Encoding>
 		constexpr const auto& buffer() const {
-			return _parse_state.value().ast().file().template get_buffer_as<Encoding>();
+			return _parse_state.ast().file().template get_buffer_as<Encoding>();
 		}
 
 	protected:
-		std::optional<parse_state_type> _parse_state;
+		parse_state_type _parse_state;
 	};
 }

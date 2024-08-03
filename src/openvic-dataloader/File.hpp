@@ -23,6 +23,7 @@ namespace ovdl {
 			lexy::buffer<lexy::utf32_encoding, void>,
 			lexy::buffer<lexy::byte_encoding, void>>;
 
+		File() = default;
 		explicit File(const char* path);
 
 		const char* path() const noexcept;
@@ -74,6 +75,7 @@ namespace ovdl {
 		decltype(auto) visit_buffer(Visitor&& visitor) {
 			switch (_buffer.index()) {
 				SWITCH_LIST
+				case 0: return visitor(lexy::buffer<> {});
 				default: ovdl::detail::unreachable();
 			}
 		}
@@ -82,6 +84,7 @@ namespace ovdl {
 		Return visit_buffer(Visitor&& visitor) {
 			switch (_buffer.index()) {
 				SWITCH_LIST
+				case 0: return visitor(lexy::buffer<> {});
 				default: ovdl::detail::unreachable();
 			}
 		}
@@ -90,6 +93,7 @@ namespace ovdl {
 		decltype(auto) visit_buffer(Visitor&& visitor) const {
 			switch (_buffer.index()) {
 				SWITCH_LIST
+				case 0: return visitor(lexy::buffer<> {});
 				default: ovdl::detail::unreachable();
 			}
 		}
@@ -98,6 +102,7 @@ namespace ovdl {
 		Return visit_buffer(Visitor&& visitor) const {
 			switch (_buffer.index()) {
 				SWITCH_LIST
+				case 0: return visitor(lexy::buffer<> {});
 				default: ovdl::detail::unreachable();
 			}
 		}
@@ -105,7 +110,7 @@ namespace ovdl {
 #undef SWITCH_LIST
 
 	protected:
-		const char* _path;
+		const char* _path = "";
 		std::size_t _buffer_size = 0;
 		detail::type_prepend_t<buffer_ids::variant_type, std::monostate> _buffer;
 	};
@@ -113,6 +118,8 @@ namespace ovdl {
 	template<typename NodeT>
 	struct BasicFile : File {
 		using node_type = NodeT;
+
+		BasicFile() = default;
 
 		template<typename Encoding, typename MemoryResource = void>
 		explicit BasicFile(const char* path, lexy::buffer<Encoding, MemoryResource>&& buffer)

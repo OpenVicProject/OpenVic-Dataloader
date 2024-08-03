@@ -23,6 +23,7 @@
 
 namespace ovdl {
 	struct AbstractSyntaxTree : SymbolIntern {
+		AbstractSyntaxTree() = default;
 		explicit AbstractSyntaxTree(std::size_t max_elements) : _symbol_interner(max_elements) {}
 
 		symbol_type intern(const char* str, std::size_t length);
@@ -50,6 +51,8 @@ namespace ovdl {
 		using file_type = FileT;
 		using root_node_type = RootNodeT;
 		using node_type = typename file_type::node_type;
+
+		BasicAbstractSyntaxTree() = default;
 
 		explicit BasicAbstractSyntaxTree(file_type&& file)
 			: AbstractSyntaxTree(file.size() * file.visit_buffer([](auto&& buffer) -> size_t { return sizeof(typename std::decay_t<decltype(buffer)>::char_type); })),

@@ -54,6 +54,14 @@ TEST_CASE("V2Script Memory Buffer String Simple Parse", "[v2script-memory-simple
 	CHECK_PARSE();
 }
 
+TEST_CASE("V2Script Buffer nullptr Simple Parse", "[v2script-memory-simple-parse][buffer][nullptr]") {
+	Parser parser(ovdl::detail::cnull);
+
+	parser.load_from_buffer(nullptr, std::size_t { 0 });
+
+	CHECK_PARSE();
+}
+
 TEST_CASE("V2Script File (const char*) Simple Parse", "[v2script-file-simple-parse][char-ptr]") {
 	SetupFile(simple_path);
 
@@ -88,6 +96,22 @@ TEST_CASE("V2Script File (HasCstr) Simple Parse", "[v2script-file-simple-parse][
 	std::filesystem::remove(simple_path);
 
 	CHECK_PARSE();
+}
+
+TEST_CASE("V2Script File (const char*) Handle Empty Path String Parse", "[v2script-file-parse][handle-string][char-ptr][empty-path]") {
+	Parser parser(ovdl::detail::cnull);
+
+	parser.load_from_file("");
+
+	CHECK_OR_RETURN(!parser.get_errors().empty());
+}
+
+TEST_CASE("V2Script File (const char*) Handle Non-existent Path String Parse", "[v2script-file-parse][handle-string][char-ptr][nonexistent-path]") {
+	Parser parser(ovdl::detail::cnull);
+
+	parser.load_from_file("./Idontexist");
+
+	CHECK_OR_RETURN(!parser.get_errors().empty());
 }
 
 TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
