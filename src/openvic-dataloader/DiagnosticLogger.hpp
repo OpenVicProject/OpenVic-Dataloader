@@ -398,8 +398,13 @@ namespace ovdl {
 				[&](auto out, lexy::visualization_options) {
 					return lexy::_detail::write_str(out, fmt::format(fmt, std::forward<Args>(args)...).c_str());
 				});
-			impl.write_path(iter, file().path());
+			if constexpr (!std::same_as<T, error::BufferError>) {
+				if (file().path() != nullptr && file().path()[0] != '\0') {
+					impl.write_path(iter, file().path());
+				}
+			}
 
+			output.pop_back();
 			auto message = intern(output);
 			error->_set_message(message);
 			if (!error->is_linked_in_tree())

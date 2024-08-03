@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string_view>
 
+#include <openvic-dataloader/Error.hpp>
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/csv/Parser.hpp>
 
@@ -161,19 +162,46 @@ TEST_CASE("CSV File (HasCstr) Handle String Parse", "[csv-file-parse][handle-str
 }
 
 TEST_CASE("CSV File (const char*) Handle Empty Path String Parse", "[csv-file-parse][handle-string][char-ptr][empty-path]") {
+	static constexpr auto error_fmt =
+#ifdef __APPLE__
+		"error: OS file error for '{}'.";
+#elif defined(_WIN32)
+		"error: OS file error for '{}'.";
+#else
+		"error: File '{}' not found.";
+#endif
+	std::error_code fs_err;
+	const auto fs_path = std::filesystem::weakly_canonical("", fs_err);
+
 	Parser parser(ovdl::detail::cnull);
 
 	parser.load_from_file("");
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
+
+	auto error = parser.get_errors().front();
+	CHECK_OR_RETURN(error != nullptr);
+
+	CHECK_OR_RETURN(error->kind() == ovdl::error::ErrorKind::BufferError);
+	CHECK_OR_RETURN(parser.error(error) == fmt::format(error_fmt, fs_path.string()));
 }
 
 TEST_CASE("CSV File (const char*) Handle Non-existent Path String Parse", "[csv-file-parse][handle-string][char-ptr][nonexistent-path]") {
+	static constexpr auto path = "./Idontexist";
+	std::error_code fs_err;
+	const auto fs_path = std::filesystem::weakly_canonical(path, fs_err);
+
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file("./Idontexist");
+	parser.load_from_file(path);
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
+
+	auto error = parser.get_errors().front();
+	CHECK_OR_RETURN(error != nullptr);
+
+	CHECK_OR_RETURN(error->kind() == ovdl::error::ErrorKind::BufferError);
+	CHECK_OR_RETURN(parser.error(error) == fmt::format("error: File '{}' not found.", fs_path.string()));
 }
 
 TEST_CASE("CSV Parse", "[csv-parse]") {
