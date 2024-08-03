@@ -483,7 +483,6 @@ namespace ovdl::convert {
 									last_it = reader.position();
 								}
 								if (last_it != begin) {
-									result.append(last_it, reader.position());
 									return;
 								}
 								break;
@@ -537,7 +536,6 @@ namespace ovdl::convert {
 									last_it = reader.position();
 								}
 								if (last_it != begin) {
-									result.append(last_it, reader.position());
 									return;
 								}
 								break;
@@ -589,7 +587,6 @@ namespace ovdl::convert {
 							last_it = reader.position();
 						}
 						if (last_it != begin) {
-							result.append(last_it, reader.position());
 							return;
 						}
 					}
