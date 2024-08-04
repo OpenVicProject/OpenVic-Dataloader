@@ -7,6 +7,8 @@
 
 #include <dryad/node.hpp>
 
+#include <fmt/core.h>
+
 #include "Helper.hpp"
 #include <detail/NullBuff.hpp>
 #include <range/v3/iterator/operations.hpp>
@@ -99,19 +101,46 @@ TEST_CASE("V2Script File (HasCstr) Simple Parse", "[v2script-file-simple-parse][
 }
 
 TEST_CASE("V2Script File (const char*) Handle Empty Path String Parse", "[v2script-file-parse][handle-string][char-ptr][empty-path]") {
+	static constexpr auto error_fmt =
+#ifdef __APPLE__
+		"error: OS file error for '{}'.";
+#elif defined(_WIN32)
+		"error: OS file error for '{}'.";
+#else
+		"error: File '{}' not found.";
+#endif
+	std::error_code fs_err;
+	const auto fs_path = std::filesystem::weakly_canonical("", fs_err);
+
 	Parser parser(ovdl::detail::cnull);
 
 	parser.load_from_file("");
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
+
+	auto error = parser.get_errors().front();
+	CHECK_OR_RETURN(error != nullptr);
+
+	CHECK_OR_RETURN(error->kind() == ovdl::error::ErrorKind::BufferError);
+	CHECK_OR_RETURN(parser.error(error) == fmt::format(error_fmt, fs_path.string()));
 }
 
 TEST_CASE("V2Script File (const char*) Handle Non-existent Path String Parse", "[v2script-file-parse][handle-string][char-ptr][nonexistent-path]") {
+	static constexpr auto path = "./Idontexist";
+	std::error_code fs_err;
+	const auto fs_path = std::filesystem::weakly_canonical(path, fs_err);
+
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file("./Idontexist");
+	parser.load_from_file(path);
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
+
+	auto error = parser.get_errors().front();
+	CHECK_OR_RETURN(error != nullptr);
+
+	CHECK_OR_RETURN(error->kind() == ovdl::error::ErrorKind::BufferError);
+	CHECK_OR_RETURN(parser.error(error) == fmt::format("error: File '{}' not found.", fs_path.string()));
 }
 
 TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
