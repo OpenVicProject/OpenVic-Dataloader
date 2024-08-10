@@ -85,9 +85,10 @@ namespace ovdl::detail {
 					lexy::buffer<BufferEncoding>(std::move(buffer)),
 					encoding
 				};
-				return;
+			} else {
+				*state = { lexy::buffer<BufferEncoding>(std::move(buffer)), encoding };
 			}
-			*state = { lexy::buffer<BufferEncoding>(std::move(buffer)), encoding };
+			state->update_logger_file();
 		};
 
 		template<detail::IsStateType State>

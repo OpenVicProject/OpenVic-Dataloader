@@ -226,6 +226,10 @@ namespace ovdl {
 			_tree.set_root(_tree.create<error::Root>());
 		}
 
+		void set_file(const file_type& file) {
+			_file = &file;
+		}
+
 		struct Writer;
 
 		template<typename... Args>

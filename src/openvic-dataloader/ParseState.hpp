@@ -61,6 +61,10 @@ namespace ovdl {
 			return _logger;
 		}
 
+		void update_logger_file() {
+			_logger.set_file(this->ast().file());
+		}
+
 	private:
 		ast_type _ast;
 		diagnostic_logger_type _logger;
@@ -100,6 +104,10 @@ namespace ovdl {
 
 		const diagnostic_logger_type& logger() const {
 			return _logger;
+		}
+
+		void update_logger_file() {
+			_logger.set_file(this->file());
 		}
 
 	private:
