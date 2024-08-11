@@ -1,7 +1,5 @@
 #pragma once
 
-#include <utility>
-
 #include <openvic-dataloader/detail/Encoding.hpp>
 
 #include <lexy/encoding.hpp>
@@ -36,6 +34,18 @@ namespace ovdl {
 			: _ast { std::move(file) },
 			  _logger { this->ast().file() },
 			  BasicParseState(encoding) {}
+
+		ParseState(ParseState&& other)
+			: _ast { std::move(other._ast) },
+			  _logger { this->ast().file() },
+			  BasicParseState(other.encoding()) {}
+
+		ParseState& operator=(ParseState&& rhs) {
+			this->~ParseState();
+			new (this) ParseState(std::move(rhs));
+
+			return *this;
+		}
 
 		template<typename Encoding, typename MemoryResource = void>
 		ParseState(lexy::buffer<Encoding, MemoryResource>&& buffer, detail::Encoding encoding)
