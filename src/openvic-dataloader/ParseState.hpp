@@ -96,6 +96,21 @@ namespace ovdl {
 		FileParseState(const char* path, lexy::buffer<Encoding, MemoryResource>&& buffer, detail::Encoding encoding)
 			: FileParseState(file_type { path, std::move(buffer) }, encoding) {}
 
+		FileParseState(const FileParseState&) = delete;
+		FileParseState& operator=(const FileParseState&) = delete;
+
+		FileParseState(FileParseState&& other)
+			: _file { std::move(other._file) },
+			  _logger { this->file() },
+			  BasicParseState(std::move(other)) {}
+
+		FileParseState& operator=(FileParseState&& rhs) {
+			this->~FileParseState();
+			new (this) FileParseState(std::move(rhs));
+
+			return *this;
+		}
+
 		file_type& file() {
 			return _file;
 		}
