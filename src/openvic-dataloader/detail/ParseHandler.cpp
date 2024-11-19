@@ -18,6 +18,8 @@ using namespace ovdl::detail;
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #undef WIN32_LEAN_AND_MEAN
+#elif __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 template<size_t N>
@@ -52,7 +54,7 @@ struct LangCodeView {
 	template<std::size_t N>
 	constexpr LangCodeView(const char (&str)[N]) : view(str), is_valid(true) {}
 
-	constexpr LangCodeView(char* str) : view(str) {
+	constexpr LangCodeView(char* str) : view(str ? str : "") {
 		is_valid = view.find('_') != std::string_view::npos;
 	}
 
@@ -258,6 +260,10 @@ void ParseHandler::_detect_system_fallback_encoding() {
 		lang_code = map.second;
 		break;
 	}
+#elif __APPLE__
+	char buffer[64];
+	CFStringGetCString(CFLocaleGetIdentifier(CFLocaleCopyCurrent()), buffer, 64, kCFStringEncodingASCII);
+	lang_code = buffer;
 #else
 	lang_code = std::getenv("LANG");
 #endif
