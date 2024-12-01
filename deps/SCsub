@@ -96,7 +96,7 @@ def build_fmt(env):
     source_path = "fmt/src"
     paths = [include_path, source_path]
     fmt_env.Append(CPPPATH=[[fmt_env.Dir(p) for p in paths]])
-    sources = env.GlobRecursive("*.cc", paths, "fmt.cc")
+    sources = env.GlobRecursive("*.cc", paths, os.path.join(source_path, "fmt.cc"))
     env.lexy_sources = sources
 
     library_name = "libfmt" + env["LIBSUFFIX"]
