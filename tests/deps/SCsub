@@ -168,7 +168,7 @@ def build_snitch(env):
     config = snitch_env.GenerateSnitchConfig(snitch_env.File(Path(include_path) / "snitch" / "snitch_config.hpp"), "SCsub")
 
     snitch_env.Append(CPPPATH=[[snitch_env.Dir(p) for p in [source_path, include_path]]])
-    sources = snitch_env.GlobRecursive("*.cpp", [source_path], unity_source)
+    sources = snitch_env.GlobRecursive("*.cpp", [source_path], Path(source_path) / unity_source)
 
     if UNITY_BUILD:
         sources = [snitch_env.File(Path(source_path) / unity_source)]
