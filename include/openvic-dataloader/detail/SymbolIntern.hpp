@@ -174,6 +174,9 @@ namespace ovdl {
 		}
 
 		symbol find_intern(const CharT* str, std::size_t length) {
+			if (_map.should_rehash())
+				return symbol();
+
 			auto entry = _map.lookup_entry(typename traits::string_view { str, length }, traits { &_buffer });
 			if (entry)
 				return symbol(_buffer.c_str(entry.get()));
