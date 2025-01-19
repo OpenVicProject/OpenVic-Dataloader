@@ -54,7 +54,7 @@ namespace ovdl::v2script::grammar {
 	/* REQUIREMENTS: DAT-631 */
 	static constexpr auto comment_specifier = LEXY_LIT("#") >> lexy::dsl::until(lexy::dsl::newline).or_eof();
 
-	static constexpr auto ascii = lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.\\");
+	static constexpr auto ascii = lexy::dsl::ascii::alpha_digit_underscore / LEXY_ASCII_ONE_OF("+:@%&'-.\\/");
 
 	/* REQUIREMENTS:
 	 * DAT-632
@@ -82,7 +82,7 @@ namespace ovdl::v2script::grammar {
 
 	static constexpr auto data_char_class = LEXY_CHAR_CLASS("DataSpecifier", data_specifier);
 
-	static constexpr auto utf_data_specifier = lexy::dsl::unicode::xid_continue / LEXY_ASCII_ONE_OF("+:@%&'-.\\");
+	static constexpr auto utf_data_specifier = lexy::dsl::unicode::xid_continue / LEXY_ASCII_ONE_OF("+:@%&'-.\\/");
 
 	static constexpr auto utf_char_class = LEXY_CHAR_CLASS("DataSpecifier", utf_data_specifier);
 
