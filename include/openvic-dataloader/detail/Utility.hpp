@@ -65,7 +65,7 @@ namespace ovdl::detail {
 	};
 
 	template<typename... Ts>
-	using type_concat_t = type_concat<Ts...>::type;
+	using type_concat_t = typename type_concat<Ts...>::type;
 
 	template<typename...>
 	struct type_prepend;
@@ -76,7 +76,7 @@ namespace ovdl::detail {
 	};
 
 	template<typename... Ts>
-	using type_prepend_t = type_prepend<Ts...>::type;
+	using type_prepend_t = typename type_prepend<Ts...>::type;
 
 	template<typename Type, template<typename...> typename Template>
 	struct is_instance_of : std::false_type {};
