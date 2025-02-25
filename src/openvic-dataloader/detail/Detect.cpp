@@ -31,8 +31,9 @@ std::optional<int64_t> NonLatinCasedCanidate::read(const std::span<const cbyte>&
 	static constexpr int64_t LATIN_ADJACENCY_PENALTY = -50;
 
 	int64_t score = 0;
-	for (const ubyte& b : buffer) {
-		const ubyte byte_class = score_data.classify(b);
+	for (const cbyte& u_b : buffer) {
+		const ubyte b = static_cast<ubyte>(u_b);
+		const ubyte byte_class = static_cast<ubyte>(score_data.classify(static_cast<cbyte>(b)));
 		if (byte_class == INVALID_CLASS) {
 			return std::nullopt;
 		}
@@ -128,8 +129,9 @@ std::optional<int64_t> LatinCanidate::read(const std::span<const cbyte>& buffer)
 	static constexpr int64_t IMPLAUSIBILITY_PENALTY = -220;
 
 	int64_t score = 0;
-	for (const ubyte& b : buffer) {
-		const ubyte byte_class = score_data.classify(b);
+	for (const cbyte& u_b : buffer) {
+		const ubyte b = static_cast<ubyte>(u_b);
+		const ubyte byte_class = static_cast<ubyte>(score_data.classify(static_cast<cbyte>(b)));
 		if (byte_class == INVALID_CLASS) {
 			return std::nullopt;
 		}
