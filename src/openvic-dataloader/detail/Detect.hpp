@@ -288,10 +288,10 @@ namespace ovdl::encoding_detect {
 			cbyte high = byte >> 7;
 			cbyte low = byte & 0x7F;
 			if (high == 0) {
-				return lower[low];
+				return static_cast<cbyte>(lower[low]);
 			}
 
-			return upper[low];
+			return static_cast<cbyte>(upper[low]);
 		}
 
 		inline constexpr bool is_latin_alphabetic(cbyte caseless_class) const {
@@ -303,7 +303,7 @@ namespace ovdl::encoding_detect {
 		}
 
 		inline constexpr int64_t score(cbyte current_class, cbyte previous_class) const {
-			constexpr std::size_t IMPLAUSABILITY_PENALTY = -220;
+			constexpr int64_t IMPLAUSABILITY_PENALTY = -220;
 
 			constexpr std::size_t PLAUSIBLE_NEXT_TO_ALPHABETIC_ON_EITHER_SIDE = 0;
 			constexpr std::size_t IMPLAUSIBLE_NEXT_TO_ALPHABETIC_ON_EITHER_SIDE = 1;
@@ -438,7 +438,7 @@ namespace ovdl::encoding_detect {
 		cbyte prev {};
 		CaseState case_state = CaseState::Space;
 		bool prev_ascii = true;
-		uint64_t current_word_len {};
+		int64_t current_word_len {};
 		uint64_t longest_word {};
 		bool ibm866 = false;
 		bool prev_was_a0 = false;
