@@ -10,7 +10,8 @@ env.PrependENVPath("PATH", os.getenv("PATH"))
 
 opts = env.SetupOptions()
 
-opts.Add(BoolVariable("run_ovdl_tests", "Build and run the openvic dataloader tests", env.is_standalone))
+opts.Add(BoolVariable("build_ovdl_tests", "Build and run the openvic dataloader tests", env.is_standalone))
+opts.Add(BoolVariable("run_ovdl_tests", "Run the openvic dataloader tests", False))
 opts.Add(
     BoolVariable(
         "build_ovdl_library",
@@ -68,6 +69,9 @@ library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
 default_args = []
 
 if env["run_ovdl_tests"]:
+    env["build_ovdl_tests"] = True
+
+if env["build_ovdl_tests"]:
     env["build_ovdl_library"] = True
 
 if env["build_ovdl_library"]:
@@ -100,8 +104,11 @@ if env["build_ovdl_headless"]:
     )
     default_args += [headless_program]
 
-if env["run_ovdl_tests"]:
-    SConscript("tests/SCsub", "env")
+if env["build_ovdl_tests"]:
+    tests_env = SConscript("tests/SCsub", "env")
+
+    if env["run_ovdl_tests"]:
+        tests_env.RunUnitTest()
 
 # Add compiledb if the option is set
 if env.get("compiledb", False):
