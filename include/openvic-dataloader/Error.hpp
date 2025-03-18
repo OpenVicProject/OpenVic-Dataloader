@@ -213,7 +213,9 @@ namespace ovdl::error {
 	}
 
 	inline void AnnotatedError::push_back(AnnotationList p_annotations) {
-		if (p_annotations.empty()) return;
+		if (p_annotations.empty()) {
+			return;
+		}
 		insert_child_list_after(_last_annotation, p_annotations);
 		_last_annotation = p_annotations.back();
 	}

@@ -57,17 +57,25 @@ namespace ovdl::csv {
 		/// Special Functionality
 		/// Retrieves value, produces "" for empty values
 		constexpr std::string_view get_value_for(std::size_t position) const {
-			if (position < _prefix_end || position >= _suffix_end) return "";
+			if (position < _prefix_end || position >= _suffix_end) {
+				return "";
+			}
 			for (const auto& [pos, val] : *this) {
-				if (pos == position) return val;
+				if (pos == position) {
+					return val;
+				}
 			}
 			return "";
 		}
 		/// Tries to retrieve reference, produces nullopt for empty values
 		constexpr std::optional<const std::reference_wrapper<const std::string>> try_get_string_at(std::size_t position) const {
-			if (position < _prefix_end || position >= _suffix_end) return std::nullopt;
+			if (position < _prefix_end || position >= _suffix_end) {
+				return std::nullopt;
+			}
 			for (const auto& [pos, val] : *this) {
-				if (pos == position) return std::cref(val);
+				if (pos == position) {
+					return std::cref(val);
+				}
 			}
 			return std::nullopt;
 		}
@@ -85,14 +93,14 @@ namespace ovdl::csv {
 			std::string_view separator;
 		};
 
-		constexpr SepTransformer use_sep(std::string_view seperator) const {
-			return { *this, seperator };
+		constexpr SepTransformer use_sep(std::string_view separator) const {
+			return { *this, separator };
 		}
 
 	private:
 		// Should be position of first valid value on line
 		position_type _prefix_end = 0;
-		// Should be position after last value or position after last seperator
+		// Should be position after last value or position after last separator
 		position_type _suffix_end = 0;
 	};
 

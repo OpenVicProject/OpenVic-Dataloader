@@ -77,10 +77,11 @@ namespace ovdl::dsl {
 	template<typename T>
 	constexpr auto construct = callback<T*>(
 		[](detail::IsParseState auto& state, ovdl::NodeLocation loc, auto&& arg) {
-			if constexpr (std::same_as<std::decay_t<decltype(arg)>, lexy::nullopt>)
+			if constexpr (std::same_as<std::decay_t<decltype(arg)>, lexy::nullopt>) {
 				return state.ast().template create<T>(loc);
-			else
+			} else {
 				return state.ast().template create<T>(loc, DRYAD_FWD(arg));
+			}
 		},
 		[](detail::IsParseState auto& state, ovdl::NodeLocation loc, auto&&... args) {
 			return state.ast().template create<T>(loc, DRYAD_FWD(args)...);
@@ -125,17 +126,20 @@ namespace ovdl::dsl {
 
 		static LEXY_CONSTEVAL auto char_class_ascii() {
 			lexy::_detail::ascii_set result;
-			if constexpr (LowC <= 0x7F && HighC <= 0x7F)
-				for (auto c = LowC; c <= HighC; c++)
+			if constexpr (LowC <= 0x7F && HighC <= 0x7F) {
+				for (auto c = LowC; c <= HighC; c++) {
 					result.insert(c);
+				}
+			}
 			return result;
 		}
 
 		static constexpr auto char_class_match_cp([[maybe_unused]] char32_t cp) {
-			if constexpr (LowC <= 0x7F && HighC <= 0x7F)
+			if constexpr (LowC <= 0x7F && HighC <= 0x7F) {
 				return std::false_type {};
-			else
+			} else {
 				return LowC <= cp && cp <= HighC;
+			}
 		}
 	};
 

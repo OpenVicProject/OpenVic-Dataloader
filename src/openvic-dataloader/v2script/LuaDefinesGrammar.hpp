@@ -66,8 +66,9 @@ namespace ovdl::v2script::lua::grammar {
 			auto begin = scanner.position();
 			lexy::scan_result<std::string> str_result;
 			scanner.parse(str_result, rule);
-			if (!scanner || !str_result)
+			if (!scanner || !str_result) {
 				return lexy::scan_failed;
+			}
 			auto end = scanner.position();
 			auto str = str_result.value();
 			auto value = state.ast().intern(str.data(), str.size());
@@ -101,7 +102,9 @@ namespace ovdl::v2script::lua::grammar {
 
 		static constexpr auto value = callback<ast::AssignStatement*>(
 			[](detail::IsParseState auto& state, const char* pos, ast::IdentifierValue* name, ast::Value* initializer) -> ast::AssignStatement* {
-				if (initializer == nullptr) return nullptr;
+				if (initializer == nullptr) {
+					return nullptr;
+				}
 				return state.ast().template create<ast::AssignStatement>(pos, name, initializer);
 			},
 			[](detail::IsParseState auto& state, ast::Value*) {

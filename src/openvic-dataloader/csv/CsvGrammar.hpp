@@ -21,7 +21,7 @@
 // Grammar Definitions //
 namespace ovdl::csv::grammar {
 	struct ParseOptions {
-		/// @brief Seperator character
+		/// @brief Separator character
 		char SepChar;
 		/// @brief Determines whether StringValue is supported
 		bool SupportStrings;
@@ -102,8 +102,9 @@ namespace ovdl::csv::grammar {
 				}();
 
 				lexy::scan_result<std::string> str_result = scanner.template parse<std::string>(rule);
-				if (!scanner || !str_result)
+				if (!scanner || !str_result) {
 					return lexy::scan_failed;
+				}
 				return str_result.value();
 			}
 
@@ -154,13 +155,15 @@ namespace ovdl::csv::grammar {
 
 				if constexpr (Options.SupportStrings) {
 					auto lexeme_result = scanner.template parse<lexy::lexeme<Reader>>(rule);
-					if (!scanner || !lexeme_result)
+					if (!scanner || !lexeme_result) {
 						return lexy::scan_failed;
+					}
 					return std::string { lexeme_result.value().begin(), lexeme_result.value().end() };
 				} else {
 					lexy::scan_result<std::string> str_result = scanner.template parse<std::string>(rule);
-					if (!scanner || !str_result)
+					if (!scanner || !str_result) {
 						return lexy::scan_failed;
+					}
 					return str_result.value();
 				}
 			}
@@ -190,17 +193,17 @@ namespace ovdl::csv::grammar {
 			static constexpr auto value = lexy::constant(1);
 		};
 
-		struct Seperator {
+		struct Separator {
 			static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<SepConst>);
 			static constexpr auto value = lexy::count;
 		};
 
 		struct LineEnd {
-			static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<Value>, lexy::dsl::trailing_sep(lexy::dsl::p<Seperator>));
+			static constexpr auto rule = lexy::dsl::list(lexy::dsl::p<Value>, lexy::dsl::trailing_sep(lexy::dsl::p<Separator>));
 			static constexpr auto value = lexy::fold_inplace<ovdl::csv::LineObject>(
 				std::initializer_list<ovdl::csv::LineObject::value_type> {},
 				[](ovdl::csv::LineObject& result, std::size_t&& arg) {
-					// Count seperators, adds to previous value, making it a position
+					// Count separators, adds to previous value, making it a position
 					using position_type = ovdl::csv::LineObject::position_type;
 					result.emplace_back(static_cast<position_type>(arg + result.back().first), "");
 				},
@@ -225,7 +228,7 @@ namespace ovdl::csv::grammar {
 				}
 			};
 
-			static constexpr auto rule = lexy::dsl::p<LineEnd> | lexy::dsl::p<Seperator> >> lexy::dsl::opt(lexy::dsl::p<LineEnd>);
+			static constexpr auto rule = lexy::dsl::p<LineEnd> | lexy::dsl::p<Separator> >> lexy::dsl::opt(lexy::dsl::p<LineEnd>);
 			static constexpr auto value =
 				lexy::callback<ovdl::csv::LineObject>(
 					[](ovdl::csv::LineObject&& line) {

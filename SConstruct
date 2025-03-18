@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import platform
-import sys
-
-import SCons
 
 BINDIR = "bin"
 
@@ -15,10 +11,22 @@ env.PrependENVPath("PATH", os.getenv("PATH"))
 opts = env.SetupOptions()
 
 opts.Add(BoolVariable("run_ovdl_tests", "Build and run the openvic dataloader tests", env.is_standalone))
-opts.Add(BoolVariable("build_ovdl_library", "Build the openvic dataloader library.", env.get("build_ovdl_library", not env.is_standalone)))
+opts.Add(
+    BoolVariable(
+        "build_ovdl_library",
+        "Build the openvic dataloader library.",
+        env.get("build_ovdl_library", not env.is_standalone),
+    )
+)
 opts.Add(BoolVariable("build_ovdl_headless", "Build the openvic dataloader headless executable", env.is_standalone))
 
-opts.Add(BoolVariable("ubuntu_gcc_invalid_char_hang_bug", "Skips test section which triggers a hang build for gcc-12 on ubuntu-20", False))
+opts.Add(
+    BoolVariable(
+        "ubuntu_gcc_invalid_char_hang_bug",
+        "Skips test section which triggers a hang build for gcc-12 on ubuntu-20",
+        False,
+    )
+)
 
 env.FinalizeOptions()
 
@@ -88,7 +96,7 @@ if env["build_ovdl_headless"]:
     headless_program = headless_env.Program(
         target=os.path.join(BINDIR, headless_name),
         source=headless_env.headless_sources,
-        PROGSUFFIX=".headless" + env["PROGSUFFIX"]
+        PROGSUFFIX=".headless" + env["PROGSUFFIX"],
     )
     default_args += [headless_program]
 

@@ -47,7 +47,7 @@ struct LangCodeLiteral {
 
 struct LangCodeView {
 	std::string_view view;
-	bool is_valid;
+	bool is_valid = false;
 
 	constexpr LangCodeView() = default;
 
@@ -153,7 +153,7 @@ void ParseHandler::_detect_system_fallback_encoding() {
 		{ 0x0035, "zu" },
 		{ 0x0036, "af" },
 		{ 0x0037, "ka" },
-		{ 0x0038, "fo" },
+		{ 0x0038, "fo" }, // spellchecker:disable-line
 		{ 0x0039, "hi" },
 		{ 0x003A, "mt" },
 		{ 0x003B, "se" },
@@ -206,7 +206,7 @@ void ParseHandler::_detect_system_fallback_encoding() {
 		{ 0x006A, "yo" },
 		{ 0x006B, "quz" },
 		{ 0x006C, "nso" },
-		{ 0x006D, "ba" },
+		{ 0x006D, "ba" }, // spellchecker:disable-line
 		{ 0x006E, "lb" },
 		{ 0x006F, "kl" },
 		{ 0x0070, "ig" },
@@ -294,7 +294,7 @@ void ParseHandler::_detect_system_fallback_encoding() {
 	WIN1252(eu);
 	WIN1252(br);
 	WIN1252(co);
-	WIN1252(fo);
+	WIN1252(fo); // spellchecker:disable-line
 	WIN1252(gl);
 	WIN1252(is);
 	WIN1252(io);

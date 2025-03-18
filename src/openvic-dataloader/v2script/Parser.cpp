@@ -348,7 +348,9 @@ const FilePosition Parser::get_error_position(const error::Error* error) const {
 
 void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 	auto errors = get_errors();
-	if (errors.empty()) return;
+	if (errors.empty()) {
+		return;
+	}
 	for (const auto error : errors) {
 		dryad::visit_tree(
 			error,

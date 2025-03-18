@@ -43,8 +43,9 @@ namespace ovdl::detail {
 		constexpr string_literal() noexcept = default;
 
 		constexpr string_literal(const value_type (&literal)[N]) noexcept {
-			for (auto i = 0u; i != N; i++)
+			for (auto i = 0u; i != N; i++) {
 				_data[i] = literal[i];
+			}
 		}
 
 		constexpr string_literal(value_type c) noexcept : _data {} {
@@ -101,19 +102,22 @@ namespace ovdl::detail {
 
 		constexpr auto pop_back() const noexcept {
 			string_literal<N - 1, value_type> result {};
-			for (auto i = 0u; i != N - 2; i++)
+			for (auto i = 0u; i != N - 2; i++) {
 				result._data[i] = _data[i];
+			}
 			return result;
 		}
 
 		template<size_type count>
 		constexpr auto append(value_type ch) const noexcept {
 			string_literal<N + count, value_type> result {};
-			for (auto i = 0u; i != N; i++)
+			for (auto i = 0u; i != N; i++) {
 				result._data[i] = _data[i];
+			}
 
-			for (auto i = N; i != N + count; i++)
+			for (auto i = N; i != N + count; i++) {
 				result._data[i] = ch;
+			}
 
 			return result;
 		}
@@ -134,8 +138,9 @@ namespace ovdl::detail {
 			constexpr size_type result_size = std::min(count - pos, N - pos);
 
 			string_literal<result_size, value_type> result {};
-			for (size_type i = 0u, i2 = pos; i != result_size; i++, i2++)
+			for (size_type i = 0u, i2 = pos; i != result_size; i++, i2++) {
 				result._data[i] = _data[i2];
+			}
 			return result;
 		}
 
@@ -192,11 +197,13 @@ namespace ovdl::detail {
 		template<size_type N2>
 		constexpr auto operator+(const string_literal<N2, value_type>& other) const noexcept {
 			string_literal<N + N2 - 1, value_type> result {};
-			for (size_type i = 0u; i != N; i++)
+			for (size_type i = 0u; i != N; i++) {
 				result._data[i] = _data[i];
+			}
 
-			for (size_type i = N - 1, i2 = 0; i2 != N2; i++, i2++)
+			for (size_type i = N - 1, i2 = 0; i2 != N2; i++, i2++) {
 				result._data[i] = other._data[i2];
+			}
 			return result;
 		}
 
