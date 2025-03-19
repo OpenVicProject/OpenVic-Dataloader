@@ -21,18 +21,26 @@ std::string_view trim(std::string_view str) {
 	std::string_view::iterator begin = str.begin();
 	std::string_view::iterator end = str.end();
 	for (;; begin++) {
-		if (begin == end) return std::string_view();
-		if (!std::isspace(*begin)) break;
+		if (begin == end) {
+			return std::string_view();
+		}
+		if (!std::isspace(*begin)) {
+			break;
+		}
 	}
 	end--;
 	for (;; end--) {
-		if (end == begin) return std::string_view();
-		if (!std::isspace(*end)) break;
+		if (end == begin) {
+			return std::string_view();
+		}
+		if (!std::isspace(*end)) {
+			break;
+		}
 	}
 	return std::string_view(&*begin, std::distance(begin, end));
 }
 
-bool insenitive_trim_eq(std::string_view lhs, std::string_view rhs) {
+bool insensitive_trim_eq(std::string_view lhs, std::string_view rhs) {
 	lhs = trim(lhs);
 	rhs = trim(rhs);
 	return std::equal(
@@ -121,10 +129,10 @@ int main(int argc, char** argv) {
 	VisualizationType type = VisualizationType::Native;
 	if (args.size() >= 2) {
 		std::string_view type_str = args[1];
-		if (insenitive_trim_eq(type_str, "list")) {
+		if (insensitive_trim_eq(type_str, "list")) {
 			type = VisualizationType::List;
 			args.erase(args.begin() + 1);
-		} else if (insenitive_trim_eq(type_str, "native")) {
+		} else if (insensitive_trim_eq(type_str, "native")) {
 			type = VisualizationType::Native;
 			args.erase(args.begin() + 1);
 		}
@@ -132,15 +140,17 @@ int main(int argc, char** argv) {
 
 	switch (args.size()) {
 		case 2:
-			if (insenitive_trim_eq(std::filesystem::path(args[1]).extension().string(), ".lua")) {
+			if (insensitive_trim_eq(std::filesystem::path(args[1]).extension().string(), ".lua")) {
 				return print_lua(args[1], type);
 			}
 			return print_v2script_simple(args[1], type);
 		case 3:
-			if (insenitive_trim_eq(args[1], "csv"))
+			if (insensitive_trim_eq(args[1], "csv")) {
 				return print_csv(args[2]);
-			if (insenitive_trim_eq(args[1], "lua"))
+			}
+			if (insensitive_trim_eq(args[1], "lua")) {
 				return print_lua(args[2], type);
+			}
 			[[fallthrough]];
 		default:
 			std::fprintf(stderr, "usage: %s <filename>\n", args[0].c_str());

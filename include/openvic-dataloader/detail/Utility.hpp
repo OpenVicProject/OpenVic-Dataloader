@@ -41,8 +41,11 @@ namespace ovdl::detail {
 			static constexpr std::uint32_t type_id() {
 				static_assert(any_of<QueriedType, Type, Types...>, "Cannot query an non-registered type");
 
-				if constexpr (std::is_same_v<Type, QueriedType>) return 0;
-				else return 1 + TypeRegister<Types...>::template _id_getter<QueriedType>::type_id();
+				if constexpr (std::is_same_v<Type, QueriedType>) {
+					return 0;
+				} else {
+					return 1 + TypeRegister<Types...>::template _id_getter<QueriedType>::type_id();
+				}
 			};
 		};
 

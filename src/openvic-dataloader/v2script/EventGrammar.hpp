@@ -32,7 +32,9 @@ namespace ovdl::v2script::grammar {
 					bool is_number = true;
 					for (auto* current = value->value().c_str(); *current; current++) {
 						is_number = is_number && std::isdigit(*current);
-						if (!is_number) break;
+						if (!is_number) {
+							break;
+						}
 					}
 					if (!is_number) {
 						state.logger().warning("month is not an integer") //

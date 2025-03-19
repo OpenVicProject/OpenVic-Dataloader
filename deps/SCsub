@@ -3,6 +3,7 @@ import os
 
 Import("env")
 
+
 def build_lexy(env):
     env.Append(CPPDEFINES=["LEXY_HAS_UNICODE_DATABASE=1"])
     lexy_env = env.Clone()
@@ -17,13 +18,19 @@ def build_lexy(env):
     else:
         lexy_env.Append(CXXFLAGS=["-std=c++20"])
 
-        lexy_env.Append(CXXFLAGS=["-pedantic-errors", "-Werror", "-Wall", "-Wextra", "-Wconversion", "-Wsign-conversion"])
+        lexy_env.Append(
+            CXXFLAGS=["-pedantic-errors", "-Werror", "-Wall", "-Wextra", "-Wconversion", "-Wsign-conversion"]
+        )
         if lexy_env["CXX"] == "clang++":
             lexy_env.Append(CXXFLAGS=["-Wno-shift-op-parentheses", "-Wno-parentheses-equality"])
         else:
-            lexy_env.Append(CXXFLAGS=[
-                "-Wno-parentheses", "-Wno-unused-local-typedefs", "-Wno-array-bounds" #, "-Wno-maybe-uninitialized", "-Wno-restrict"
-            ])
+            lexy_env.Append(
+                CXXFLAGS=[
+                    "-Wno-parentheses",
+                    "-Wno-unused-local-typedefs",
+                    "-Wno-array-bounds",  # , "-Wno-maybe-uninitialized", "-Wno-restrict"
+                ]
+            )
 
     include_path = "lexy/include"
     source_path = "lexy/src"
@@ -46,6 +53,7 @@ def build_lexy(env):
     env.Append(LIBPATH=[source_dir])
     env.Prepend(LIBS=[library_name])
 
+
 def build_dryad(env):
     include_path = "dryad/include"
     include_dir = env.Dir(include_path)
@@ -59,6 +67,7 @@ def build_dryad(env):
 
     env.exposed_includes += env.dryad["INCPATH"]
 
+
 def build_fmt(env):
     fmt_env = env.Clone()
 
@@ -70,26 +79,43 @@ def build_fmt(env):
     else:
         fmt_env.Append(CXXFLAGS=["-std=c++20"])
 
-        fmt_env.Append(CXXFLAGS=[
-            "-Werror", "-Wall", "-Wextra", "-pedantic", "-Wconversion", "-Wundef"
-        ])
+        fmt_env.Append(CXXFLAGS=["-Werror", "-Wall", "-Wextra", "-pedantic", "-Wconversion", "-Wundef"])
         if fmt_env["CXX"] == "clang++":
-            fmt_env.Append(CXXFLAGS=[
-                "-Wweak-vtables", "-Wshadow",
-                "-Wno-gnu-zero-variadic-macro-arguments"
-            ])
+            fmt_env.Append(CXXFLAGS=["-Wweak-vtables", "-Wshadow", "-Wno-gnu-zero-variadic-macro-arguments"])
         else:
-            fmt_env.Append(CXXFLAGS=[
-                "-Wold-style-cast", "-Wundef", "-Wredundant-decls", "-Wwrite-strings",
-                "-Wpointer-arith", "-Wcast-qual", "-Wformat=2",
-                "-Wmissing-include-dirs", "-Wcast-align", "-Wctor-dtor-privacy",
-                "-Wdisabled-optimization", "-Winvalid-pch", "-Woverloaded-virtual",
-                "-Wconversion", "-Wundef", "-Wno-ctor-dtor-privacy", "-Wno-format-nonliteral",
-                "-Wno-dangling-else", "-Wno-unused-local-typedefs", "-Wdouble-promotion",
-                "-Wtrampolines", "-Wzero-as-null-pointer-constant", "-Wuseless-cast",
-                "-Wvector-operation-performance", "-Wsized-deallocation", "-Wshadow",
-                "-Wshift-overflow=2", "-Wnull-dereference", "-Wduplicated-cond"
-            ])
+            fmt_env.Append(
+                CXXFLAGS=[
+                    "-Wold-style-cast",
+                    "-Wundef",
+                    "-Wredundant-decls",
+                    "-Wwrite-strings",
+                    "-Wpointer-arith",
+                    "-Wcast-qual",
+                    "-Wformat=2",
+                    "-Wmissing-include-dirs",
+                    "-Wcast-align",
+                    "-Wctor-dtor-privacy",
+                    "-Wdisabled-optimization",
+                    "-Winvalid-pch",
+                    "-Woverloaded-virtual",
+                    "-Wconversion",
+                    "-Wundef",
+                    "-Wno-ctor-dtor-privacy",
+                    "-Wno-format-nonliteral",
+                    "-Wno-dangling-else",
+                    "-Wno-unused-local-typedefs",
+                    "-Wdouble-promotion",
+                    "-Wtrampolines",
+                    "-Wzero-as-null-pointer-constant",
+                    "-Wuseless-cast",
+                    "-Wvector-operation-performance",
+                    "-Wsized-deallocation",
+                    "-Wshadow",
+                    "-Wshift-overflow=2",
+                    "-Wnull-dereference",
+                    "-Wduplicated-cond",
+                ]
+            )
 
     include_path = "fmt/include"
     source_path = "fmt/src"
@@ -103,7 +129,6 @@ def build_fmt(env):
     Default(library)
 
     include_dir = fmt_env.Dir(include_path)
-    source_dir = fmt_env.Dir(source_path)
 
     env.fmt = {}
     env.fmt["INCPATH"] = [include_dir]
@@ -118,6 +143,7 @@ def build_fmt(env):
     env.Prepend(LIBS=[library_name])
 
     env.exposed_includes += env.fmt["INCPATH"]
+
 
 def build_range_v3(env):
     include_path = "range-v3/include"
@@ -136,6 +162,7 @@ def build_range_v3(env):
         env.Append(CXXFLAGS=["-isystem", include_dir])
 
     env.exposed_includes += env.range_v3["INCPATH"]
+
 
 def build_vmcontainer(env):
     vmcontainer_env = env.Clone()
@@ -166,6 +193,7 @@ def build_vmcontainer(env):
     env.Prepend(LIBS=[library_name])
 
     env.exposed_includes += env.vmcontainer["INCPATH"]
+
 
 build_dryad(env)
 build_fmt(env)

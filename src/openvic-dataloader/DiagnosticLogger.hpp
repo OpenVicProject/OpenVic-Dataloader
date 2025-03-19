@@ -92,8 +92,9 @@ namespace ovdl {
 						}();
 
 						auto writer = _logger.template parse_error<Tag>(impl, loc, production_name.c_str());
-						if (location.line_nr() != context_location.line_nr())
+						if (location.line_nr() != context_location.line_nr()) {
 							writer.secondary(BasicNodeLocation { context.position(), lexy::_detail::next(context.position()) }, "beginning here").finish();
+						}
 
 						if constexpr (std::is_same_v<Tag, lexy::expected_literal>) {
 							auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
@@ -407,8 +408,9 @@ namespace ovdl {
 			output.pop_back();
 			auto message = intern(output);
 			error->_set_message(message);
-			if (!error->is_linked_in_tree())
+			if (!error->is_linked_in_tree()) {
 				insert(error);
+			}
 		}
 
 		template<typename Tag, typename Buffer>
@@ -490,10 +492,12 @@ namespace ovdl {
 				log_with_impl(impl, semantic, kind, fmt, std::forward<Args>(args)...);
 			});
 
-			if (kind == DiagnosticKind::error)
+			if (kind == DiagnosticKind::error) {
 				_errored = true;
-			if (kind == DiagnosticKind::warning)
+			}
+			if (kind == DiagnosticKind::warning) {
 				_warned = true;
+			}
 
 			return result;
 		}

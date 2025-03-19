@@ -91,8 +91,9 @@ std::string FileAbstractSyntaxTree::make_list_visualizer() const {
 
 		result.append(1, '\n');
 
-		if (event == dryad::traverse_event::enter)
+		if (event == dryad::traverse_event::enter) {
 			++level;
+		}
 	}
 
 	return result;

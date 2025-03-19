@@ -5,7 +5,7 @@ using namespace ovdl::encoding_detect;
 
 static constexpr int64_t INVALID_CLASS = 255;
 
-std::optional<int64_t> Utf8Canidate::read(const std::span<const cbyte>& buffer) {
+std::optional<int64_t> Utf8Candidate::read(const std::span<const cbyte>& buffer) {
 	auto lexy_buffer = lexy::make_buffer_from_raw<lexy::default_encoding, lexy::encoding_endianness::little>(buffer.data(), buffer.size());
 	if (is_utf8(lexy_buffer)) {
 		return 0;
@@ -14,7 +14,7 @@ std::optional<int64_t> Utf8Canidate::read(const std::span<const cbyte>& buffer) 
 	return std::nullopt;
 }
 
-std::optional<int64_t> AsciiCanidate::read(const std::span<const cbyte>& buffer) {
+std::optional<int64_t> AsciiCandidate::read(const std::span<const cbyte>& buffer) {
 	auto lexy_buffer = lexy::make_buffer_from_raw<lexy::default_encoding, lexy::encoding_endianness::little>(buffer.data(), buffer.size());
 	if (is_ascii(lexy_buffer)) {
 		return 0;
@@ -23,7 +23,7 @@ std::optional<int64_t> AsciiCanidate::read(const std::span<const cbyte>& buffer)
 	return std::nullopt;
 }
 
-std::optional<int64_t> NonLatinCasedCanidate::read(const std::span<const cbyte>& buffer) {
+std::optional<int64_t> NonLatinCasedCandidate::read(const std::span<const cbyte>& buffer) {
 	static constexpr cbyte LATIN_LETTER = 1;
 	static constexpr int64_t NON_LATIN_MIXED_CASE_PENALTY = -20;
 	static constexpr int64_t NON_LATIN_ALL_CAPS_PENALTY = -40;
@@ -122,7 +122,7 @@ std::optional<int64_t> NonLatinCasedCanidate::read(const std::span<const cbyte>&
 	return score;
 }
 
-std::optional<int64_t> LatinCanidate::read(const std::span<const cbyte>& buffer) {
+std::optional<int64_t> LatinCandidate::read(const std::span<const cbyte>& buffer) {
 	static constexpr int64_t IMPLAUSIBLE_LATIN_CASE_TRANSITION_PENALTY = -180;
 	static constexpr int64_t ORDINAL_BONUS = 300;
 	static constexpr int64_t COPYRIGHT_BONUS = 222;

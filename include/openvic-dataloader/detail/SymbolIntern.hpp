@@ -24,8 +24,9 @@ namespace ovdl {
 		}
 
 		bool reserve(std::size_t new_capacity) {
-			if (new_capacity <= _data_buffer.capacity())
+			if (new_capacity <= _data_buffer.capacity()) {
 				return true;
+			}
 
 			if (new_capacity >= _data_buffer.max_size()) {
 				_data_buffer.reserve(_data_buffer.max_size());
@@ -40,12 +41,14 @@ namespace ovdl {
 		bool reserve_new_string(std::size_t new_string_length) {
 			// +1 for null-terminator.
 			auto new_size = _data_buffer.size() + new_string_length + 1;
-			if (new_size <= _data_buffer.capacity())
+			if (new_size <= _data_buffer.capacity()) {
 				return true;
+			}
 
 			auto new_capacity = new_size * 2;
-			if (new_capacity < min_buffer_size)
+			if (new_capacity < min_buffer_size) {
 				new_capacity = min_buffer_size;
+			}
 
 			if (!reserve(new_capacity)) {
 				return _data_buffer.capacity() >= new_size;
@@ -174,12 +177,14 @@ namespace ovdl {
 		}
 
 		symbol find_intern(const CharT* str, std::size_t length) {
-			if (_map.should_rehash())
+			if (_map.should_rehash()) {
 				return symbol();
+			}
 
 			auto entry = _map.lookup_entry(typename traits::string_view { str, length }, traits { &_buffer });
-			if (entry)
+			if (entry) {
 				return symbol(_buffer.c_str(entry.get()));
+			}
 
 			return symbol();
 		}
@@ -190,17 +195,20 @@ namespace ovdl {
 		}
 
 		symbol intern(const CharT* str, std::size_t length) {
-			if (_map.should_rehash())
+			if (_map.should_rehash()) {
 				_map.rehash(_resource, traits { &_buffer });
+			}
 
 			auto entry = _map.lookup_entry(typename traits::string_view { str, length }, traits { &_buffer });
-			if (entry)
+			if (entry) {
 				// Already interned, return index.
 				return symbol(_buffer.c_str(entry.get()));
+			}
 
 			// Copy string data to buffer, as we don't have it yet.
-			if (!_buffer.reserve_new_string(length)) // Ran out of virtual memory space
+			if (!_buffer.reserve_new_string(length)) { // Ran out of virtual memory space
 				return symbol();
+			}
 
 			auto begin = _buffer.insert(str, length);
 			auto idx = std::distance(_buffer.c_str(0), begin);

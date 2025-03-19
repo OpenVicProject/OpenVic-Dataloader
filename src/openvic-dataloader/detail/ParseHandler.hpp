@@ -42,13 +42,17 @@ namespace ovdl::detail {
 
 		buffer_error load_buffer_size(const char* data, std::size_t size, std::optional<Encoding> fallback) {
 			lexy::buffer<lexy::default_encoding> buffer(data, size);
-			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
+			if (buffer.data() == nullptr) {
+				return buffer_error::buffer_is_null;
+			}
 			return load_buffer_impl(std::move(buffer), "", fallback);
 		}
 
 		buffer_error load_buffer(const char* start, const char* end, std::optional<Encoding> fallback) {
 			lexy::buffer<lexy::default_encoding> buffer(start, end);
-			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
+			if (buffer.data() == nullptr) {
+				return buffer_error::buffer_is_null;
+			}
 			return load_buffer_impl(std::move(buffer), "", fallback);
 		}
 
@@ -98,8 +102,9 @@ namespace ovdl::detail {
 			bool is_bad_fallback = false;
 			if (fallback.has_value()) {
 				is_bad_fallback = fallback.value() == Encoding::Ascii || fallback.value() == Encoding::Utf8;
-				if (is_bad_fallback)
+				if (is_bad_fallback) {
 					fallback = _system_fallback_encoding.value();
+				}
 			} else {
 				fallback = _system_fallback_encoding.value();
 			}
@@ -186,7 +191,9 @@ namespace ovdl::detail {
 		}
 
 		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path, std::optional<Encoding> fallback) {
-			if (buffer.data() == nullptr) return buffer_error::buffer_is_null;
+			if (buffer.data() == nullptr) {
+				return buffer_error::buffer_is_null;
+			}
 			create_state(&_parse_state, path, std::move(buffer), fallback);
 			return is_valid_impl() ? buffer_error::success : buffer_error::buffer_is_null;
 		}

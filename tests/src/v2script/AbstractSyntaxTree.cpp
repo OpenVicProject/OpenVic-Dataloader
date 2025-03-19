@@ -56,8 +56,9 @@ struct Ast : SymbolIntern {
 
 	NodeLocation location_of(const Node* n) const {
 		auto result = map.lookup(n);
-		if (result == nullptr)
+		if (result == nullptr) {
 			return {};
+		}
 		return *result;
 	}
 };

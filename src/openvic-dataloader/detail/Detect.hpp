@@ -416,15 +416,15 @@ namespace ovdl::encoding_detect {
 		return byte_scores[static_cast<std::underlying_type_t<ScoreIndex>>(index)];
 	}
 
-	struct Utf8Canidate {
+	struct Utf8Candidate {
 		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
 	};
 
-	struct AsciiCanidate {
+	struct AsciiCandidate {
 		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
 	};
 
-	struct NonLatinCasedCanidate {
+	struct NonLatinCasedCandidate {
 		enum class CaseState {
 			Space,
 			Upper,
@@ -446,7 +446,7 @@ namespace ovdl::encoding_detect {
 		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
 	};
 
-	struct LatinCanidate {
+	struct LatinCandidate {
 		enum class CaseState {
 			Space,
 			Upper,
@@ -477,14 +477,14 @@ namespace ovdl::encoding_detect {
 		OrdinalState ordinal_state = OrdinalState::Space; // Used only when `windows1252 == true`
 		bool windows1252;
 
-		constexpr LatinCanidate(const ByteScore& data) : score_data(data) {
+		constexpr LatinCandidate(const ByteScore& data) : score_data(data) {
 			windows1252 = data.encoding == Encoding::Windows1252;
 		}
 
 		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
 	};
 
-	using InnerCanidate = std::variant<NonLatinCasedCanidate, LatinCanidate, Utf8Canidate, AsciiCanidate>;
+	using InnerCandidate = std::variant<NonLatinCasedCandidate, LatinCandidate, Utf8Candidate, AsciiCandidate>;
 
 	template<class... Ts>
 	struct overloaded : Ts... {
@@ -494,40 +494,40 @@ namespace ovdl::encoding_detect {
 	template<class... Ts>
 	overloaded(Ts...) -> overloaded<Ts...>;
 
-	struct Canidate {
-		InnerCanidate inner;
+	struct Candidate {
+		InnerCandidate inner;
 		std::optional<int64_t> score_value;
 
-		template<typename CanidateT>
-		static constexpr Canidate create_canidate() {
+		template<typename CandidateT>
+		static constexpr Candidate create_candidate() {
 			return {
-				.inner = CanidateT(),
+				.inner = CandidateT(),
 				.score_value = 0
 			};
 		}
 
-		template<typename CanidateT>
-		static constexpr Canidate create_canidate(const ByteScore& score) {
+		template<typename CandidateT>
+		static constexpr Candidate create_candidate(const ByteScore& score) {
 			return {
-				.inner = CanidateT { score },
+				.inner = CandidateT { score },
 				.score_value = 0
 			};
 		}
 
-		static constexpr Canidate new_utf8() {
-			return create_canidate<Utf8Canidate>();
+		static constexpr Candidate new_utf8() {
+			return create_candidate<Utf8Candidate>();
 		}
 
-		static constexpr Canidate new_ascii() {
-			return create_canidate<AsciiCanidate>();
+		static constexpr Candidate new_ascii() {
+			return create_candidate<AsciiCandidate>();
 		}
 
-		static constexpr Canidate new_latin(ScoreIndex index) {
-			return create_canidate<LatinCanidate>(get_byte_score(index));
+		static constexpr Candidate new_latin(ScoreIndex index) {
+			return create_candidate<LatinCandidate>(get_byte_score(index));
 		}
 
-		static constexpr Canidate new_non_latin_cased(ScoreIndex index) {
-			return create_canidate<NonLatinCasedCanidate>(get_byte_score(index));
+		static constexpr Candidate new_non_latin_cased(ScoreIndex index) {
+			return create_candidate<NonLatinCasedCandidate>(get_byte_score(index));
 		}
 
 		constexpr std::optional<int64_t> score(const std::span<const cbyte>& buffer, std::size_t encoding, bool expectation_is_valid) {
@@ -543,7 +543,7 @@ namespace ovdl::encoding_detect {
 				}
 			}
 
-			if (auto nlcc = std::get_if<NonLatinCasedCanidate>(&inner)) {
+			if (auto nlcc = std::get_if<NonLatinCasedCandidate>(&inner)) {
 				if (nlcc->longest_word < 2) {
 					return std::nullopt;
 				}
@@ -554,28 +554,28 @@ namespace ovdl::encoding_detect {
 		constexpr Encoding encoding() const {
 			return std::visit(
 				overloaded {
-					[](const Utf8Canidate& canidate) {
+					[](const Utf8Candidate& candidate) {
 						return Encoding::Utf8;
 					},
-					[](const AsciiCanidate& canidate) {
+					[](const AsciiCandidate& candidate) {
 						return Encoding::Ascii;
 					},
-					[](const LatinCanidate& canidate) {
-						return canidate.score_data.encoding;
+					[](const LatinCandidate& candidate) {
+						return candidate.score_data.encoding;
 					},
-					[](const NonLatinCasedCanidate& canidate) {
-						return canidate.score_data.encoding;
+					[](const NonLatinCasedCandidate& candidate) {
+						return candidate.score_data.encoding;
 					} },
 				inner);
 		}
 	};
 
 	struct Detector {
-		std::vector<Canidate> canidates {
-			Canidate::new_ascii(),
-			Canidate::new_utf8(),
-			Canidate::new_latin(ScoreIndex::Windows1252),
-			Canidate::new_non_latin_cased(ScoreIndex::Windows1251),
+		std::vector<Candidate> candidates {
+			Candidate::new_ascii(),
+			Candidate::new_utf8(),
+			Candidate::new_latin(ScoreIndex::Windows1252),
+			Candidate::new_non_latin_cased(ScoreIndex::Windows1251),
 		};
 
 		Encoding default_fallback = Encoding::Unknown;
@@ -584,24 +584,24 @@ namespace ovdl::encoding_detect {
 			int64_t max = 0;
 			Encoding encoding = default_fallback; // Presumes fallback, defaults to Unknown encoding if unknown (which skips conversion)
 			std::size_t i = 0;
-			for (Canidate& canidate : canidates) {
-				if (!allow_utf8 && canidate.encoding() == Encoding::Utf8) {
+			for (Candidate& candidate : candidates) {
+				if (!allow_utf8 && candidate.encoding() == Encoding::Utf8) {
 					continue;
 				}
 
-				if (auto score = canidate.score(buffer, i, false)) {
-					switch (canidate.encoding()) {
+				if (auto score = candidate.score(buffer, i, false)) {
+					switch (candidate.encoding()) {
 						using enum Encoding;
 						case Ascii:
 						case Utf8:
-							return { canidate.encoding(), true };
+							return { candidate.encoding(), true };
 						default: break;
 					}
 
 					auto value = score.value();
 					if (value > max) {
 						max = value;
-						encoding = canidate.encoding();
+						encoding = candidate.encoding();
 					}
 				}
 				i++;

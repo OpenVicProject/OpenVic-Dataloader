@@ -28,10 +28,11 @@ namespace ovdl {
 		void set_from(const BasicNodeLocation<OtherCharT>& other) {
 			if constexpr (sizeof(CharT) <= sizeof(OtherCharT)) {
 				_begin = reinterpret_cast<const CharT*>(other.begin());
-				if (other.begin() == other.end())
+				if (other.begin() == other.end()) {
 					_end = _begin;
-				else
+				} else {
 					_end = reinterpret_cast<const CharT*>(other.end()) + (sizeof(OtherCharT) - sizeof(CharT));
+				}
 			} else {
 				_begin = reinterpret_cast<const CharT*>(other.begin());
 				if (other.end() - other.begin() <= 0) {
@@ -60,7 +61,9 @@ namespace ovdl {
 
 		static BasicNodeLocation make_from(const char_type* begin, const char_type* end) {
 			end++;
-			if (begin >= end) return BasicNodeLocation(begin);
+			if (begin >= end) {
+				return BasicNodeLocation(begin);
+			}
 			return BasicNodeLocation(begin, end);
 		}
 	};
