@@ -1,3 +1,5 @@
+[![Builds](https://github.com/OpenVicProject/OpenVic-Dataloader/actions/workflows/builds.yml/badge.svg)](https://github.com/OpenVicProject/OpenVic-Dataloader/actions/workflows/builds.yml)
+
 # OpenVic-Dataloader
 Repo of the OpenVic-Dataloader Library for [OpenVic](https://github.com/OpenVicProject/OpenVic)
 
