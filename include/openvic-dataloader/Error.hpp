@@ -3,11 +3,11 @@
 #include <cstdint>
 #include <string_view>
 
+#include <openvic-dataloader/detail/SymbolIntern.hpp>
 #include <openvic-dataloader/detail/Utility.hpp>
 
 #include <dryad/abstract_node.hpp>
 #include <dryad/node.hpp>
-#include <dryad/symbol.hpp>
 
 namespace ovdl {
 	template<typename>
@@ -51,12 +51,7 @@ namespace ovdl::error {
 		LastAnnotation = SecondaryAnnotation,
 	};
 
-	struct ErrorSymbolInterner {
-		struct SymbolId;
-		using index_type = std::uint32_t;
-		using symbol_type = dryad::symbol<SymbolId, index_type>;
-		using symbol_interner_type = dryad::symbol_interner<SymbolId, char, index_type>;
-	};
+	struct ErrorSymbolInterner : SymbolIntern {};
 
 	static constexpr std::string_view get_kind_name(ErrorKind kind) {
 		switch (kind) {
@@ -70,7 +65,7 @@ namespace ovdl::error {
 	}
 
 	struct Error : dryad::abstract_node_all<ErrorKind> {
-		const char* message(const ErrorSymbolInterner::symbol_interner_type& symbols) const { return _message.c_str(symbols); }
+		const char* message(const ErrorSymbolInterner::symbol_interner_type& symbols) const { return _message.c_str(); }
 
 	protected:
 		DRYAD_ABSTRACT_NODE_CTOR(Error);

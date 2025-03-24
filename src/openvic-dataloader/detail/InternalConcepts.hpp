@@ -11,8 +11,6 @@
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 
-#include <dryad/symbol.hpp>
-
 #include <fmt/core.h>
 
 #include <lexy_ext/report_error.hpp>
@@ -62,12 +60,12 @@ namespace ovdl::detail {
 		{ ct.errored() } -> std::same_as<bool>;
 		{ ct.warned() } -> std::same_as<bool>;
 		{ ct.get_errors() } -> std::same_as<typename T::error_range>;
-		{ t.intern(str, length) } -> detail::InstanceOf<dryad::symbol>;
-		{ t.intern(sv) } -> detail::InstanceOf<dryad::symbol>;
+		{ t.intern(str, length) } -> detail::InstanceOf<ovdl::symbol>;
+		{ t.intern(sv) } -> detail::InstanceOf<ovdl::symbol>;
 		{ t.intern_cstr(str, length) } -> std::same_as<const char*>;
 		{ t.intern_cstr(sv) } -> std::same_as<const char*>;
-		{ t.symbol_interner() } -> detail::InstanceOf<dryad::symbol_interner>;
-		{ ct.symbol_interner() } -> detail::InstanceOf<dryad::symbol_interner>;
+		{ t.symbol_interner() } -> detail::InstanceOf<ovdl::symbol_interner>;
+		{ ct.symbol_interner() } -> detail::InstanceOf<ovdl::symbol_interner>;
 		{ t.error(std::declval<typename T::template format_str<>>()) } -> std::same_as<typename T::Writer>;
 		{ t.warning(std::declval<typename T::template format_str<>>()) } -> std::same_as<typename T::Writer>;
 		{ t.note(std::declval<typename T::template format_str<>>()) } -> std::same_as<typename T::Writer>;

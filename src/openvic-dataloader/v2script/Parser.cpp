@@ -24,7 +24,6 @@
 #include <lexy/lexeme.hpp>
 #include <lexy/visualize.hpp>
 
-#include <dryad/node.hpp>
 #include <dryad/tree.hpp>
 
 #include <fmt/core.h>

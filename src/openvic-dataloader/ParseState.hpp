@@ -5,8 +5,6 @@
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 
-#include <dryad/tree.hpp>
-
 #include "DiagnosticLogger.hpp"
 #include "detail/InternalConcepts.hpp"
 

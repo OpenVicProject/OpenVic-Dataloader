@@ -7,6 +7,14 @@
 
 #include <openvic-dataloader/detail/Concepts.hpp>
 
+#if __has_cpp_attribute(msvc::no_unique_address)
+#define OVDL_NO_UNIQUE_ADDRESS                                  \
+	_Pragma("warning(push)") _Pragma("warning(disable : 4848)") \
+		[[msvc::no_unique_address]] _Pragma("warning(pop)")
+#else
+#define OVDL_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#endif
+
 namespace ovdl::detail {
 	[[noreturn]] inline void unreachable() {
 		// Uses compiler specific extensions if possible.

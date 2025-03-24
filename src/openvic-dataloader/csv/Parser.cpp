@@ -16,8 +16,6 @@
 #include <lexy/input/buffer.hpp>
 #include <lexy/input/file.hpp>
 
-#include <dryad/node.hpp>
-
 #include "CsvGrammar.hpp"
 #include "CsvParseState.hpp"
 #include "detail/NullBuff.hpp"
