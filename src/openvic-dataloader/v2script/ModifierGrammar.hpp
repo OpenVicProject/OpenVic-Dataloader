@@ -17,7 +17,7 @@ namespace ovdl::v2script::grammar {
 	constexpr auto factor_keyword = LEXY_KEYWORD("factor", id);
 
 	struct FactorStatement {
-		static constexpr auto rule = lexy::dsl::position(factor_keyword) >> (lexy::dsl::equal_sign + lexy::dsl::p<Identifier<StringEscapeOption>>);
+		static constexpr auto rule = lexy::dsl::position(factor_keyword) >> (lexy::dsl::equal_sign + lexy::dsl::p<Identifier>);
 		static constexpr auto value = dsl::callback<ast::AssignStatement*>(
 			[](detail::IsParseState auto& state, NodeLocation loc, ast::IdentifierValue* value) {
 				auto* factor = state.ast().template create<ast::IdentifierValue>(loc, state.ast().intern("factor"));
