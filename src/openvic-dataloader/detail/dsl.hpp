@@ -283,4 +283,41 @@ namespace ovdl::dsl {
 	constexpr auto peek(Rule, RuleUtf) {
 		return _peek<Rule, RuleUtf, void> {};
 	}
+
+	template<typename StringView>
+	struct _as_string_view {
+		struct _sink {
+			StringView _result;
+
+			using return_type = StringView;
+
+			constexpr void operator()(StringView&& str) {
+				_result = LEXY_MOV(str);
+			}
+
+			template<typename Str = StringView, typename Iterator>
+			constexpr auto operator()(Iterator begin, Iterator end)
+				-> decltype(void(Str { begin, end })) {
+				_result = { begin, end };
+			}
+
+			template<typename Reader>
+			constexpr void operator()(lexy::lexeme<Reader> lex) {
+				static_assert(lexy::char_type_compatible_with_reader<Reader, typename StringView::value_type>,
+					"cannot convert lexeme to this string type");
+				_result = { lex.begin(), lex.end() };
+			}
+
+			constexpr StringView&& finish() && {
+				return LEXY_MOV(_result);
+			}
+		};
+
+		constexpr auto sink() const {
+			return _sink { StringView() };
+		}
+	};
+
+	template<typename StringView = std::string_view>
+	constexpr auto as_string_view = _as_string_view<StringView> {};
 }

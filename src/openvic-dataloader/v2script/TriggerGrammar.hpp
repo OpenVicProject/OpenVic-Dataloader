@@ -10,7 +10,7 @@
 
 namespace ovdl::v2script::grammar {
 	struct TriggerStatement {
-		static constexpr auto rule = lexy::dsl::p<SAssignStatement<StringEscapeOption>>;
+		static constexpr auto rule = lexy::dsl::p<SimpleAssignmentStatement>;
 
 		static constexpr auto value = lexy::forward<ast::AssignStatement*>;
 	};

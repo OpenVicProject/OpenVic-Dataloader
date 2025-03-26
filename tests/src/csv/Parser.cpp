@@ -781,7 +781,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 	// Compiler bug hangs if it can see if there is any reference to \x8F in a character
 #if !defined(_OVDL_TEST_UBUNTU_GCC_12_BUG_)
 	SECTION(";$NAME$ wurde in $PROV$ gebaut.;ID'\\x8F' DO;") {
-		static auto buffer = ";$NAME$ wurde in $PROV$ gebaut.;ID\x8F DO;";
+		static auto buffer = ";$NAME$ wurde in $PROV$ gebaut.;ID\x8F DO;"sv;
 		parser.load_from_string(buffer);
 
 		CHECK_PARSE();
@@ -790,42 +790,44 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 		CHECK_FALSE(line_list.empty());
 		CHECK(ranges::size(line_list) == 1);
 
-		const LineObject& line = line_list.front();
-		CHECK_FALSE(line.empty());
-		CHECK(ranges::size(line) == 2);
-		CHECK(line.value_count() == 3);
-		CHECK(line.prefix_end() == 1);
-		CHECK(line.suffix_end() == 3);
+		if (!line_list.empty()) {
+			const LineObject& line = line_list.front();
+			CHECK_FALSE(line.empty());
+			CHECK(ranges::size(line) == 2);
+			CHECK(line.value_count() == 3);
+			CHECK(line.prefix_end() == 1);
+			CHECK(line.suffix_end() == 3);
 
-		for (const auto [index, val] : line | ranges::views::enumerate) {
-			CAPTURE(index);
-			CHECK_FALSE_OR_CONTINUE(val.second.empty());
-			switch (index) {
-				case 0:
-					CHECK_OR_CONTINUE(val.first == 1);
-					CHECK_OR_CONTINUE(val.second == "$NAME$ wurde in $PROV$ gebaut."sv);
-					break;
-				case 1:
-					CHECK_OR_CONTINUE(val.first == 2);
-					CHECK_OR_CONTINUE(val.second == "IDĘ DO"sv);
-					break;
-				case 2:
-					CHECK_OR_CONTINUE(val.first == 3);
-					CHECK_OR_CONTINUE(val.second == ""sv);
-					break;
-				default: CHECK_OR_CONTINUE(false); break;
+			for (const auto [index, val] : line | ranges::views::enumerate) {
+				CAPTURE(index);
+				CHECK_FALSE_OR_CONTINUE(val.second.empty());
+				switch (index) {
+					case 0:
+						CHECK_OR_CONTINUE(val.first == 1);
+						CHECK_OR_CONTINUE(val.second == "$NAME$ wurde in $PROV$ gebaut."sv);
+						break;
+					case 1:
+						CHECK_OR_CONTINUE(val.first == 2);
+						CHECK_OR_CONTINUE(val.second == "IDĘ DO"sv);
+						break;
+					case 2:
+						CHECK_OR_CONTINUE(val.first == 3);
+						CHECK_OR_CONTINUE(val.second == ""sv);
+						break;
+					default: CHECK_OR_CONTINUE(false); break;
+				}
 			}
-		}
 
-		CHECK(line.value_count() == 3);
+			CHECK(line.value_count() == 3);
 
-		for (const auto index : ranges::views::iota(size_t(0), line.value_count())) {
-			CAPTURE(index);
-			switch (index) {
-				case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
-				case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "$NAME$ wurde in $PROV$ gebaut."sv); break;
-				case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == "IDĘ DO"sv); break;
-				default: CHECK_OR_CONTINUE(false); break;
+			for (const auto index : ranges::views::iota(size_t(0), line.value_count())) {
+				CAPTURE(index);
+				switch (index) {
+					case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
+					case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "$NAME$ wurde in $PROV$ gebaut."sv); break;
+					case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == "IDĘ DO"sv); break;
+					default: CHECK_OR_CONTINUE(false); break;
+				}
 			}
 		}
 	}

@@ -26,13 +26,13 @@ namespace ovdl::v2script::grammar {
 		using helper = dsl::rule_helper<potential, allow, effect, ai_will_do>;
 
 		struct List {
-			static constexpr auto rule = dsl::curly_bracketed.opt_list(helper::p | lexy::dsl::p<SAssignStatement<StringEscapeOption>>);
+			static constexpr auto rule = dsl::curly_bracketed.opt_list(helper::p | lexy::dsl::p<SimpleAssignmentStatement>);
 
 			static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue>;
 		};
 
 		static constexpr auto rule =
-			dsl::p<Identifier<StringEscapeOption>> >>
+			dsl::p<Identifier> >>
 			(helper::flags + lexy::dsl::equal_sign + lexy::dsl::p<List>);
 
 		static constexpr auto value = construct<ast::AssignStatement>;

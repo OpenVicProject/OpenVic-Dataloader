@@ -48,35 +48,16 @@ namespace ovdl::v2script::lua::grammar {
 				});
 	};
 
-	struct String : lexy::scan_production<ast::StringValue*>,
-					lexy::token_production {
-		template<typename Context, typename Reader>
-		static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsParseState auto& state) {
-			using encoding = typename Reader::encoding;
+	struct String : lexy::token_production {
+		static constexpr auto rule = lexy::dsl::quoted(-lexy::dsl::unicode::control) | lexy::dsl::single_quoted(-lexy::dsl::unicode::control);
 
-			constexpr auto c = [] {
-				if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
-					// Arbitrary code points that aren't control characters.
-					return dsl::lit_b_range<0x20, 0xFF> - lexy::dsl::ascii::control;
-				} else {
-					return -lexy::dsl::unicode::control;
-				}
-			}();
-			auto rule = lexy::dsl::quoted(c) | lexy::dsl::single_quoted(c);
-			auto begin = scanner.position();
-			lexy::scan_result<std::string> str_result;
-			scanner.parse(str_result, rule);
-			if (!scanner || !str_result) {
-				return lexy::scan_failed;
-			}
-			auto end = scanner.position();
-			auto str = str_result.value();
-			auto value = state.ast().intern(str.data(), str.size());
-			return state.ast().template create<ast::StringValue>(begin, end, value);
-		}
-
-		static constexpr auto rule = lexy::dsl::peek(lexy::dsl::quoted.open() | lexy::dsl::single_quoted.open()) >> lexy::dsl::scan;
-		static constexpr auto value = ovdl::v2script::grammar::convert_as_string<std::string> >> lexy::forward<ast::StringValue*>;
+		static constexpr auto value =
+			dsl::as_string_view<> >>
+			dsl::callback<ast::StringValue*>(
+				[](detail::IsParseState auto& state, std::string_view sv) {
+					auto value = state.ast().intern(sv);
+					return state.ast().template create<ast::StringValue>(ovdl::NodeLocation::make_from(sv.data(), sv.data() + sv.size()), value);
+				});
 	};
 
 	struct Expression {

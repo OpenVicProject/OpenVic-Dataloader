@@ -7,6 +7,25 @@
 
 #include <openvic-dataloader/detail/Concepts.hpp>
 
+#ifdef DEBUG_ENABLED
+#define OVDL_DEFAULT_CASE_UNREACHABLE(...) \
+	__VA_OPT__(case __VA_ARGS__ : ovdl::detail::unreachable())
+#else
+#define OVDL_DEFAULT_CASE_UNREACHABLE(...) \
+	default: ovdl::detail::unreachable()
+#endif
+
+#ifdef __GNUC__
+#define OVDL_BEGIN_IGNORE_WARNING_RETURN_TYPE \
+	_Pragma("GCC diagnostic push")            \
+		_Pragma("GCC diagnostic ignored \"-Wreturn-type\"")
+#define OVDL_END_IGNORE_WARNING_RETURN_TYPE \
+	_Pragma("GCC diagnostic pop")
+#else
+#define OVDL_BEGIN_IGNORE_WARNING_RETURN_TYPE
+#define OVDL_END_IGNORE_WARNING_RETURN_TYPE
+#endif
+
 #if __has_cpp_attribute(msvc::no_unique_address)
 #define OVDL_NO_UNIQUE_ADDRESS                                  \
 	_Pragma("warning(push)") _Pragma("warning(disable : 4848)") \

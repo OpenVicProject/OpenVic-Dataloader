@@ -17,6 +17,7 @@ namespace ovdl {
 	struct File {
 		using buffer_ids = detail::TypeRegister<
 			lexy::buffer<lexy::default_encoding, void>,
+			lexy::buffer<lexy::ascii_encoding, void>,
 			lexy::buffer<lexy::utf8_char_encoding, void>,
 			lexy::buffer<lexy::utf8_encoding, void>,
 			lexy::buffer<lexy::utf16_encoding, void>,

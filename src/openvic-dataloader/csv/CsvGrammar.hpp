@@ -3,7 +3,6 @@
 #include <initializer_list>
 #include <string>
 #include <tuple>
-#include <type_traits>
 #include <vector>
 
 #include <openvic-dataloader/csv/LineObject.hpp>
@@ -14,9 +13,7 @@
 #include <lexy/dsl.hpp>
 #include <lexy/encoding.hpp>
 
-#include "detail/Convert.hpp"
 #include "detail/InternalConcepts.hpp"
-#include "detail/dsl.hpp"
 
 // Grammar Definitions //
 namespace ovdl::csv::grammar {
@@ -37,21 +34,6 @@ namespace ovdl::csv::grammar {
 				.finish();
 		}
 	};
-
-	constexpr bool IsUtf8(auto encoding) {
-		return std::same_as<std::decay_t<decltype(encoding)>, lexy::utf8_char_encoding>;
-	}
-
-	template<ParseOptions Options, typename String>
-	constexpr auto convert_as_string = convert::convert_as_string<
-		String,
-		ConvertErrorHandler>;
-
-	constexpr auto ansi_character = lexy::dsl::ascii::character / dsl::lit_b_range<0x80, 0xFF>;
-	constexpr auto ansi_control =
-		lexy::dsl::ascii::control /
-		lexy::dsl::lit_b<0x81> / lexy::dsl::lit_b<0x8D> / lexy::dsl::lit_b<0x8F> /
-		lexy::dsl::lit_b<0x90> / lexy::dsl::lit_b<0x9D>;
 
 	constexpr auto utf_character = lexy::dsl::unicode::character;
 	constexpr auto utf_control = lexy::dsl::unicode::control;
@@ -75,47 +57,20 @@ namespace ovdl::csv::grammar {
 
 	template<ParseOptions Options>
 	struct CsvGrammar {
-		struct StringValue : lexy::scan_production<std::string>,
-							 lexy::token_production {
+		struct StringValue : lexy::token_production {
+			static constexpr auto rule = [] {
+				auto quote = lexy::dsl::lit_c<'"'>;
+				auto c = utf_character - utf_control;
+				auto back_escape = lexy::dsl::backslash_escape.symbol<escaped_symbols>();
+				auto quote_escape = lexy::dsl::escape(lexy::dsl::lit_c<'"'>).template symbol<escaped_quote>();
 
-			template<typename Context, typename Reader>
-			static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsFileParseState auto& state) {
-				using encoding = typename Reader::encoding;
+				return lexy::dsl::delimited(quote, lexy::dsl::not_followed_by(quote, quote))(c, back_escape, quote_escape);
+			}();
 
-				constexpr auto rule = [] {
-					// Arbitrary code points
-					auto c = [] {
-						if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
-							return ansi_character - ansi_control;
-						} else {
-							return utf_character - utf_control;
-						}
-					}();
-
-					auto back_escape = lexy::dsl::backslash_escape //
-										   .symbol<escaped_symbols>();
-
-					auto quote_escape = lexy::dsl::escape(lexy::dsl::lit_c<'"'>) //
-											.template symbol<escaped_quote>();
-
-					return lexy::dsl::delimited(lexy::dsl::lit_c<'"'>, lexy::dsl::not_followed_by(lexy::dsl::lit_c<'"'>, lexy::dsl::lit_c<'"'>))(c, back_escape, quote_escape);
-				}();
-
-				lexy::scan_result<std::string> str_result = scanner.template parse<std::string>(rule);
-				if (!scanner || !str_result) {
-					return lexy::scan_failed;
-				}
-				return str_result.value();
-			}
-
-			static constexpr auto rule = lexy::dsl::peek(lexy::dsl::lit_c<'"'>) >> lexy::dsl::scan;
-
-			static constexpr auto value = convert_as_string<Options, std::string> >> lexy::forward<std::string>;
+			static constexpr auto value = lexy::as_string<std::string>;
 		};
 
-		struct PlainValue : lexy::scan_production<std::string>,
-							lexy::token_production {
-
+		struct PlainValue : lexy::token_production {
 			template<auto character>
 			static constexpr auto _escape_check = character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline);
 
@@ -124,57 +79,24 @@ namespace ovdl::csv::grammar {
 				static constexpr auto value = lexy::constant('\n');
 			};
 
-			template<typename Context, typename Reader>
-			static constexpr scan_result scan(lexy::rule_scanner<Context, Reader>& scanner, detail::IsFileParseState auto& state) {
-				using encoding = typename Reader::encoding;
-
-				constexpr auto rule = [] {
-					constexpr auto character = [] {
-						if constexpr (std::same_as<encoding, lexy::default_encoding> || std::same_as<encoding, lexy::byte_encoding>) {
-							return ansi_character;
-						} else {
-							return utf_character;
-						}
-					}();
-
-					if constexpr (Options.SupportStrings) {
-						return lexy::dsl::identifier(character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline));
-					} else {
-						constexpr auto backslash = lexy::dsl::lit_b<'\\'>;
-
-						constexpr auto escape_check_char = _escape_check<character>;
-						constexpr auto escape_rule = lexy::dsl::p<Backslash>;
-
-						return lexy::dsl::list(
-							lexy::dsl::identifier(escape_check_char - backslash) |
-							escape_rule |
-							lexy::dsl::capture(escape_check_char) //
-						);
-					}
-				}();
-
+			static constexpr auto rule = [] {
 				if constexpr (Options.SupportStrings) {
-					auto lexeme_result = scanner.template parse<lexy::lexeme<Reader>>(rule);
-					if (!scanner || !lexeme_result) {
-						return lexy::scan_failed;
-					}
-					return std::string { lexeme_result.value().begin(), lexeme_result.value().end() };
+					return lexy::dsl::identifier(utf_character - (lexy::dsl::lit_b<Options.SepChar> / lexy::dsl::ascii::newline));
 				} else {
-					lexy::scan_result<std::string> str_result = scanner.template parse<std::string>(rule);
-					if (!scanner || !str_result) {
-						return lexy::scan_failed;
-					}
-					return str_result.value();
+					constexpr auto backslash = lexy::dsl::lit_b<'\\'>;
+
+					constexpr auto escape_check_char = _escape_check<utf_character>;
+					constexpr auto escape_rule = lexy::dsl::p<Backslash>;
+
+					return lexy::dsl::list(
+						lexy::dsl::identifier(escape_check_char - backslash) |
+						escape_rule |
+						lexy::dsl::capture(escape_check_char) //
+					);
 				}
-			}
+			}();
 
-			static constexpr auto rule =
-				dsl::peek(
-					_escape_check<ansi_character>,
-					_escape_check<utf_character>) >>
-				lexy::dsl::scan;
-
-			static constexpr auto value = convert_as_string<Options, std::string> >> lexy::forward<std::string>;
+			static constexpr auto value = lexy::as_string<std::string>;
 		};
 
 		struct Value {

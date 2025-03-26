@@ -26,7 +26,7 @@ namespace ovdl::v2script::grammar {
 
 	struct EventMtthStatement {
 		struct MonthValue {
-			static constexpr auto rule = lexy::dsl::p<Identifier<StringEscapeOption>>;
+			static constexpr auto rule = lexy::dsl::p<Identifier>;
 			static constexpr auto value = dsl::callback<ast::IdentifierValue*>(
 				[](detail::IsParseState auto& state, ast::IdentifierValue* value) {
 					bool is_number = true;
@@ -52,7 +52,7 @@ namespace ovdl::v2script::grammar {
 		static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue, true>;
 	};
 
-	static constexpr auto str_or_id = lexy::dsl::p<SimpleGrammar<StringEscapeOption>::ValueExpression>;
+	static constexpr auto str_or_id = lexy::dsl::p<ValueExpression>;
 
 	struct EventOptionList {
 		using name = fkeyword_rule<"name", str_or_id>;
@@ -86,13 +86,13 @@ namespace ovdl::v2script::grammar {
 				return helper::flags +
 					   dsl::curly_bracketed.opt_list(
 						   helper::p | lexy::dsl::p<trigger> | lexy::dsl::p<option> |
-						   lexy::dsl::p<SAssignStatement<StringEscapeOption>>);
+						   lexy::dsl::p<SimpleAssignmentStatement>);
 			}();
 
 			static constexpr auto value = lexy::as_list<ast::AssignStatementList> >> construct_list<ast::ListValue, true>;
 		};
 
-		static constexpr auto rule = dsl::p<Identifier<StringEscapeOption>> >> lexy::dsl::equal_sign >> lexy::dsl::p<EventList>;
+		static constexpr auto rule = dsl::p<Identifier> >> lexy::dsl::equal_sign >> lexy::dsl::p<EventList>;
 
 		static constexpr auto value =
 			dsl::callback<ast::EventStatement*>(
@@ -114,7 +114,7 @@ namespace ovdl::v2script::grammar {
 		// Allow arbitrary spaces between individual tokens.
 		static constexpr auto whitespace = whitespace_specifier | comment_specifier;
 
-		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<EventStatement> | lexy::dsl::p<SAssignStatement<StringEscapeOption>>);
+		static constexpr auto rule = lexy::dsl::position + lexy::dsl::terminator(lexy::dsl::eof).list(lexy::dsl::p<EventStatement> | lexy::dsl::p<SimpleAssignmentStatement>);
 
 		static constexpr auto value = lexy::as_list<ast::StatementList> >> construct<ast::FileTree>;
 	};

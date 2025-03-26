@@ -46,24 +46,32 @@ using namespace ovdl::v2script;
 struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast::ParseState> {
 	template<typename Node>
 	std::optional<DiagnosticLogger::error_range> parse() {
-		if (parse_state().encoding() == ovdl::detail::Encoding::Utf8) {
-			parse_state().logger().warning(warnings::make_utf8_warning(path()));
+		switch (parse_state().encoding()) {
+			using enum detail::Encoding;
+			case Utf8:
+				parse_state().logger().warning(warnings::make_utf8_warning(path()));
+				break;
+			case Unknown:
+				parse_state().logger().error("tried to parse unknown encoding");
+				return parse_state().logger().get_errors();
+			default: break;
 		}
 
+		OVDL_BEGIN_IGNORE_WARNING_RETURN_TYPE
 		auto result = [&] {
 			switch (parse_state().encoding()) {
 				using enum detail::Encoding;
 				case Ascii:
+					return lexy::parse<Node>(buffer<lexy::ascii_encoding>(), parse_state(), parse_state().logger().error_callback());
 				case Utf8:
-					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
-				case Unknown:
 				case Windows1251:
 				case Windows1252:
-					return lexy::parse<Node>(buffer<lexy::default_encoding>(), parse_state(), parse_state().logger().error_callback());
-				default:
-					ovdl::detail::unreachable();
+					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
+				OVDL_DEFAULT_CASE_UNREACHABLE(Unknown);
 			}
 		}();
+		OVDL_END_IGNORE_WARNING_RETURN_TYPE
+
 		if (!result) {
 			return parse_state().logger().get_errors();
 		}

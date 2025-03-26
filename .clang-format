@@ -46,6 +46,8 @@ AlignTrailingComments: true
 AlignEscapedNewlines: Left
 AlignAfterOpenBracket: DontAlign
 AccessModifierOffset: -4
+Macros:
+  - "OVDL_DEFAULT_CASE_UNREACHABLE(OPTION)=default: ovdl::detail::unreachable()"
 IncludeCategories:
   - Regex: <[[:alnum:]_]+>
     Priority: 1

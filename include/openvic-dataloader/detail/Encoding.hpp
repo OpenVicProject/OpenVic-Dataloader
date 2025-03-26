@@ -3,7 +3,7 @@
 #include <cstdint>
 
 namespace ovdl::detail {
-	enum class Encoding : std::int8_t {
+	enum class Encoding : std::uint8_t {
 		Unknown,
 		Ascii,
 		Utf8,
