@@ -12,9 +12,6 @@
 
 #include <lexy/lexeme.hpp>
 
-#include <dryad/node.hpp>
-#include <dryad/node_map.hpp>
-#include <dryad/symbol.hpp>
 #include <dryad/tree.hpp>
 
 #include <fmt/core.h>
@@ -112,14 +109,14 @@ namespace ovdl {
 
 		template<typename T, typename... Args>
 		T* create(NodeLocation loc, Args&&... args) {
-			auto node = _tree.template create<T>(DRYAD_FWD(args)...);
+			auto node = _tree.template create<T>(static_cast<decltype(args)>(args)...);
 			set_location(node, loc);
 			return node;
 		}
 
 		template<typename T, typename... Args>
 		T* create(const char* begin, const char* end, Args&&... args) {
-			return create<T>(NodeLocation::make_from(begin, end), DRYAD_FWD(args)...);
+			return create<T>(NodeLocation::make_from(begin, end), static_cast<decltype(args)>(args)...);
 		}
 
 		void set_root(root_node_type* node) {

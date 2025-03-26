@@ -1,12 +1,17 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <string_view>
+#include <utility>
 
+#include <openvic-dataloader/detail/HashAlgorithm.hpp>
+#include <openvic-dataloader/detail/HashTable.hpp>
+#include <openvic-dataloader/detail/MemoryResource.hpp>
+#include <openvic-dataloader/detail/Utility.hpp>
 #include <openvic-dataloader/detail/pinned_vector.hpp>
-
-#include <dryad/symbol.hpp>
 
 namespace ovdl {
 	// Contains all unique symbols, null-terminated, in memory one after the other.
@@ -58,7 +63,7 @@ namespace ovdl {
 		}
 
 		const CharT* insert(const CharT* str, std::size_t length) {
-			DRYAD_PRECONDITION(_data_buffer.capacity() - _data_buffer.size() >= length + 1);
+			assert(_data_buffer.capacity() - _data_buffer.size() >= length + 1);
 
 			auto index = _data_buffer.cend();
 
@@ -69,7 +74,7 @@ namespace ovdl {
 		}
 
 		const CharT* c_str(std::size_t index) const {
-			DRYAD_PRECONDITION(index < _data_buffer.size());
+			assert(index < _data_buffer.size());
 			return _data_buffer.data() + index;
 		}
 
@@ -118,10 +123,10 @@ namespace ovdl {
 
 		std::size_t hash(IndexType entry) const {
 			auto str = buffer->c_str(entry);
-			return dryad::default_hash_algorithm().hash_c_str(str).finish();
+			return detail::DefaultHash().hash_c_str(str).finish();
 		}
 		static constexpr std::size_t hash(string_view str) {
-			return dryad::default_hash_algorithm()
+			return detail::DefaultHash()
 				.hash_bytes(reinterpret_cast<const unsigned char*>(str.ptr), str.length * sizeof(CharT))
 				.finish();
 		}
@@ -136,17 +141,17 @@ namespace ovdl {
 		static_assert(std::is_trivial_v<CharT>);
 		static_assert(std::is_unsigned_v<IndexType>);
 
-		using resource_ptr = dryad::_detail::memory_resource_ptr<MemoryResource>;
+		using resource_ptr = detail::MemoryResourcePtr<MemoryResource>;
 		using traits = symbol_index_hash_traits<IndexType, CharT>;
 
 	public:
 		using symbol = ovdl::symbol<CharT>;
 
 		//=== construction ===//
-		constexpr symbol_interner() : _resource(dryad::_detail::get_memory_resource<MemoryResource>()) {}
+		constexpr symbol_interner() : _resource(detail::get_memory_resource<MemoryResource>()) {}
 		constexpr explicit symbol_interner(std::size_t max_elements)
 			: _buffer(max_elements),
-			  _resource(dryad::_detail::get_memory_resource<MemoryResource>()) {}
+			  _resource(detail::get_memory_resource<MemoryResource>()) {}
 		constexpr explicit symbol_interner(std::size_t max_elements, MemoryResource* resource)
 			: _buffer(max_elements),
 			  _resource(resource) {}
@@ -163,9 +168,9 @@ namespace ovdl {
 		}
 
 		symbol_interner& operator=(symbol_interner&& other) noexcept {
-			dryad::_detail::swap(_buffer, other._buffer);
-			dryad::_detail::swap(_map, other._map);
-			dryad::_detail::swap(_resource, other._resource);
+			std::swap(_buffer, other._buffer);
+			std::swap(_map, other._map);
+			std::swap(_resource, other._resource);
 			return *this;
 		}
 
@@ -190,7 +195,7 @@ namespace ovdl {
 		}
 		template<std::size_t N>
 		symbol find_intern(const CharT (&literal)[N]) {
-			DRYAD_PRECONDITION(literal[N - 1] == CharT(0));
+			assert(literal[N - 1] == CharT(0));
 			return find_intern(literal, N - 1);
 		}
 
@@ -212,7 +217,7 @@ namespace ovdl {
 
 			auto begin = _buffer.insert(str, length);
 			auto idx = std::distance(_buffer.c_str(0), begin);
-			DRYAD_PRECONDITION(idx == IndexType(idx)); // Overflow of index type.
+			assert(idx == IndexType(idx)); // Overflow of index type.
 
 			// Store index in map.
 			entry.create(IndexType(idx));
@@ -222,14 +227,14 @@ namespace ovdl {
 		}
 		template<std::size_t N>
 		symbol intern(const CharT (&literal)[N]) {
-			DRYAD_PRECONDITION(literal[N - 1] == CharT(0));
+			assert(literal[N - 1] == CharT(0));
 			return intern(literal, N - 1);
 		}
 
 	private:
 		symbol_buffer<CharT> _buffer;
-		dryad::_detail::hash_table<traits, 1024> _map;
-		DRYAD_EMPTY_MEMBER resource_ptr _resource;
+		detail::HashTable<traits, 1024> _map;
+		OVDL_NO_UNIQUE_ADDRESS resource_ptr _resource;
 
 		friend symbol;
 	};

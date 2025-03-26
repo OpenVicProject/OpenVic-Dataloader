@@ -16,8 +16,6 @@
 #include <openvic-dataloader/detail/ErrorRange.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 
-#include <dryad/node.hpp>
-
 namespace ovdl::v2script {
 	using FileTree = ast::FileTree;
 	using FilePosition = ovdl::FilePosition;

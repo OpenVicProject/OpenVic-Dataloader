@@ -11,8 +11,6 @@
 #include <openvic-dataloader/detail/Encoding.hpp>
 #include <openvic-dataloader/detail/ErrorRange.hpp>
 
-#include <dryad/node.hpp>
-
 namespace ovdl::csv {
 	class Parser final : public detail::BasicParser {
 	public:

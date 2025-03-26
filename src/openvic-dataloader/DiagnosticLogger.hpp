@@ -23,10 +23,6 @@
 #include <lexy/lexeme.hpp>
 #include <lexy/visualize.hpp>
 
-#include <dryad/_detail/config.hpp>
-#include <dryad/abstract_node.hpp>
-#include <dryad/arena.hpp>
-#include <dryad/node.hpp>
 #include <dryad/node_map.hpp>
 #include <dryad/tree.hpp>
 
@@ -155,15 +151,15 @@ namespace ovdl {
 
 		template<typename T, typename LocCharT, typename... Args>
 		T* create(BasicNodeLocation<LocCharT> loc, Args&&... args) {
-			using node_creator = dryad::node_creator<decltype(DRYAD_DECLVAL(T).kind()), void>;
-			T* result = _tree.create<T>(DRYAD_FWD(args)...);
+			using node_creator = dryad::node_creator<decltype(std::declval<T>().kind()), void>;
+			T* result = _tree.create<T>(static_cast<decltype(args)>(args)...);
 			_map.insert(result, loc);
 			return result;
 		}
 
 		template<typename T>
 		T* create() {
-			using node_creator = dryad::node_creator<decltype(DRYAD_DECLVAL(T).kind()), void>;
+			using node_creator = dryad::node_creator<decltype(std::declval<T>().kind()), void>;
 			T* result = _tree.create<T>();
 			return result;
 		}
@@ -192,7 +188,7 @@ namespace ovdl {
 			return intern(str.data(), str.size());
 		}
 		const char* intern_cstr(const char* str, std::size_t length) {
-			return intern(str, length).c_str(_symbol_interner);
+			return intern(str, length).c_str();
 		}
 		const char* intern_cstr(std::string_view str) {
 			return intern_cstr(str.data(), str.size());

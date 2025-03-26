@@ -80,17 +80,17 @@ namespace ovdl::dsl {
 			if constexpr (std::same_as<std::decay_t<decltype(arg)>, lexy::nullopt>) {
 				return state.ast().template create<T>(loc);
 			} else {
-				return state.ast().template create<T>(loc, DRYAD_FWD(arg));
+				return state.ast().template create<T>(loc, static_cast<decltype(arg)>(arg));
 			}
 		},
 		[](detail::IsParseState auto& state, ovdl::NodeLocation loc, auto&&... args) {
-			return state.ast().template create<T>(loc, DRYAD_FWD(args)...);
+			return state.ast().template create<T>(loc, static_cast<decltype(args)>(args)...);
 		});
 
 	template<typename T, typename ListType, bool DisableEmpty = false>
 	constexpr auto construct_list = callback<T*>(
 		[](detail::IsParseState auto& state, const char* begin, ListType&& arg, const char* end) {
-			return state.ast().template create<T>(NodeLocation::make_from(begin, end), DRYAD_FWD(arg));
+			return state.ast().template create<T>(NodeLocation::make_from(begin, end), static_cast<decltype(arg)>(arg));
 		},
 		[](detail::IsParseState auto& state, const char* begin, lexy::nullopt, const char* end) {
 			return state.ast().template create<T>(NodeLocation::make_from(begin, end));
@@ -105,7 +105,7 @@ namespace ovdl::dsl {
 	template<typename T, typename ListType>
 	constexpr auto construct_list<T, ListType, true> = callback<T*>(
 		[](detail::IsParseState auto& state, const char* begin, ListType&& arg, const char* end) {
-			return state.ast().template create<T>(NodeLocation::make_from(begin, end), DRYAD_FWD(arg));
+			return state.ast().template create<T>(NodeLocation::make_from(begin, end), static_cast<decltype(arg)>(arg));
 		},
 		[](detail::IsParseState auto& state, const char* begin, lexy::nullopt, const char* end) {
 			return state.ast().template create<T>(NodeLocation::make_from(begin, end));

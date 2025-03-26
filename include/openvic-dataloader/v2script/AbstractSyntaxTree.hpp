@@ -6,12 +6,8 @@
 #include <openvic-dataloader/detail/SymbolIntern.hpp>
 #include <openvic-dataloader/detail/Utility.hpp>
 
-#include <dryad/_detail/assert.hpp>
-#include <dryad/_detail/config.hpp>
 #include <dryad/abstract_node.hpp>
 #include <dryad/node.hpp>
-#include <dryad/symbol.hpp>
-#include <dryad/tree.hpp>
 
 namespace ovdl::v2script::ast {
 	enum class NodeKind {
