@@ -335,23 +335,22 @@ namespace ovdl {
 			[[nodiscard]] Writer& annotation(AnnotationKind kind, BasicNodeLocation<LocCharT> loc, format_str<Args...> fmt, Args&&... args) {
 				std::basic_string<typename decltype(fmt.get())::value_type> output;
 
-				_file.visit_buffer([&](auto&& buffer) {
-					using char_type = typename std::decay_t<decltype(buffer)>::encoding::char_type;
+				lexy::buffer<lexy::utf8_char_encoding, void> const& buffer = _file.buffer();
+				using char_type = typename std::decay_t<decltype(buffer)>::encoding::char_type;
 
-					BasicNodeLocation<char_type> converted_loc = loc;
+				BasicNodeLocation<char_type> converted_loc = loc;
 
-					auto begin_loc = lexy::get_input_location(buffer, converted_loc.begin());
+				auto begin_loc = lexy::get_input_location(buffer, converted_loc.begin());
 
-					auto stream = _logger.make_callback_stream(output);
-					auto iter = _logger.make_ostream_iterator(stream);
+				auto stream = _logger.make_callback_stream(output);
+				auto iter = _logger.make_ostream_iterator(stream);
 
-					lexy_ext::diagnostic_writer _impl { buffer, { lexy::visualize_fancy } };
-					_impl.write_empty_annotation(iter);
-					_impl.write_annotation(iter, kind, begin_loc, converted_loc.end(),
-						[&](auto out, lexy::visualization_options) {
-							return lexy::_detail::write_str(out, fmt::format(fmt, std::forward<Args>(args)...).c_str());
-						});
-				});
+				lexy_ext::diagnostic_writer _impl { buffer, { lexy::visualize_fancy } };
+				_impl.write_empty_annotation(iter);
+				_impl.write_annotation(iter, kind, begin_loc, converted_loc.end(),
+					[&](auto out, lexy::visualization_options) {
+						return lexy::_detail::write_str(out, fmt::format(fmt, std::forward<Args>(args)...).c_str());
+					});
 
 				error::Annotation* annotation;
 				auto message = _logger.intern(output);
@@ -443,11 +442,9 @@ namespace ovdl {
 
 		template<std::derived_from<error::Error> T, typename... Args>
 		void log_with_error(T* error, DiagnosticKind kind, format_str<Args...> fmt, Args&&... args) {
-			file().visit_buffer(
-				[&](auto&& buffer) {
-					lexy_ext::diagnostic_writer impl { buffer };
-					log_with_impl(impl, error, kind, fmt, std::forward<Args>(args)...);
-				});
+			lexy::buffer<lexy::utf8_char_encoding, void> const& buffer = file().buffer();
+			lexy_ext::diagnostic_writer impl { buffer };
+			log_with_impl(impl, error, kind, fmt, std::forward<Args>(args)...);
 		}
 
 		template<std::derived_from<error::Error> T, typename... Args>
@@ -483,10 +480,9 @@ namespace ovdl {
 
 			Writer result(*this, file(), semantic);
 
-			file().visit_buffer([&](auto&& buffer) {
-				lexy_ext::diagnostic_writer impl { buffer };
-				log_with_impl(impl, semantic, kind, fmt, std::forward<Args>(args)...);
-			});
+			lexy::buffer<lexy::utf8_char_encoding, void> const& buffer = file().buffer();
+			lexy_ext::diagnostic_writer impl { buffer };
+			log_with_impl(impl, semantic, kind, fmt, std::forward<Args>(args)...);
 
 			if (kind == DiagnosticKind::error) {
 				_errored = true;

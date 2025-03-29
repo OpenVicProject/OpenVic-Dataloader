@@ -4,7 +4,6 @@
 #include <iostream>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <utility>
 
 #include <openvic-dataloader/Error.hpp>
@@ -62,12 +61,11 @@ struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast
 			switch (parse_state().encoding()) {
 				using enum detail::Encoding;
 				case Ascii:
-					return lexy::parse<Node>(buffer<lexy::ascii_encoding>(), parse_state(), parse_state().logger().error_callback());
 				case Utf8:
 				case Windows1251:
 				case Windows1252:
 				case Gbk:
-					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
+					return lexy::parse<Node>(buffer(), parse_state(), parse_state().logger().error_callback());
 				OVDL_DEFAULT_CASE_UNREACHABLE(Unknown);
 			}
 		}();
@@ -290,11 +288,6 @@ std::string Parser::make_list_string() const {
 	return _parse_handler->parse_state().ast().make_list_visualizer();
 }
 
-// TODO: Remove reinterpret_cast
-// WARNING: This almost certainly breaks on utf16 and utf32 encodings, luckily we don't parse in that format
-// This is purely to silence the node_location errors because char8_t is useless
-#define REINTERPRET_IT(IT) reinterpret_cast<const std::decay_t<decltype(buffer)>::encoding::char_type*>((IT))
-
 const FilePosition Parser::get_position(const ast::Node* node) const {
 	if (!node || !node->is_linked_in_tree()) {
 		return {};
@@ -308,17 +301,15 @@ const FilePosition Parser::get_position(const ast::Node* node) const {
 		return FilePosition {};
 	}
 
-	return _parse_handler->parse_state().ast().file().visit_buffer(
-		[&](auto&& buffer) -> FilePosition {
-			auto loc_begin = lexy::get_input_location(buffer, REINTERPRET_IT(node_location.begin()));
-			FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
-			if (node_location.begin() < node_location.end()) {
-				auto loc_end = lexy::get_input_location(buffer, REINTERPRET_IT(node_location.end()), loc_begin.anchor());
-				result.end_line = loc_end.line_nr();
-				result.end_column = loc_end.column_nr();
-			}
-			return result;
-		});
+	lexy::buffer<lexy::utf8_char_encoding, void> const& buffer = _parse_handler->buffer();
+	auto loc_begin = lexy::get_input_location(buffer, node_location.begin());
+	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+	if (node_location.begin() < node_location.end()) {
+		auto loc_end = lexy::get_input_location(buffer, node_location.end(), loc_begin.anchor());
+		result.end_line = loc_end.line_nr();
+		result.end_column = loc_end.column_nr();
+	}
+	return result;
 }
 
 Parser::error_range Parser::get_errors() const {
@@ -339,20 +330,16 @@ const FilePosition Parser::get_error_position(const error::Error* error) const {
 		return FilePosition {};
 	}
 
-	return _parse_handler->parse_state().ast().file().visit_buffer(
-		[&](auto&& buffer) -> FilePosition {
-			auto loc_begin = lexy::get_input_location(buffer, REINTERPRET_IT(err_location.begin()));
-			FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
-			if (err_location.begin() < err_location.end()) {
-				auto loc_end = lexy::get_input_location(buffer, REINTERPRET_IT(err_location.end()), loc_begin.anchor());
-				result.end_line = loc_end.line_nr();
-				result.end_column = loc_end.column_nr();
-			}
-			return result;
-		});
+	lexy::buffer<lexy::utf8_char_encoding, void> const& buffer = _parse_handler->buffer();
+	auto loc_begin = lexy::get_input_location(buffer, err_location.begin());
+	FilePosition result { loc_begin.line_nr(), loc_begin.line_nr(), loc_begin.column_nr(), loc_begin.column_nr() };
+	if (err_location.begin() < err_location.end()) {
+		auto loc_end = lexy::get_input_location(buffer, err_location.end(), loc_begin.anchor());
+		result.end_line = loc_end.line_nr();
+		result.end_column = loc_end.column_nr();
+	}
+	return result;
 }
-
-#undef REINTERPRET_IT
 
 void Parser::print_errors_to(std::basic_ostream<char>& stream) const {
 	auto errors = get_errors();
