@@ -86,12 +86,10 @@ namespace ovdl {
 			  _logger { this->file() },
 			  BasicParseState(encoding) {}
 
-		template<typename Encoding, typename MemoryResource = void>
-		FileParseState(lexy::buffer<Encoding, MemoryResource>&& buffer, detail::Encoding encoding)
+		FileParseState(lexy::buffer<lexy::utf8_char_encoding, void>&& buffer, detail::Encoding encoding)
 			: FileParseState(file_type { std::move(buffer) }, encoding) {}
 
-		template<typename Encoding, typename MemoryResource = void>
-		FileParseState(const char* path, lexy::buffer<Encoding, MemoryResource>&& buffer, detail::Encoding encoding)
+		FileParseState(const char* path, lexy::buffer<lexy::utf8_char_encoding, void>&& buffer, detail::Encoding encoding)
 			: FileParseState(file_type { path, std::move(buffer) }, encoding) {}
 
 		FileParseState(const FileParseState&) = delete;

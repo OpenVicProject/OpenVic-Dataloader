@@ -89,7 +89,7 @@ namespace ovdl::detail {
 		T t,
 		const T ct,
 		typename T::ast_type::file_type&& file,
-		lexy::buffer<lexy::default_encoding>&& buffer,
+		lexy::buffer<lexy::utf8_char_encoding>&& buffer,
 		ovdl::detail::Encoding encoding,
 		const char* path //
 	) {
@@ -109,7 +109,7 @@ namespace ovdl::detail {
 		T t,
 		const T ct,
 		typename T::file_type&& file,
-		lexy::buffer<lexy::default_encoding>&& buffer,
+		lexy::buffer<lexy::utf8_char_encoding>&& buffer,
 		ovdl::detail::Encoding encoding,
 		const char* path //
 	) {
