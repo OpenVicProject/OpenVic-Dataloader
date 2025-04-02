@@ -17,7 +17,9 @@
 #include <lexy/callback/constant.hpp>
 #include <lexy/dsl.hpp>
 #include <lexy/dsl/ascii.hpp>
+#include <lexy/dsl/literal.hpp>
 #include <lexy/dsl/newline.hpp>
+#include <lexy/dsl/token.hpp>
 #include <lexy/encoding.hpp>
 #include <lexy/input/buffer.hpp>
 
@@ -85,6 +87,50 @@ namespace ovdl::encoding_detect {
 	template<typename Input>
 	constexpr bool is_utf8(const Input& input) {
 		return lexy::match<DetectUtf8<true>>(input);
+	}
+
+	template<bool IncludeAscii>
+	struct DetectGbk {
+		struct not_gbk {
+			static constexpr auto name = "not gbk";
+		};
+
+		static constexpr auto rule = [] {
+			constexpr auto is_not_ascii_flag = lexy::dsl::context_flag<DetectGbk>;
+
+			constexpr auto ascii_values = lexy::dsl::ascii::character;
+			auto euro_value = lexy::dsl::lit_c<'\x80'>;
+			constexpr auto gbk1 = lexy::dsl::token(dsl::lit_b_range<0xA1, 0xA9> >> dsl::lit_b_range<0xA1, 0xFE>);
+			constexpr auto gbk2 = lexy::dsl::token(dsl::lit_b_range<0xB0, 0xF7> >> dsl::lit_b_range<0xA1, 0xFE>);
+			constexpr auto gbk3 = dsl::lit_b_range<0x81, 0xA0> >> (lexy::dsl::must(lexy::dsl::lit_b<0x7F>).template error<not_gbk> | dsl::lit_b_range<0x40, 0xFE>);
+			constexpr auto gbk4 = dsl::lit_b_range<0xAA, 0xFE> >> (lexy::dsl::must(lexy::dsl::lit_b<0x7F>).template error<not_gbk> | dsl::lit_b_range<0x40, 0xA0>);
+			constexpr auto gbk5 = dsl::lit_b_range<0xA8, 0xA9> >> (lexy::dsl::must(lexy::dsl::lit_b<0x7F>).template error<not_gbk> | dsl::lit_b_range<0x40, 0xA0>);
+			constexpr auto udef1 = lexy::dsl::token(dsl::lit_b_range<0xAA, 0xAF> >> dsl::lit_b_range<0xA1, 0xFE>);
+			constexpr auto udef2 = lexy::dsl::token(dsl::lit_b_range<0xF8, 0xFE> >> dsl::lit_b_range<0xA1, 0xFE>);
+			constexpr auto udef3 = dsl::lit_b_range<0xA1, 0xA7> >> (lexy::dsl::must(lexy::dsl::lit_b<0x7F>).template error<not_gbk> | dsl::lit_b_range<0x40, 0xA0>);
+
+			auto gbk_check = (euro_value | gbk1 | gbk2 | udef1 | udef2 | gbk3 | gbk4 | gbk5 | udef3) >>
+							 is_not_ascii_flag.set();
+
+			return is_not_ascii_flag.template create<IncludeAscii>() +
+				   lexy::dsl::while_(gbk_check | ascii_values) +
+				   lexy::dsl::must(is_not_ascii_flag.is_set()).template error<not_gbk> + lexy::dsl::eof;
+		}();
+
+		static constexpr auto value = lexy::constant(true);
+	};
+
+	extern template struct DetectGbk<true>;
+	extern template struct DetectGbk<false>;
+
+	template<typename Input>
+	constexpr bool is_gbk_no_ascii(const Input& input) {
+		return lexy::match<DetectGbk<false>>(input);
+	}
+
+	template<typename Input>
+	constexpr bool is_gbk(const Input& input) {
+		return lexy::match<DetectGbk<true>>(input);
 	}
 
 	struct DetectorData {
@@ -424,6 +470,10 @@ namespace ovdl::encoding_detect {
 		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
 	};
 
+	struct GbkCandidate {
+		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
+	};
+
 	struct NonLatinCasedCandidate {
 		enum class CaseState {
 			Space,
@@ -484,7 +534,7 @@ namespace ovdl::encoding_detect {
 		std::optional<int64_t> read(const std::span<const cbyte>& buffer);
 	};
 
-	using InnerCandidate = std::variant<NonLatinCasedCandidate, LatinCandidate, Utf8Candidate, AsciiCandidate>;
+	using InnerCandidate = std::variant<NonLatinCasedCandidate, LatinCandidate, Utf8Candidate, AsciiCandidate, GbkCandidate>;
 
 	template<class... Ts>
 	struct overloaded : Ts... {
@@ -530,6 +580,10 @@ namespace ovdl::encoding_detect {
 			return create_candidate<NonLatinCasedCandidate>(get_byte_score(index));
 		}
 
+		static constexpr Candidate new_gbk() {
+			return create_candidate<GbkCandidate>();
+		}
+
 		constexpr std::optional<int64_t> score(const std::span<const cbyte>& buffer, std::size_t encoding, bool expectation_is_valid) {
 			if (auto old_score = score_value) {
 				auto new_score = std::visit([&](auto& inner) {
@@ -565,6 +619,9 @@ namespace ovdl::encoding_detect {
 					},
 					[](const NonLatinCasedCandidate& candidate) {
 						return candidate.score_data.encoding;
+					},
+					[](const GbkCandidate& candidate) {
+						return Encoding::Gbk;
 					} },
 				inner);
 		}
@@ -576,6 +633,7 @@ namespace ovdl::encoding_detect {
 			Candidate::new_utf8(),
 			Candidate::new_latin(ScoreIndex::Windows1252),
 			Candidate::new_non_latin_cased(ScoreIndex::Windows1251),
+			Candidate::new_gbk(),
 		};
 
 		Encoding default_fallback = Encoding::Unknown;

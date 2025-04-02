@@ -1,5 +1,7 @@
 #include "detail/Detect.hpp"
 
+#include <optional>
+
 using namespace ovdl;
 using namespace ovdl::encoding_detect;
 
@@ -18,6 +20,15 @@ std::optional<int64_t> AsciiCandidate::read(const std::span<const cbyte>& buffer
 	auto lexy_buffer = lexy::make_buffer_from_raw<lexy::default_encoding, lexy::encoding_endianness::little>(buffer.data(), buffer.size());
 	if (is_ascii(lexy_buffer)) {
 		return 0;
+	}
+
+	return std::nullopt;
+}
+
+std::optional<int64_t> GbkCandidate::read(const std::span<const cbyte>& buffer) {
+	auto lexy_buffer = lexy::make_buffer_from_raw<lexy::default_encoding, lexy::encoding_endianness::little>(buffer.data(), buffer.size());
+	if (is_gbk(lexy_buffer)) {
+		return 2;
 	}
 
 	return std::nullopt;
@@ -351,3 +362,5 @@ std::optional<int64_t> LatinCandidate::read(const std::span<const cbyte>& buffer
 
 template struct ovdl::encoding_detect::DetectUtf8<true>;
 template struct ovdl::encoding_detect::DetectUtf8<false>;
+template struct ovdl::encoding_detect::DetectGbk<true>;
+template struct ovdl::encoding_detect::DetectGbk<false>;

@@ -8,6 +8,7 @@ namespace ovdl::detail {
 		Ascii,
 		Utf8,
 		Windows1251,
-		Windows1252
+		Windows1252,
+		Gbk,
 	};
 }
