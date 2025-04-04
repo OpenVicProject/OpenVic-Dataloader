@@ -66,6 +66,7 @@ struct Parser::ParseHandler final : detail::BasicStateParseHandler<v2script::ast
 				case Utf8:
 				case Windows1251:
 				case Windows1252:
+				case Gbk:
 					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
 				OVDL_DEFAULT_CASE_UNREACHABLE(Unknown);
 			}

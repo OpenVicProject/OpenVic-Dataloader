@@ -16,6 +16,7 @@
 
 #include "detail/BufferError.hpp"
 #include "detail/Convert.hpp"
+#include "detail/ConvertGbk.hpp"
 #include "detail/Detect.hpp"
 #include "detail/InternalConcepts.hpp"
 
@@ -110,6 +111,20 @@ namespace ovdl::detail {
 		};
 
 		template<detail::IsStateType State>
+		static constexpr auto generate_gbk_state(State* state, const char* path, auto&& buffer, Encoding encoding) {
+			size_t size = buffer.size();
+			if (path[0] != '\0') {
+				*state = {
+					path,
+					convert::gbk::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size),
+					encoding
+				};
+				return;
+			}
+			*state = { convert::gbk::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size), encoding };
+		};
+
+		template<detail::IsStateType State>
 		static void create_state(State* state, const char* path, lexy::buffer<lexy::default_encoding>&& buffer, std::optional<Encoding> fallback) {
 			if (!_system_fallback_encoding.has_value()) {
 				_detect_system_fallback_encoding();
@@ -140,6 +155,10 @@ namespace ovdl::detail {
 				case Windows1251:
 				case Windows1252: {
 					generate_conversion_state(state, path, std::move(buffer), encoding);
+					break;
+				}
+				case Gbk: {
+					generate_gbk_state(state, path, std::move(buffer), encoding);
 					break;
 				}
 				OVDL_DEFAULT_CASE_UNREACHABLE();
