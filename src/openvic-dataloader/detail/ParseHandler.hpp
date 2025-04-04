@@ -83,17 +83,17 @@ namespace ovdl::detail {
 		constexpr virtual buffer_error load_buffer_impl(lexy::buffer<lexy::default_encoding>&& buffer, const char* path = "", std::optional<Encoding> fallback = std::nullopt) = 0;
 		virtual const char* path_impl() const = 0;
 
-		template<detail::IsStateType State, detail::IsEncoding BufferEncoding>
+		template<detail::IsStateType State>
 		static constexpr auto generate_state = [](State* state, const char* path, auto&& buffer, Encoding encoding) {
 			if (path[0] != '\0') {
 				*state = {
 					path,
-					lexy::buffer<BufferEncoding>(std::move(buffer)),
+					lexy::buffer<lexy::utf8_char_encoding, void>(std::move(buffer)),
 					encoding
 				};
 				return;
 			}
-			*state = { lexy::buffer<BufferEncoding>(std::move(buffer)), encoding };
+			*state = { lexy::buffer<lexy::utf8_char_encoding, void>(std::move(buffer)), encoding };
 		};
 
 		template<detail::IsStateType State>
@@ -141,12 +141,9 @@ namespace ovdl::detail {
 			auto [encoding, is_alone] = encoding_detect::Detector { .default_fallback = fallback.value() }.detect_assess(buffer);
 			switch (encoding) {
 				using enum Encoding;
-				case Ascii: {
-					generate_state<State, lexy::ascii_encoding>(state, path, std::move(buffer), encoding);
-					break;
-				}
+				case Ascii:
 				case Utf8: {
-					generate_state<State, lexy::utf8_char_encoding>(state, path, std::move(buffer), encoding);
+					generate_state<State>(state, path, std::move(buffer), encoding);
 					break;
 				}
 				case Unknown: {
@@ -211,9 +208,12 @@ namespace ovdl::detail {
 			return _parse_state;
 		}
 
-		template<typename Encoding>
-		constexpr const auto& buffer() const {
-			return _parse_state.file().template get_buffer_as<Encoding>();
+		constexpr lexy::buffer<lexy::utf8_char_encoding, void>& buffer() {
+			return _parse_state.file().buffer();
+		}
+
+		constexpr lexy::buffer<lexy::utf8_char_encoding, void> const& buffer() const {
+			return _parse_state.file().buffer();
 		}
 
 	protected:
@@ -248,9 +248,12 @@ namespace ovdl::detail {
 			return _parse_state;
 		}
 
-		template<typename Encoding>
-		constexpr const auto& buffer() const {
-			return _parse_state.ast().file().template get_buffer_as<Encoding>();
+		constexpr lexy::buffer<lexy::utf8_char_encoding, void>& buffer() {
+			return _parse_state.ast().file().buffer();
+		}
+
+		constexpr lexy::buffer<lexy::utf8_char_encoding, void> const& buffer() const {
+			return _parse_state.ast().file().buffer();
 		}
 
 	protected:

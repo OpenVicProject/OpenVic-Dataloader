@@ -60,7 +60,7 @@ namespace ovdl {
 		BasicAbstractSyntaxTree() = default;
 
 		explicit BasicAbstractSyntaxTree(file_type&& file)
-			: AbstractSyntaxTree(file.size() * file.visit_buffer([](auto&& buffer) -> size_t { return sizeof(typename std::decay_t<decltype(buffer)>::char_type); })),
+			: AbstractSyntaxTree(file.size() * sizeof(typename std::decay_t<decltype(file.buffer())>::char_type)),
 			  _file { std::move(file) } {}
 
 		template<typename Encoding, typename MemoryResource = void>
