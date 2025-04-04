@@ -15,6 +15,7 @@
 #include "openvic-dataloader/detail/Utility.hpp"
 
 #include "detail/BufferError.hpp"
+#include "detail/Convert.hpp"
 #include "detail/Detect.hpp"
 #include "detail/InternalConcepts.hpp"
 
@@ -95,6 +96,20 @@ namespace ovdl::detail {
 		};
 
 		template<detail::IsStateType State>
+		static constexpr auto generate_conversion_state(State* state, const char* path, auto&& buffer, Encoding encoding) {
+			size_t size = buffer.size();
+			if (path[0] != '\0') {
+				*state = {
+					path,
+					convert::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size),
+					encoding
+				};
+				return;
+			}
+			*state = { convert::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size), encoding };
+		};
+
+		template<detail::IsStateType State>
 		static void create_state(State* state, const char* path, lexy::buffer<lexy::default_encoding>&& buffer, std::optional<Encoding> fallback) {
 			if (!_system_fallback_encoding.has_value()) {
 				_detect_system_fallback_encoding();
@@ -111,19 +126,23 @@ namespace ovdl::detail {
 			auto [encoding, is_alone] = encoding_detect::Detector { .default_fallback = fallback.value() }.detect_assess(buffer);
 			switch (encoding) {
 				using enum Encoding;
-				case Ascii:
+				case Ascii: {
+					generate_state<State, lexy::ascii_encoding>(state, path, std::move(buffer), encoding);
+					break;
+				}
 				case Utf8: {
 					generate_state<State, lexy::utf8_char_encoding>(state, path, std::move(buffer), encoding);
 					break;
 				}
-				case Unknown:
-				case Windows1251:
-				case Windows1252: {
-					generate_state<State, lexy::default_encoding>(state, path, std::move(buffer), encoding);
+				case Unknown: {
 					break;
 				}
-				default:
-					ovdl::detail::unreachable();
+				case Windows1251:
+				case Windows1252: {
+					generate_conversion_state(state, path, std::move(buffer), encoding);
+					break;
+				}
+				OVDL_DEFAULT_CASE_UNREACHABLE();
 			}
 
 			if (!is_alone) {
@@ -135,7 +154,7 @@ namespace ovdl::detail {
 			}
 
 			if (encoding == ovdl::detail::Encoding::Unknown) {
-				state->logger().warning("could not detect encoding");
+				state->logger().error("could not detect encoding");
 			}
 		}
 

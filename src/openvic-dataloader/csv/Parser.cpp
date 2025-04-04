@@ -29,20 +29,26 @@ using namespace ovdl::csv;
 struct Parser::ParseHandler final : detail::BasicFileParseHandler<CsvParseState> {
 	template<typename Node>
 	std::optional<DiagnosticLogger::error_range> parse() {
+		if (parse_state().encoding() == detail::Encoding::Unknown) {
+			parse_state().logger().error("tried to parse unknown encoding");
+			return parse_state().logger().get_errors();
+		}
+
+		OVDL_BEGIN_IGNORE_WARNING_RETURN_TYPE
 		auto result = [&] {
 			switch (parse_state().encoding()) {
 				using enum detail::Encoding;
 				case Ascii:
+					return lexy::parse<Node>(buffer<lexy::ascii_encoding>(), parse_state(), parse_state().logger().error_callback());
 				case Utf8:
-					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
-				case Unknown:
 				case Windows1251:
 				case Windows1252:
-					return lexy::parse<Node>(buffer<lexy::default_encoding>(), parse_state(), parse_state().logger().error_callback());
-				default:
-					ovdl::detail::unreachable();
+					return lexy::parse<Node>(buffer<lexy::utf8_char_encoding>(), parse_state(), parse_state().logger().error_callback());
+				OVDL_DEFAULT_CASE_UNREACHABLE(Unknown);
 			}
 		}();
+		OVDL_END_IGNORE_WARNING_RETURN_TYPE
+
 		if (!result) {
 			return this->parse_state().logger().get_errors();
 		}

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string_view>
 
+#include <openvic-dataloader/detail/Encoding.hpp>
 #include <openvic-dataloader/v2script/AbstractSyntaxTree.hpp>
 #include <openvic-dataloader/v2script/Parser.hpp>
 
@@ -485,6 +486,169 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 			const auto* str_value = dryad::node_try_cast<ast::StringValue>(inner_value_statement->value());
 			CHECK_OR_RETURN(str_value);
 			CHECK(parser.value(str_value) == "a"sv);
+		}
+	}
+
+	SECTION("a = { \\x8C = \"b\" }") {
+		static auto buffer = "a = { \x8C = \"b\" }"sv;
+
+		parser.load_from_string(buffer, detail::Encoding::Windows1252);
+
+		CHECK_PARSE();
+
+		const ast::FileTree* file_tree = parser.get_file_node();
+		CHECK(file_tree);
+
+		const auto statements = file_tree->statements();
+		CHECK_FALSE(statements.empty());
+		CHECK(ranges::distance(statements) == 1);
+
+		const ast::Statement* statement = file_tree->statements().front();
+		CHECK(statement);
+
+		const auto* assign = dryad::node_try_cast<ast::AssignStatement>(statement);
+		CHECK(assign);
+		CHECK(assign->left());
+		CHECK(assign->right());
+
+		const auto* left = dryad::node_try_cast<ast::IdentifierValue>(assign->left());
+		CHECK_IF(left) {
+			CHECK(parser.value(left) == "a"sv);
+		}
+
+		const auto* right = dryad::node_try_cast<ast::ListValue>(assign->right());
+		CHECK_IF(right) {
+			const auto inner_statements = right->statements();
+			CHECK_FALSE(inner_statements.empty());
+			CHECK(ranges::distance(inner_statements) == 1);
+
+			const ast::Statement* inner_statement = inner_statements.front();
+			CHECK(inner_statement);
+
+			const auto* inner_assign = dryad::node_try_cast<ast::AssignStatement>(inner_statement);
+			CHECK(inner_assign);
+			CHECK(inner_assign->left());
+			CHECK(inner_assign->right());
+
+			const auto* inner_left = dryad::node_try_cast<ast::IdentifierValue>(inner_assign->left());
+			CHECK_IF(inner_left) {
+				CHECK(parser.value(inner_left) == "Œ"sv);
+			}
+
+			const auto* inner_right = dryad::node_try_cast<ast::StringValue>(inner_assign->right());
+			CHECK_IF(inner_right) {
+				CHECK(parser.value(inner_right) == "b"sv);
+			}
+		}
+	}
+
+	SECTION("a = { \\xF7 = \"b\" }") {
+		static auto buffer = "a = { \xF7 = \"b\" }"sv;
+
+		parser.load_from_string(buffer, detail::Encoding::Windows1251);
+
+		CHECK_PARSE();
+
+		const ast::FileTree* file_tree = parser.get_file_node();
+		CHECK(file_tree);
+
+		const auto statements = file_tree->statements();
+		CHECK_FALSE(statements.empty());
+		CHECK(ranges::distance(statements) == 1);
+
+		const ast::Statement* statement = file_tree->statements().front();
+		CHECK(statement);
+
+		const auto* assign = dryad::node_try_cast<ast::AssignStatement>(statement);
+		CHECK(assign);
+		CHECK(assign->left());
+		CHECK(assign->right());
+
+		const auto* left = dryad::node_try_cast<ast::IdentifierValue>(assign->left());
+		CHECK_IF(left) {
+			CHECK(parser.value(left) == "a"sv);
+		}
+
+		const auto* right = dryad::node_try_cast<ast::ListValue>(assign->right());
+		CHECK_IF(right) {
+			const auto inner_statements = right->statements();
+			CHECK_FALSE(inner_statements.empty());
+			CHECK(ranges::distance(inner_statements) == 1);
+
+			const ast::Statement* inner_statement = inner_statements.front();
+			CHECK(inner_statement);
+
+			const auto* inner_assign = dryad::node_try_cast<ast::AssignStatement>(inner_statement);
+			CHECK(inner_assign);
+			CHECK(inner_assign->left());
+			CHECK(inner_assign->right());
+
+			const auto* inner_left = dryad::node_try_cast<ast::IdentifierValue>(inner_assign->left());
+			CHECK_IF(inner_left) {
+				CHECK(parser.value(inner_left) == "ч"sv);
+			}
+
+			const auto* inner_right = dryad::node_try_cast<ast::StringValue>(inner_assign->right());
+			CHECK_IF(inner_right) {
+				CHECK(parser.value(inner_right) == "b"sv);
+			}
+		}
+	}
+
+	SECTION("a = { Œ = \"b\" }") {
+		static auto buffer = "a = { Œ = \"b\" }"sv;
+
+		parser.load_from_string(buffer);
+
+		CHECK_OR_RETURN(parser.get_errors().empty());
+		CHECK_OR_RETURN(parser.simple_parse());
+		CHECK_FALSE_OR_RETURN(parser.get_errors().empty());
+
+		CHECK(parser.error(parser.get_errors().front()) == " warn: Buffer is UTF-8 encoded. This may cause problems. Prefer Windows-1252 encoding:"sv);
+
+		const ast::FileTree* file_tree = parser.get_file_node();
+		CHECK(file_tree);
+
+		const auto statements = file_tree->statements();
+		CHECK_FALSE(statements.empty());
+		CHECK(ranges::distance(statements) == 1);
+
+		const ast::Statement* statement = file_tree->statements().front();
+		CHECK(statement);
+
+		const auto* assign = dryad::node_try_cast<ast::AssignStatement>(statement);
+		CHECK(assign);
+		CHECK(assign->left());
+		CHECK(assign->right());
+
+		const auto* left = dryad::node_try_cast<ast::IdentifierValue>(assign->left());
+		CHECK_IF(left) {
+			CHECK(parser.value(left) == "a"sv);
+		}
+
+		const auto* right = dryad::node_try_cast<ast::ListValue>(assign->right());
+		CHECK_IF(right) {
+			const auto inner_statements = right->statements();
+			CHECK_FALSE(inner_statements.empty());
+			CHECK(ranges::distance(inner_statements) == 1);
+
+			const ast::Statement* inner_statement = inner_statements.front();
+			CHECK(inner_statement);
+
+			const auto* inner_assign = dryad::node_try_cast<ast::AssignStatement>(inner_statement);
+			CHECK(inner_assign);
+			CHECK(inner_assign->left());
+			CHECK(inner_assign->right());
+
+			const auto* inner_left = dryad::node_try_cast<ast::IdentifierValue>(inner_assign->left());
+			CHECK_IF(inner_left) {
+				CHECK(parser.value(inner_left) == "Œ"sv);
+			}
+
+			const auto* inner_right = dryad::node_try_cast<ast::StringValue>(inner_assign->right());
+			CHECK_IF(inner_right) {
+				CHECK(parser.value(inner_right) == "b"sv);
+			}
 		}
 	}
 }
