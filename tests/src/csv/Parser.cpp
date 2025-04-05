@@ -777,6 +777,108 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 		}
 	}
 
+	SECTION("REB_SIZE_DESC;\\xBD\\xF8\\xC7\\xF2\\xC0\\xB2\\xA7Y\\xA7Y$VAL$\\xA7W;;x") {
+		static constexpr auto buffer = "REB_SIZE_DESC;\xBD\xF8\xC7\xF2\xC0\xB2\xA7Y\xA7Y$VAL$\xA7W;;x"sv;
+		parser.load_from_string(buffer);
+
+		CHECK_PARSE();
+
+		const std::vector<LineObject>& line_list = parser.get_lines();
+		CHECK_FALSE(line_list.empty());
+		CHECK(ranges::size(line_list) == 1);
+
+		const LineObject& line = line_list.front();
+		CHECK_FALSE(line.empty());
+		CHECK(ranges::size(line) == 3);
+		CHECK(line.value_count() == 4);
+		CHECK(line.prefix_end() == 0);
+		CHECK(line.suffix_end() == 4);
+
+		for (const auto [index, val] : line | ranges::views::enumerate) {
+			CAPTURE(index);
+			CHECK_FALSE_OR_CONTINUE(val.second.empty());
+			switch (index) {
+				case 0:
+					CHECK_OR_CONTINUE(val.first == 0);
+					CHECK_OR_CONTINUE(val.second == "REB_SIZE_DESC"sv);
+					break;
+				case 1:
+					CHECK_OR_CONTINUE(val.first == 1);
+					CHECK_OR_CONTINUE(val.second == "进球啦§Y§Y$VAL$§W"sv);
+					break;
+				case 2:
+					CHECK_OR_CONTINUE(val.first == 3);
+					CHECK_OR_CONTINUE(val.second == "x"sv);
+					break;
+				default: CHECK_OR_CONTINUE(false); break;
+			}
+		}
+
+		CHECK(line.value_count() == 4);
+
+		for (const auto index : ranges::views::iota(size_t(0), line.value_count())) {
+			CAPTURE(index);
+			switch (index) {
+				case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == "REB_SIZE_DESC"sv); break;
+				case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "进球啦§Y§Y$VAL$§W"sv); break;
+				case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
+				case 3: CHECK_OR_CONTINUE(line.get_value_for(index) == "x"sv); break;
+				default: CHECK_OR_CONTINUE(false); break;
+			}
+		}
+	}
+
+	SECTION("EVTOPTA36918;\\xBD\\xF8\\xC7\\xF2\\xC0\\xB2\\xA3\\xA1\\xAD\\xA1\\xAD\\xA1;;x") {
+		static constexpr auto buffer = "EVTOPTA36918;\xBD\xF8\xC7\xF2\xC0\xB2\xA3\xA1\xAD\xA1\xAD\xA1;;x"sv;
+		parser.load_from_string(buffer);
+
+		CHECK_PARSE();
+
+		const std::vector<LineObject>& line_list = parser.get_lines();
+		CHECK_FALSE(line_list.empty());
+		CHECK(ranges::size(line_list) == 1);
+
+		const LineObject& line = line_list.front();
+		CHECK_FALSE(line.empty());
+		CHECK(ranges::size(line) == 3);
+		CHECK(line.value_count() == 4);
+		CHECK(line.prefix_end() == 0);
+		CHECK(line.suffix_end() == 4);
+
+		for (const auto [index, val] : line | ranges::views::enumerate) {
+			CAPTURE(index);
+			CHECK_FALSE_OR_CONTINUE(val.second.empty());
+			switch (index) {
+				case 0:
+					CHECK_OR_CONTINUE(val.first == 0);
+					CHECK_OR_CONTINUE(val.second == "EVTOPTA36918"sv);
+					break;
+				case 1:
+					CHECK_OR_CONTINUE(val.first == 1);
+					CHECK_OR_CONTINUE(val.second == "进球啦！！！"sv);
+					break;
+				case 2:
+					CHECK_OR_CONTINUE(val.first == 3);
+					CHECK_OR_CONTINUE(val.second == "x"sv);
+					break;
+				default: CHECK_OR_CONTINUE(false); break;
+			}
+		}
+
+		CHECK(line.value_count() == 4);
+
+		for (const auto index : ranges::views::iota(size_t(0), line.value_count())) {
+			CAPTURE(index);
+			switch (index) {
+				case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == "EVTOPTA36918"sv); break;
+				case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "进球啦！！！"sv); break;
+				case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
+				case 3: CHECK_OR_CONTINUE(line.get_value_for(index) == "x"sv); break;
+				default: CHECK_OR_CONTINUE(false); break;
+			}
+		}
+	}
+
 	// Blame Ubuntu 22's GCC-12 distribution for this crap
 	// Compiler bug hangs if it can see if there is any reference to \x8F in a character
 #if !defined(_OVDL_TEST_UBUNTU_GCC_12_BUG_)
