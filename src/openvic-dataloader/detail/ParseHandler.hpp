@@ -111,17 +111,22 @@ namespace ovdl::detail {
 		};
 
 		template<detail::IsStateType State>
-		static constexpr auto generate_gbk_state(State* state, const char* path, auto&& buffer, Encoding encoding) {
+		static auto generate_gbk_state(State* state, const char* path, auto&& buffer, Encoding encoding) {
 			size_t size = buffer.size();
+			lexy::buffer<lexy::utf8_char_encoding, void> utf8_buffer =
+				convert::gbk::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size);
+			if (utf8_buffer.data() == nullptr) {
+				state->logger().error("conversion from GBK to UTF-8 failed");
+			}
 			if (path[0] != '\0') {
 				*state = {
 					path,
-					convert::gbk::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size),
+					std::move(utf8_buffer),
 					encoding
 				};
 				return;
 			}
-			*state = { convert::gbk::make_buffer_from_raw<lexy::utf8_char_encoding>(encoding, std::move(buffer).release(), size), encoding };
+			*state = { std::move(utf8_buffer), encoding };
 		};
 
 		template<detail::IsStateType State>

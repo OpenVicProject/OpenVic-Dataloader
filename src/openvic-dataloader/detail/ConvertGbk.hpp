@@ -218,6 +218,10 @@ namespace ovdl::convert::gbk {
 #else
 #error "GBK conversion not supported on this platform"
 #endif
+				if (in_size > 0 && out_size > 0 && in_buffer != end) {
+					return lexy::buffer<Encoding, MemoryResource> { resource };
+				}
+
 				return lexy::buffer<Encoding, MemoryResource> { out_builder.data(), static_cast<size_t>(out_buffer - out_builder.data()), resource };
 			} else {
 				return lexy::make_buffer_from_raw<Encoding, Endian>(_memory, size, resource);
