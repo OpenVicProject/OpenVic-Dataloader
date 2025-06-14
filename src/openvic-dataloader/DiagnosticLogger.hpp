@@ -26,7 +26,7 @@
 #include <dryad/node_map.hpp>
 #include <dryad/tree.hpp>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <lexy_ext/report_error.hpp>
 
@@ -216,7 +216,7 @@ namespace ovdl {
 		using file_type = typename parse_state_type::file_type;
 
 		template<typename... Args>
-		using format_str = fmt::basic_format_string<char, fmt::type_identity_t<Args>...>;
+		using format_str = fmt::format_string<Args...>;
 
 		explicit BasicDiagnosticLogger(const file_type& file)
 			: _file(&file) {
