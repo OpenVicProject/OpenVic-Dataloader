@@ -68,6 +68,16 @@ library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
 
 default_args = []
 
+# macOS x86_64 requires Cocoa for iconv
+if env["platform"] == "macos" and (env["arch"] == "universal" or env["arch"] == "x86_64"):
+    env.Append(
+        LINKFLAGS=[
+            "-framework",
+            "Cocoa",
+            "-Wl,-undefined,dynamic_lookup",
+        ]
+    )
+
 if env["run_ovdl_tests"]:
     env["build_ovdl_tests"] = True
 
