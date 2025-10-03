@@ -73,7 +73,7 @@ if env["platform"] == "macos" and (env["arch"] == "universal" or env["arch"] == 
     env.Append(
         LINKFLAGS=[
             "-framework",
-            "Cocoa",
+            "Foundation",
             "-Wl,-undefined,dynamic_lookup",
         ]
     )
