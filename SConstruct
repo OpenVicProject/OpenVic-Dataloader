@@ -72,8 +72,7 @@ default_args = []
 if env["platform"] == "macos" and (env["arch"] == "universal" or env["arch"] == "x86_64"):
     env.Append(
         LINKFLAGS=[
-            "-framework",
-            "Cocoa",
+            "-liconv",
             "-Wl,-undefined,dynamic_lookup",
         ]
     )
