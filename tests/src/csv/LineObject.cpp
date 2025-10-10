@@ -28,6 +28,10 @@ TEST_CASE("LineObject", "[line-object]") {
 
 			CHECK(ss.str() == ""sv);
 		}
+
+		SECTION("fmt to_string") {
+			CHECK(fmt::to_string(line) == ""sv);
+		}
 	}
 
 	SECTION("no prefix") {
@@ -49,6 +53,10 @@ TEST_CASE("LineObject", "[line-object]") {
 			ss << line << std::flush;
 
 			CHECK(ss.str() == "a;b;c"sv);
+		}
+
+		SECTION("fmt to_string") {
+			CHECK(fmt::to_string(line) == "a;b;c"sv);
 		}
 	}
 
@@ -88,6 +96,10 @@ TEST_CASE("LineObject", "[line-object]") {
 
 			CHECK(ss.str() == ";a;b;c"sv);
 		}
+
+		SECTION("fmt to_string") {
+			CHECK(fmt::to_string(line) == ";a;b;c"sv);
+		}
 	}
 
 	SECTION("prefix and suffix with spaces") {
@@ -111,6 +123,10 @@ TEST_CASE("LineObject", "[line-object]") {
 			ss << line << std::flush;
 
 			CHECK(ss.str() == ";\"a b\";\"c d\";\"e f\""sv);
+		}
+
+		SECTION("fmt to_string") {
+			CHECK(fmt::to_string(line) == ";\"a b\";\"c d\";\"e f\""sv);
 		}
 	}
 
@@ -136,6 +152,10 @@ TEST_CASE("LineObject", "[line-object]") {
 
 			CHECK(ss.str() == ";\"a;b\";\"c;d\";\"e;f\""sv);
 		}
+
+		SECTION("fmt to_string") {
+			CHECK(fmt::to_string(line) == ";\"a;b\";\"c;d\";\"e;f\""sv);
+		}
 	}
 
 	SECTION("prefix and suffix with custom char separator") {
@@ -151,6 +171,8 @@ TEST_CASE("LineObject", "[line-object]") {
 		ss << line.use_sep("|") << std::flush;
 
 		CHECK(ss.str() == "|a;b|c;d|e;f"sv);
+
+		CHECK(fmt::format("{:s|}", line) == "|a;b|c;d|e;f"sv);
 	}
 
 	SECTION("prefix and suffix with custom char separator and containing the separator") {
@@ -175,6 +197,10 @@ TEST_CASE("LineObject", "[line-object]") {
 
 			CHECK(ss.str() == "|\"a|b\"|\"c|d\"|\"e|f\""sv);
 		}
+
+		SECTION("fmt format") {
+			CHECK(fmt::format("{:s|}", line) == "|\"a|b\"|\"c|d\"|\"e|f\""sv);
+		}
 	}
 
 	SECTION("prefix and suffix with custom string_view separator") {
@@ -191,6 +217,10 @@ TEST_CASE("LineObject", "[line-object]") {
 			ss << line.use_sep("hey") << std::flush;
 
 			CHECK(ss.str() == "heya;bheyc;dheye;f"sv);
+		}
+
+		SECTION("fmt format") {
+			CHECK(fmt::format("{:s{}}", line, "hey") == "heya;bheyc;dheye;f"sv);
 		}
 	}
 }

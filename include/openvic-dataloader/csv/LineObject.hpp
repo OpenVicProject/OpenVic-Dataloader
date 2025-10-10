@@ -15,6 +15,9 @@
 
 #include <openvic-dataloader/detail/Constexpr.hpp>
 
+#include <fmt/base.h>
+#include <fmt/format.h>
+
 namespace ovdl::csv {
 	/// LineObject should be able to recognize the differences between:
 	///	Input -> Indexes == ""
@@ -169,3 +172,100 @@ namespace ovdl::csv {
 		return stream;
 	}
 }
+
+// Supports s<char> for designating a separator, including s{{ and s}} to escape brackets
+// Also supports s{} for dynamic separator which supports multi-character separators
+template<>
+struct fmt::formatter<ovdl::csv::LineObject> : formatter<string_view> {
+	struct {
+		arg_id_kind kind = arg_id_kind::none;
+		detail::arg_ref<char> ref;
+		std::string value = ";";
+	} sep_spec {};
+
+	constexpr format_parse_context::iterator parse(format_parse_context& ctx) {
+		auto it = ctx.begin(), end = ctx.end();
+		if (it == end || *ctx.begin() == '}') {
+			return it;
+		}
+
+		if (*it == 's') {
+			++it;
+
+			if (*it == '{') {
+				++it;
+
+				if (*it == '{') {
+					++it;
+					sep_spec.value = { it, it + 1 };
+				} else if (*it == '}') {
+					++it;
+					sep_spec.ref = ctx.next_arg_id();
+					sep_spec.kind = arg_id_kind::index;
+				} else {
+					it = detail::parse_arg_id(it, end, detail::dynamic_spec_handler<char> { ctx, sep_spec.ref, sep_spec.kind });
+				}
+			} else if (*it == '}') {
+				++it;
+
+				if (*it != '}') {
+					report_error("invalid format string");
+					return it;
+				}
+			} else {
+				sep_spec.value = { it, it + 1 };
+				++it;
+			}
+		}
+
+		return it;
+	}
+
+	struct separator_spec_getter {
+		template<typename T, FMT_ENABLE_IF(detail::is_std_string_like<T>::value)>
+		constexpr auto operator()(T value) -> string_view {
+			return value;
+		}
+
+		constexpr auto operator()(const char* value) -> string_view {
+			return value;
+		}
+
+		template<typename T, FMT_ENABLE_IF(!detail::is_std_string_like<T>::value)>
+		constexpr auto operator()(T) -> string_view {
+			report_error("separator is not string-like");
+			return {};
+		}
+	};
+
+	format_context::iterator format(ovdl::csv::LineObject line, format_context& ctx) const {
+		string_view separator = sep_spec.value;
+		if (sep_spec.kind != arg_id_kind::none) {
+			auto arg = sep_spec.kind == arg_id_kind::index ? ctx.arg(sep_spec.ref.index) : ctx.arg(sep_spec.ref.name);
+			if (!arg) {
+				report_error("argument not found");
+			}
+			separator = arg.visit(separator_spec_getter {});
+		}
+
+		auto out = ctx.out();
+		ovdl::csv::LineObject::position_type sep_index = 0;
+		for (const auto& [pos, val] : line) {
+			while (sep_index < pos) {
+				out = detail::write<char>(out, separator);
+				ctx.advance_to(out);
+				sep_index++;
+			}
+			if (std::any_of(val.begin(), val.end(), [&](char c) { return (separator.size() == 1 && c == separator[0]) || std::isspace(c); })) {
+				out = detail::write<char>(out, '"');
+				ctx.advance_to(out);
+				out = formatter<string_view>::format(val, ctx);
+				out = detail::write<char>(out, '"');
+				ctx.advance_to(out);
+			} else {
+				out = formatter<string_view>::format(val, ctx);
+			}
+		}
+		return out;
+	}
+};
