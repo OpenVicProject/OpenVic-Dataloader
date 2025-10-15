@@ -933,5 +933,56 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 			}
 		}
 	}
+
+	SECTION("EVTOPTA36918;\\xF3\\xED\\x90\\xE2\\x80\\x9C\\xE2\\x80\\x9D;;x") {
+		static constexpr auto buffer = "EVTOPTA36918;\xF3\xED\x90\xE2\x80\x9C\xE2\x80\x9D;;x"sv;
+		parser.load_from_string(buffer);
+
+		CHECK_PARSE();
+
+		const std::vector<LineObject>& line_list = parser.get_lines();
+		CHECK_FALSE(line_list.empty());
+		CHECK(ranges::size(line_list) == 1);
+
+		const LineObject& line = line_list.front();
+		CHECK_FALSE(line.empty());
+		CHECK(ranges::size(line) == 3);
+		CHECK(line.value_count() == 4);
+		CHECK(line.prefix_end() == 0);
+		CHECK(line.suffix_end() == 4);
+
+		for (const auto [index, val] : line | ranges::views::enumerate) {
+			CAPTURE(index);
+			CHECK_FALSE_OR_CONTINUE(val.second.empty());
+			switch (index) {
+				case 0:
+					CHECK_OR_CONTINUE(val.first == 0);
+					CHECK_OR_CONTINUE(val.second == "EVTOPTA36918"sv);
+					break;
+				case 1:
+					CHECK_OR_CONTINUE(val.first == 1);
+					CHECK_OR_CONTINUE(val.second == "óíÉâ€œâ€�"sv);
+					break;
+				case 2:
+					CHECK_OR_CONTINUE(val.first == 3);
+					CHECK_OR_CONTINUE(val.second == "x"sv);
+					break;
+				default: CHECK_OR_CONTINUE(false); break;
+			}
+		}
+
+		CHECK(line.value_count() == 4);
+
+		for (const auto index : ranges::views::iota(size_t(0), line.value_count())) {
+			CAPTURE(index);
+			switch (index) {
+				case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == "EVTOPTA36918"sv); break;
+				case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "óíÉâ€œâ€�"sv); break;
+				case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
+				case 3: CHECK_OR_CONTINUE(line.get_value_for(index) == "x"sv); break;
+				default: CHECK_OR_CONTINUE(false); break;
+			}
+		}
+	}
 #endif
 }
