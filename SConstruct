@@ -20,6 +20,11 @@ opts.Add(
     )
 )
 opts.Add(BoolVariable("build_ovdl_headless", "Build the openvic dataloader headless executable", env.is_standalone))
+opts.Add(
+    EnumVariable(
+        "compliance_type", "Type of encoding compliance to build with", "loose", ("loose", "error_replace", "error")
+    )
+)
 
 opts.Add(
     BoolVariable(
@@ -67,6 +72,12 @@ env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
 library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
 
 default_args = []
+
+match env["compliance_type"]:
+    case "error_replace":
+        env.Append(CPPDEFINES=[("OPENVIC_DATALOADER_ENCODING_COMPLIANCE", 1)])
+    case "error":
+        env.Append(CPPDEFINES=[("OPENVIC_DATALOADER_ENCODING_COMPLIANCE", 2)])
 
 if env["run_ovdl_tests"]:
     env["build_ovdl_tests"] = True
