@@ -21,6 +21,12 @@
 		_Pragma("GCC diagnostic ignored \"-Wreturn-type\"")
 #define OVDL_END_IGNORE_WARNING_RETURN_TYPE \
 	_Pragma("GCC diagnostic pop")
+#elif defined(_MSC_VER)
+#define OVDL_BEGIN_IGNORE_WARNING_RETURN_TYPE \
+	_Pragma("warning(push)")                  \
+		_Pragma("warning(disable:4715)")
+#define OVDL_END_IGNORE_WARNING_RETURN_TYPE \
+	_Pragma("warning(pop)")
 #else
 #define OVDL_BEGIN_IGNORE_WARNING_RETURN_TYPE
 #define OVDL_END_IGNORE_WARNING_RETURN_TYPE
