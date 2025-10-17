@@ -154,13 +154,20 @@ namespace ovdl::convert {
 												.map<'\xFE'>("þ")
 												.map<'\xFF'>("ÿ")
 
+#ifndef OPENVIC_DATALOADER_ENCODING_COMPLIANCE
 												// Paradox being special, invalid Windows-1252
 												// Used for (semantically incorrect) Polish localization TODOs
 												.map<'\x8F'>("Ę")
 												// HPM (and derived mods) have CSVs which permit this interpretation
 												.map<'\x90'>("É")
 												// DoD 0_news.csv mixes Windows-1252 and UTF-8
-												.map<'\x9D'>("�");
+												.map<'\x9D'>("�")
+#elif OPENVIC_DATALOADER_ENCODING_COMPLIANCE == 1
+												.map<'\x8F'>("�")
+												.map<'\x90'>("�")
+												.map<'\x9D'>("�")
+#endif
+			;
 
 		static constexpr auto win1251_map = lexy::symbol_table<std::string_view> //
 												.map<'\x80'>("Ђ")
