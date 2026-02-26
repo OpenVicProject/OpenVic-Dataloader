@@ -28,10 +28,10 @@ static void SetupFile(std::string_view path) {
 	stream << simple_buffer << std::flush;
 }
 
-#define CHECK_PARSE(...)                               \
-	CHECK_OR_RETURN(parser.get_errors().empty());      \
-	CHECK_OR_RETURN(parser.simple_parse(__VA_ARGS__)); \
-	CHECK_OR_RETURN(parser.get_errors().empty())
+#define CHECK_PARSE(...)                                               \
+	CHECK_FALSE_OR_RETURN(parser.has_error() || parser.has_warning()); \
+	CHECK_OR_RETURN(parser.simple_parse(__VA_ARGS__));                 \
+	CHECK_FALSE_OR_RETURN(parser.has_error() || parser.has_warning())
 
 TEST_CASE("V2Script Memory Buffer (data, size) Simple Parse", "[v2script-memory-simple-parse][buffer][data-size]") {
 	Parser parser(ovdl::detail::cnull);

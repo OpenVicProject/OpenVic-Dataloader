@@ -639,7 +639,7 @@ namespace ovdl::encoding_detect {
 		Encoding default_fallback = Encoding::Unknown;
 
 		constexpr std::pair<Encoding, bool> detect_assess(std::span<const cbyte> buffer, bool allow_utf8 = true) {
-			int64_t max = 0;
+			std::optional<int64_t> max;
 			Encoding encoding = default_fallback; // Presumes fallback, defaults to Unknown encoding if unknown (which skips conversion)
 			std::size_t i = 0;
 			for (Candidate& candidate : candidates) {
@@ -657,6 +657,11 @@ namespace ovdl::encoding_detect {
 					}
 
 					auto value = score.value();
+					if (encoding != Encoding::Unknown && value <= 0) {
+						i++;
+						continue;
+					}
+
 					if (value > max) {
 						max = value;
 						encoding = candidate.encoding();
@@ -664,7 +669,7 @@ namespace ovdl::encoding_detect {
 				}
 				i++;
 			}
-			return { encoding, max >= 0 };
+			return { encoding, max > 0 };
 		}
 
 		constexpr Encoding detect(std::span<const cbyte> buffer, bool allow_utf8 = true) {
