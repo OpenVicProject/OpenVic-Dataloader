@@ -80,14 +80,12 @@ jobs:
           - identifier: linux-debug
             os: ubuntu-latest
             name: 🐧 Linux Debug
-            runner: ubuntu-20.04
             target: template_debug
             platform: linux
             arch: x86_64
           - identifier: linux-release
             os: ubuntu-latest
             name: 🐧 Linux Release
-            runner: ubuntu-20.04
             target: template_release
             platform: linux
             arch: x86_64
@@ -123,16 +121,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -qqq build-essential pkg-config
           g++ --version
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
-          sudo update-alternatives --set g++ /usr/bin/g++-12
-          g++ --version
 
       - name: Compile Dataloader
         uses: OpenVicProject/openvic-build@master
         with:
           platform: ${{ matrix.platform }}
           target: ${{ matrix.target }}
-          sconsflags: arch=${{ matrix.arch }} build_ovdl_library=yes run_ovdl_tests=yes ubuntu_gcc_invalid_char_hang_bug=${{ matrix.runner == 'ubuntu-20.04' }}
+          sconsflags: arch=${{ matrix.arch }} build_ovdl_library=yes run_ovdl_tests=yes ubuntu_gcc_invalid_char_hang_bug=${{ matrix.os == 'ubuntu-20.04' }}
 
       - name: Delete compilation files
         if: ${{ matrix.platform == 'windows' }}
