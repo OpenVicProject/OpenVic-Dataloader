@@ -286,6 +286,7 @@ void ParseHandler::_detect_system_fallback_encoding() {
 	WIN1252(es);
 	WIN1252(fr);
 	WIN1252(de);
+	WIN1252(pl);
 
 	WIN1251(ru);
 
