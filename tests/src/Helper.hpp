@@ -1,6 +1,11 @@
 #pragma once
 
+#include <type_traits>
+
+#include <openvic-dataloader/detail/Encoding.hpp>
+
 #include <snitch/snitch_macros_utility.hpp>
+#include <snitch/snitch_registry.hpp>
 
 #define _EXPR(TYPE, EXPECTED, ASSIGN_VALUE, ...)                                             \
 	auto SNITCH_CURRENT_EXPRESSION =                                                         \
@@ -58,3 +63,16 @@
 #define CHECK_FALSE_OR_CONTINUE(...)                   \
 	_OVDL_CHECK_FALSE_IF("_OR_CONTINUE", __VA_ARGS__); \
 	else continue
+
+namespace ovdl::testing {
+	template<ovdl::detail::Encoding Encoding>
+	struct EncodingType : public std::integral_constant<decltype(Encoding), Encoding> {};
+
+	template<ovdl::detail::Encoding Encoding>
+	inline static constexpr auto EncodingConstant = EncodingType<Encoding> {};
+
+	using EncodingFallbackTypes = snitch::type_list<		  //
+		testing::EncodingType<detail::Encoding::Windows1252>, //
+		testing::EncodingType<detail::Encoding::Windows1251>  //
+		>;
+}

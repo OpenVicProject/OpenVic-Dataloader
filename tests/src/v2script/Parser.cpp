@@ -33,75 +33,75 @@ static void SetupFile(std::string_view path) {
 	CHECK_OR_RETURN(parser.simple_parse(__VA_ARGS__));                 \
 	CHECK_FALSE_OR_RETURN(parser.has_error() || parser.has_warning())
 
-TEST_CASE("V2Script Memory Buffer (data, size) Simple Parse", "[v2script-memory-simple-parse][buffer][data-size]") {
+TEMPLATE_LIST_TEST_CASE("V2Script Memory Buffer (data, size) Simple Parse", "[v2script-memory-simple-parse][buffer][data-size]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(simple_buffer.data(), simple_buffer.size());
+	parser.load_from_buffer(simple_buffer.data(), simple_buffer.size(), TestType {});
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script Memory Buffer (begin, end) Simple Parse", "[v2script-memory-simple-parse][buffer][begin-end]") {
+TEMPLATE_LIST_TEST_CASE("V2Script Memory Buffer (begin, end) Simple Parse", "[v2script-memory-simple-parse][buffer][begin-end]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(simple_buffer.data(), simple_buffer.data() + simple_buffer.size());
+	parser.load_from_buffer(simple_buffer.data(), simple_buffer.data() + simple_buffer.size(), TestType {});
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script Memory Buffer String Simple Parse", "[v2script-memory-simple-parse][buffer][string]") {
+TEMPLATE_LIST_TEST_CASE("V2Script Memory Buffer String Simple Parse", "[v2script-memory-simple-parse][buffer][string]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_string(simple_buffer);
+	parser.load_from_string(simple_buffer, TestType {});
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script Buffer nullptr Simple Parse", "[v2script-memory-simple-parse][buffer][nullptr]") {
+TEMPLATE_LIST_TEST_CASE("V2Script Buffer nullptr Simple Parse", "[v2script-memory-simple-parse][buffer][nullptr]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(nullptr, std::size_t { 0 });
+	parser.load_from_buffer(nullptr, std::size_t { 0 }, TestType {});
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script File (const char*) Simple Parse", "[v2script-file-simple-parse][char-ptr]") {
+TEMPLATE_LIST_TEST_CASE("V2Script File (const char*) Simple Parse", "[v2script-file-simple-parse][char-ptr]", testing::EncodingFallbackTypes) {
 	SetupFile(simple_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(simple_path.data());
+	parser.load_from_file(simple_path.data(), TestType {});
 
 	std::filesystem::remove(simple_path);
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script File (filesystem::path) Simple Parse", "[v2script-file-simple-parse][filesystem-path]") {
+TEMPLATE_LIST_TEST_CASE("V2Script File (filesystem::path) Simple Parse", "[v2script-file-simple-parse][filesystem-path]", testing::EncodingFallbackTypes) {
 	SetupFile(simple_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(std::filesystem::path(simple_path));
+	parser.load_from_file(std::filesystem::path(simple_path), TestType {});
 
 	std::filesystem::remove(simple_path);
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script File (HasCstr) Simple Parse", "[v2script-file-simple-parse][has-cstr]") {
+TEMPLATE_LIST_TEST_CASE("V2Script File (HasCstr) Simple Parse", "[v2script-file-simple-parse][has-cstr]", testing::EncodingFallbackTypes) {
 	SetupFile(simple_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(std::string { simple_path });
+	parser.load_from_file(std::string { simple_path }, TestType {});
 
 	std::filesystem::remove(simple_path);
 
 	CHECK_PARSE();
 }
 
-TEST_CASE("V2Script File (const char*) Handle Empty Path String Parse", "[v2script-file-parse][handle-string][char-ptr][empty-path]") {
+TEMPLATE_LIST_TEST_CASE("V2Script File (const char*) Handle Empty Path String Parse", "[v2script-file-parse][handle-string][char-ptr][empty-path]", testing::EncodingFallbackTypes) {
 	static constexpr auto error_fmt =
 #ifdef __APPLE__
 		"error: OS file error for '{}'.";
@@ -115,7 +115,7 @@ TEST_CASE("V2Script File (const char*) Handle Empty Path String Parse", "[v2scri
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file("");
+	parser.load_from_file("", TestType {});
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
 
@@ -126,14 +126,14 @@ TEST_CASE("V2Script File (const char*) Handle Empty Path String Parse", "[v2scri
 	CHECK_OR_RETURN(parser.error(error) == fmt::format(error_fmt, fs_path.string()));
 }
 
-TEST_CASE("V2Script File (const char*) Handle Non-existent Path String Parse", "[v2script-file-parse][handle-string][char-ptr][nonexistent-path]") {
+TEMPLATE_LIST_TEST_CASE("V2Script File (const char*) Handle Non-existent Path String Parse", "[v2script-file-parse][handle-string][char-ptr][nonexistent-path]", testing::EncodingFallbackTypes) {
 	static constexpr auto path = "./Idontexist";
 	std::error_code fs_err;
 	const auto fs_path = std::filesystem::weakly_canonical(path, fs_err);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(path);
+	parser.load_from_file(path, TestType {});
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
 
@@ -144,12 +144,12 @@ TEST_CASE("V2Script File (const char*) Handle Non-existent Path String Parse", "
 	CHECK_OR_RETURN(parser.error(error) == fmt::format("error: File '{}' not found.", fs_path.string()));
 }
 
-TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
+TEMPLATE_LIST_TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
 	SECTION("a = b") {
 		static constexpr auto buffer = "a = b"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -181,7 +181,7 @@ TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
 
 	SECTION("a b c d") {
 		static constexpr auto buffer = "a b c d"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -212,7 +212,7 @@ TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
 
 	SECTION("a = { a = b }") {
 		static constexpr auto buffer = "a = { a = b }"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -264,7 +264,7 @@ TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
 
 	SECTION("a = { { a } }") {
 		static constexpr auto buffer = "a = { { a } }"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -317,12 +317,12 @@ TEST_CASE("V2Script Identifier Simple Parse", "[v2script-id-simple-parse]") {
 	}
 }
 
-TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
+TEMPLATE_LIST_TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
 	SECTION("a = \"b\"") {
 		static constexpr auto buffer = "a = \"b\""sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -354,7 +354,7 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 
 	SECTION("\"a\" \"b\" \"c\" \"d\"") {
 		static constexpr auto buffer = "\"a\" \"b\" \"c\" \"d\""sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -385,7 +385,7 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 
 	SECTION("a = { a = \"b\" }") {
 		static constexpr auto buffer = "a = { a = \"b\" }"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -437,7 +437,7 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 
 	SECTION("a = { { \"a\" } }") {
 		static constexpr auto buffer = "a = { { \"a\" } }"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -488,6 +488,67 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 			CHECK(parser.value(str_value) == "a"sv);
 		}
 	}
+
+	SECTION("a = { Œ = \"b\" }") {
+		static auto buffer = "a = { Œ = \"b\" }"sv;
+
+		parser.load_from_string(buffer, TestType {});
+
+		CHECK_OR_RETURN(parser.get_errors().empty());
+		CHECK_OR_RETURN(parser.simple_parse());
+		CHECK_FALSE_OR_RETURN(parser.get_errors().empty());
+
+		CHECK(parser.error(parser.get_errors().front()) == " warn: Buffer is UTF-8 encoded. This may cause problems. Prefer Windows-1252 encoding:"sv);
+
+		const ast::FileTree* file_tree = parser.get_file_node();
+		CHECK(file_tree);
+
+		const auto statements = file_tree->statements();
+		CHECK_FALSE(statements.empty());
+		CHECK(ranges::distance(statements) == 1);
+
+		const ast::Statement* statement = file_tree->statements().front();
+		CHECK(statement);
+
+		const auto* assign = dryad::node_try_cast<ast::AssignStatement>(statement);
+		CHECK(assign);
+		CHECK(assign->left());
+		CHECK(assign->right());
+
+		const auto* left = dryad::node_try_cast<ast::IdentifierValue>(assign->left());
+		CHECK_IF(left) {
+			CHECK(parser.value(left) == "a"sv);
+		}
+
+		const auto* right = dryad::node_try_cast<ast::ListValue>(assign->right());
+		CHECK_IF(right) {
+			const auto inner_statements = right->statements();
+			CHECK_FALSE(inner_statements.empty());
+			CHECK(ranges::distance(inner_statements) == 1);
+
+			const ast::Statement* inner_statement = inner_statements.front();
+			CHECK(inner_statement);
+
+			const auto* inner_assign = dryad::node_try_cast<ast::AssignStatement>(inner_statement);
+			CHECK(inner_assign);
+			CHECK(inner_assign->left());
+			CHECK(inner_assign->right());
+
+			const auto* inner_left = dryad::node_try_cast<ast::IdentifierValue>(inner_assign->left());
+			CHECK_IF(inner_left) {
+				CHECK(parser.value(inner_left) == "Œ"sv);
+			}
+
+			const auto* inner_right = dryad::node_try_cast<ast::StringValue>(inner_assign->right());
+			CHECK_IF(inner_right) {
+				CHECK(parser.value(inner_right) == "b"sv);
+			}
+		}
+	}
+}
+
+TEST_CASE("V2Script String Simple Windows-1252 Parse", "[v2script-id-simple-1252-parse]") {
+	Parser parser(ovdl::detail::cnull);
 
 	SECTION("a = { \\x8C = \"b\" }") {
 		static auto buffer = "a = { \x8C = \"b\" }"sv;
@@ -541,6 +602,10 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 			}
 		}
 	}
+}
+
+TEST_CASE("V2Script String Simple Windows-1251 Parse", "[v2script-id-simple-1251-parse]") {
+	Parser parser(ovdl::detail::cnull);
 
 	SECTION("a = { \\xF7 = \"b\" }") {
 		static auto buffer = "a = { \xF7 = \"b\" }"sv;
@@ -586,63 +651,6 @@ TEST_CASE("V2Script String Simple Parse", "[v2script-id-simple-parse]") {
 			const auto* inner_left = dryad::node_try_cast<ast::IdentifierValue>(inner_assign->left());
 			CHECK_IF(inner_left) {
 				CHECK(parser.value(inner_left) == "ч"sv);
-			}
-
-			const auto* inner_right = dryad::node_try_cast<ast::StringValue>(inner_assign->right());
-			CHECK_IF(inner_right) {
-				CHECK(parser.value(inner_right) == "b"sv);
-			}
-		}
-	}
-
-	SECTION("a = { Œ = \"b\" }") {
-		static auto buffer = "a = { Œ = \"b\" }"sv;
-
-		parser.load_from_string(buffer);
-
-		CHECK_OR_RETURN(parser.get_errors().empty());
-		CHECK_OR_RETURN(parser.simple_parse());
-		CHECK_FALSE_OR_RETURN(parser.get_errors().empty());
-
-		CHECK(parser.error(parser.get_errors().front()) == " warn: Buffer is UTF-8 encoded. This may cause problems. Prefer Windows-1252 encoding:"sv);
-
-		const ast::FileTree* file_tree = parser.get_file_node();
-		CHECK(file_tree);
-
-		const auto statements = file_tree->statements();
-		CHECK_FALSE(statements.empty());
-		CHECK(ranges::distance(statements) == 1);
-
-		const ast::Statement* statement = file_tree->statements().front();
-		CHECK(statement);
-
-		const auto* assign = dryad::node_try_cast<ast::AssignStatement>(statement);
-		CHECK(assign);
-		CHECK(assign->left());
-		CHECK(assign->right());
-
-		const auto* left = dryad::node_try_cast<ast::IdentifierValue>(assign->left());
-		CHECK_IF(left) {
-			CHECK(parser.value(left) == "a"sv);
-		}
-
-		const auto* right = dryad::node_try_cast<ast::ListValue>(assign->right());
-		CHECK_IF(right) {
-			const auto inner_statements = right->statements();
-			CHECK_FALSE(inner_statements.empty());
-			CHECK(ranges::distance(inner_statements) == 1);
-
-			const ast::Statement* inner_statement = inner_statements.front();
-			CHECK(inner_statement);
-
-			const auto* inner_assign = dryad::node_try_cast<ast::AssignStatement>(inner_statement);
-			CHECK(inner_assign);
-			CHECK(inner_assign->left());
-			CHECK(inner_assign->right());
-
-			const auto* inner_left = dryad::node_try_cast<ast::IdentifierValue>(inner_assign->left());
-			CHECK_IF(inner_left) {
-				CHECK(parser.value(inner_left) == "Œ"sv);
 			}
 
 			const auto* inner_right = dryad::node_try_cast<ast::StringValue>(inner_assign->right());

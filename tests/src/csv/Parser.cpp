@@ -5,6 +5,7 @@
 #include <openvic-dataloader/Error.hpp>
 #include <openvic-dataloader/csv/LineObject.hpp>
 #include <openvic-dataloader/csv/Parser.hpp>
+#include <openvic-dataloader/detail/Encoding.hpp>
 
 #include <fmt/core.h>
 
@@ -33,135 +34,135 @@ static void SetupFile(std::string_view path) {
 	CHECK_OR_RETURN(parser.parse_csv(__VA_ARGS__));                    \
 	CHECK_FALSE_OR_RETURN(parser.has_error() || parser.has_warning());
 
-TEST_CASE("CSV Memory Buffer (data, size) Parse", "[csv-memory-parse][buffer][data-size]") {
+TEMPLATE_LIST_TEST_CASE("CSV Memory Buffer (data, size) Parse", "[csv-memory-parse][buffer][data-size]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(csv_buffer.data(), csv_buffer.size());
+	parser.load_from_buffer(csv_buffer.data(), csv_buffer.size(), TestType {});
 
 	CHECK_PARSE(false);
 }
 
-TEST_CASE("CSV Memory Buffer (begin, end) Parse", "[csv-memory-parse][buffer][begin-end]") {
+TEMPLATE_LIST_TEST_CASE("CSV Memory Buffer (begin, end) Parse", "[csv-memory-parse][buffer][begin-end]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(csv_buffer.data(), csv_buffer.data() + csv_buffer.size());
+	parser.load_from_buffer(csv_buffer.data(), csv_buffer.data() + csv_buffer.size(), TestType {});
 
 	CHECK_PARSE(false);
 }
 
-TEST_CASE("CSV Buffer nullptr Parse", "[csv-memory-parse][buffer][nullptr]") {
+TEMPLATE_LIST_TEST_CASE("CSV Buffer nullptr Parse", "[csv-memory-parse][buffer][nullptr]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(nullptr, std::size_t { 0 });
+	parser.load_from_buffer(nullptr, std::size_t { 0 }, TestType {});
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV Memory String Parse", "[csv-memory-parse][string]") {
+TEMPLATE_LIST_TEST_CASE("CSV Memory String Parse", "[csv-memory-parse][string]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_string(csv_buffer);
+	parser.load_from_string(csv_buffer, TestType {});
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV Memory Buffer (data, size) Handle String Parse", "[csv-memory-parse][handle-string][buffer][data-size]") {
+TEMPLATE_LIST_TEST_CASE("CSV Memory Buffer (data, size) Handle String Parse", "[csv-memory-parse][handle-string][buffer][data-size]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(csv_buffer.data(), csv_buffer.size());
+	parser.load_from_buffer(csv_buffer.data(), csv_buffer.size(), TestType {});
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV Memory Buffer (begin, end) Handle String Parse", "[csv-memory-parse][handle-string][buffer][begin-end]") {
+TEMPLATE_LIST_TEST_CASE("CSV Memory Buffer (begin, end) Handle String Parse", "[csv-memory-parse][handle-string][buffer][begin-end]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_buffer(csv_buffer.data(), csv_buffer.data() + csv_buffer.size());
+	parser.load_from_buffer(csv_buffer.data(), csv_buffer.data() + csv_buffer.size(), TestType {});
 
 	CHECK_PARSE(false);
 }
 
-TEST_CASE("CSV Memory String Handle String Parse", "[csv-memory-parse][handle-string][string]") {
+TEMPLATE_LIST_TEST_CASE("CSV Memory String Handle String Parse", "[csv-memory-parse][handle-string][string]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_string(csv_buffer);
+	parser.load_from_string(csv_buffer, TestType {});
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV File (const char*) Parse", "[csv-file-parse][char-ptr]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (const char*) Parse", "[csv-file-parse][char-ptr]", testing::EncodingFallbackTypes) {
 	SetupFile(csv_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(csv_path.data());
+	parser.load_from_file(csv_path.data(), TestType {});
 
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(false);
 }
 
-TEST_CASE("CSV File (filesystem::path) Parse", "[csv-file-parse][filesystem-path]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (filesystem::path) Parse", "[csv-file-parse][filesystem-path]", testing::EncodingFallbackTypes) {
 	SetupFile(csv_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(std::filesystem::path(csv_path));
+	parser.load_from_file(std::filesystem::path(csv_path), TestType {});
 
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(false);
 }
 
-TEST_CASE("CSV File (HasCstr) Parse", "[csv-file-parse][has-cstr]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (HasCstr) Parse", "[csv-file-parse][has-cstr]", testing::EncodingFallbackTypes) {
 	SetupFile(csv_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(std::string { csv_path });
+	parser.load_from_file(std::string { csv_path }, TestType {});
 
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(false);
 }
 
-TEST_CASE("CSV File (const char*) Handle String Parse", "[csv-file-parse][handle-string][char-ptr]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (const char*) Handle String Parse", "[csv-file-parse][handle-string][char-ptr]", testing::EncodingFallbackTypes) {
 	SetupFile(csv_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(csv_path.data());
+	parser.load_from_file(csv_path.data(), TestType {});
 
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV File (filesystem::path) Handle String Parse", "[csv-file-parse][handle-string][filesystem-path]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (filesystem::path) Handle String Parse", "[csv-file-parse][handle-string][filesystem-path]", testing::EncodingFallbackTypes) {
 	SetupFile(csv_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(std::filesystem::path(csv_path));
+	parser.load_from_file(std::filesystem::path(csv_path), TestType {});
 
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV File (HasCstr) Handle String Parse", "[csv-file-parse][handle-string][has-cstr]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (HasCstr) Handle String Parse", "[csv-file-parse][handle-string][has-cstr]", testing::EncodingFallbackTypes) {
 	SetupFile(csv_path);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(std::string { csv_path });
+	parser.load_from_file(std::string { csv_path }, TestType {});
 
 	std::filesystem::remove(csv_path);
 
 	CHECK_PARSE(true);
 }
 
-TEST_CASE("CSV File (const char*) Handle Empty Path String Parse", "[csv-file-parse][handle-string][char-ptr][empty-path]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (const char*) Handle Empty Path String Parse", "[csv-file-parse][handle-string][char-ptr][empty-path]", testing::EncodingFallbackTypes) {
 	static constexpr auto error_fmt =
 #ifdef __APPLE__
 		"error: OS file error for '{}'.";
@@ -175,7 +176,7 @@ TEST_CASE("CSV File (const char*) Handle Empty Path String Parse", "[csv-file-pa
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file("");
+	parser.load_from_file("", TestType {});
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
 
@@ -186,14 +187,14 @@ TEST_CASE("CSV File (const char*) Handle Empty Path String Parse", "[csv-file-pa
 	CHECK_OR_RETURN(parser.error(error) == fmt::format(error_fmt, fs_path.string()));
 }
 
-TEST_CASE("CSV File (const char*) Handle Non-existent Path String Parse", "[csv-file-parse][handle-string][char-ptr][nonexistent-path]") {
+TEMPLATE_LIST_TEST_CASE("CSV File (const char*) Handle Non-existent Path String Parse", "[csv-file-parse][handle-string][char-ptr][nonexistent-path]", testing::EncodingFallbackTypes) {
 	static constexpr auto path = "./Idontexist";
 	std::error_code fs_err;
 	const auto fs_path = std::filesystem::weakly_canonical(path, fs_err);
 
 	Parser parser(ovdl::detail::cnull);
 
-	parser.load_from_file(path);
+	parser.load_from_file(path, TestType {});
 
 	CHECK_OR_RETURN(!parser.get_errors().empty());
 
@@ -204,12 +205,12 @@ TEST_CASE("CSV File (const char*) Handle Non-existent Path String Parse", "[csv-
 	CHECK_OR_RETURN(parser.error(error) == fmt::format("error: File '{}' not found.", fs_path.string()));
 }
 
-TEST_CASE("CSV Parse", "[csv-parse]") {
+TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTypes) {
 	Parser parser(ovdl::detail::cnull);
 
 	SECTION("a;b;c") {
 		static constexpr auto buffer = "a;b;c"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -259,7 +260,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";a;b;c") {
 		static constexpr auto buffer = ";a;b;c"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -310,7 +311,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";a;b;c;") {
 		static constexpr auto buffer = ";a;b;c;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -361,7 +362,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";;a;b;c;") {
 		static constexpr auto buffer = ";;a;b;c;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -413,7 +414,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";;a;b;c;;") {
 		static constexpr auto buffer = ";;a;b;c;;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -466,7 +467,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";;a;b;;c;;") {
 		static constexpr auto buffer = ";;a;b;;c;;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -520,7 +521,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";;a;b;;c;;\\n;d;e;;f;g;;") {
 		static constexpr auto buffer = ";;a;b;;c;;\n;d;e;;f;g;;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -626,7 +627,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION("Score militaire;Militär;;Puntuación militar") {
 		static constexpr auto buffer = "Score militaire;Militär;;Puntuación militar"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -677,7 +678,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION(";§RNo research set§W;§RAucune recherche définie§W;") {
 		static constexpr auto buffer = ";§RNo research set§W;§RAucune recherche définie§W;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -723,7 +724,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION("Württemberg;Wurtemberg;Württemberg;;Württemberg;") {
 		static constexpr auto buffer = "Württemberg;Wurtemberg;Württemberg;;Württemberg;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -779,7 +780,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION("REB_SIZE_DESC;\\xBD\\xF8\\xC7\\xF2\\xC0\\xB2\\xA7Y\\xA7Y$VAL$\\xA7W;;x") {
 		static constexpr auto buffer = "REB_SIZE_DESC;\xBD\xF8\xC7\xF2\xC0\xB2\xA7Y\xA7Y$VAL$\xA7W;;x"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -830,7 +831,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION("EVTOPTA36918;\\xBD\\xF8\\xC7\\xF2\\xC0\\xB2\\xA3\\xA1\\xAD\\xA1\\xAD\\xA1;;x") {
 		static constexpr auto buffer = "EVTOPTA36918;\xBD\xF8\xC7\xF2\xC0\xB2\xA3\xA1\xAD\xA1\xAD\xA1;;x"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -885,7 +886,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 #if !defined(OPENVIC_DATALOADER_ENCODING_COMPLIANCE) || OPENVIC_DATALOADER_ENCODING_COMPLIANCE == 0
 	SECTION(";$NAME$ wurde in $PROV$ gebaut.;ID'\\x8F' DO;") {
 		static auto buffer = ";$NAME$ wurde in $PROV$ gebaut.;ID\x8F DO;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -911,7 +912,15 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 						break;
 					case 1:
 						CHECK_OR_CONTINUE(val.first == 2);
-						CHECK_OR_CONTINUE(val.second == "IDĘ DO"sv);
+						switch (TestType {}) {
+							using enum detail::Encoding;
+							case Windows1252:
+								CHECK_OR_CONTINUE(val.second == "IDĘ DO"sv);
+								break;
+							case Windows1251:
+								CHECK_OR_CONTINUE(val.second == "IDЏ DO"sv);
+								break;
+						}
 						break;
 					case 2:
 						CHECK_OR_CONTINUE(val.first == 3);
@@ -928,7 +937,17 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 				switch (index) {
 					case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
 					case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "$NAME$ wurde in $PROV$ gebaut."sv); break;
-					case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == "IDĘ DO"sv); break;
+					case 2:
+						switch (TestType {}) {
+							using enum detail::Encoding;
+							case Windows1252:
+								CHECK_OR_CONTINUE(line.get_value_for(index) == "IDĘ DO"sv);
+								break;
+							case Windows1251:
+								CHECK_OR_CONTINUE(line.get_value_for(index) == "IDЏ DO"sv);
+								break;
+						}
+						break;
 					default: CHECK_OR_CONTINUE(false); break;
 				}
 			}
@@ -937,7 +956,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION("EVTOPTA36918;\\xF3\\xED\\x90\\xE2\\x80\\x9C\\xE2\\x80\\x9D;;x") {
 		static constexpr auto buffer = "EVTOPTA36918;\xF3\xED\x90\xE2\x80\x9C\xE2\x80\x9D;;x"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -962,7 +981,15 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 					break;
 				case 1:
 					CHECK_OR_CONTINUE(val.first == 1);
-					CHECK_OR_CONTINUE(val.second == "óíÉâ€œâ€�"sv);
+					switch (TestType {}) {
+						using enum detail::Encoding;
+						case Windows1252:
+							CHECK_OR_CONTINUE(val.second == "óíÉâ€œâ€�"sv);
+							break;
+						case Windows1251:
+							CHECK_OR_CONTINUE(val.second == "унђвЂњвЂќ"sv);
+							break;
+					}
 					break;
 				case 2:
 					CHECK_OR_CONTINUE(val.first == 3);
@@ -978,7 +1005,17 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 			CAPTURE(index);
 			switch (index) {
 				case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == "EVTOPTA36918"sv); break;
-				case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "óíÉâ€œâ€�"sv); break;
+				case 1:
+					switch (TestType {}) {
+						using enum detail::Encoding;
+						case Windows1252:
+							CHECK_OR_CONTINUE(line.get_value_for(index) == "óíÉâ€œâ€�"sv);
+							break;
+						case Windows1251:
+							CHECK_OR_CONTINUE(line.get_value_for(index) == "унђвЂњвЂќ"sv);
+							break;
+					}
+					break;
 				case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
 				case 3: CHECK_OR_CONTINUE(line.get_value_for(index) == "x"sv); break;
 				default: CHECK_OR_CONTINUE(false); break;
@@ -988,7 +1025,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 #elif OPENVIC_DATALOADER_ENCODING_COMPLIANCE == 1
 	SECTION(";$NAME$ wurde in $PROV$ gebaut.;ID'\\x8F' DO;") {
 		static auto buffer = ";$NAME$ wurde in $PROV$ gebaut.;ID\x8F DO;"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
@@ -1040,7 +1077,7 @@ TEST_CASE("CSV Parse", "[csv-parse]") {
 
 	SECTION("EVTOPTA36918;\\xF3\\xED\\x90\\xE2\\x80\\x9C\\xE2\\x80\\x9D;;x") {
 		static constexpr auto buffer = "EVTOPTA36918;\xF3\xED\x90\xE2\x80\x9C\xE2\x80\x9D;;x"sv;
-		parser.load_from_string(buffer);
+		parser.load_from_string(buffer, TestType {});
 
 		CHECK_PARSE();
 
