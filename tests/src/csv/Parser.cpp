@@ -1048,7 +1048,15 @@ TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTyp
 						break;
 					case 1:
 						CHECK_OR_CONTINUE(val.first == 2);
-						CHECK_OR_CONTINUE(val.second == "ID� DO"sv);
+						switch (TestType {}) {
+							using enum detail::Encoding;
+							case Windows1252:
+								CHECK_OR_CONTINUE(val.second == "ID� DO"sv);
+								break;
+							case Windows1251:
+								CHECK_OR_CONTINUE(val.second == "IDЏ DO"sv);
+								break;
+						}
 						break;
 					case 2:
 						CHECK_OR_CONTINUE(val.first == 3);
@@ -1065,7 +1073,17 @@ TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTyp
 				switch (index) {
 					case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
 					case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "$NAME$ wurde in $PROV$ gebaut."sv); break;
-					case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == "ID� DO"sv); break;
+					case 2:
+						switch (TestType {}) {
+							using enum detail::Encoding;
+							case Windows1252:
+								CHECK_OR_CONTINUE(line.get_value_for(index) == "ID� DO"sv);
+								break;
+							case Windows1251:
+								CHECK_OR_CONTINUE(line.get_value_for(index) == "IDЏ DO"sv);
+								break;
+						}
+						break;
 					default: CHECK_OR_CONTINUE(false); break;
 				}
 			}
@@ -1099,7 +1117,15 @@ TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTyp
 					break;
 				case 1:
 					CHECK_OR_CONTINUE(val.first == 1);
-					CHECK_OR_CONTINUE(val.second == "óí�â€œâ€�"sv);
+					switch (TestType {}) {
+						using enum detail::Encoding;
+						case Windows1252:
+							CHECK_OR_CONTINUE(val.second == "óí�â€œâ€�"sv);
+							break;
+						case Windows1251:
+							CHECK_OR_CONTINUE(val.second == "унђвЂњвЂќ"sv);
+							break;
+					}
 					break;
 				case 2:
 					CHECK_OR_CONTINUE(val.first == 3);
@@ -1115,7 +1141,17 @@ TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTyp
 			CAPTURE(index);
 			switch (index) {
 				case 0: CHECK_OR_CONTINUE(line.get_value_for(index) == "EVTOPTA36918"sv); break;
-				case 1: CHECK_OR_CONTINUE(line.get_value_for(index) == "óí�â€œâ€�"sv); break;
+				case 1:
+					switch (TestType {}) {
+						using enum detail::Encoding;
+						case Windows1252:
+							CHECK_OR_CONTINUE(line.get_value_for(index) == "óí�â€œâ€�"sv);
+							break;
+						case Windows1251:
+							CHECK_OR_CONTINUE(line.get_value_for(index) == "унђвЂњвЂќ"sv);
+							break;
+					}
+					break;
 				case 2: CHECK_OR_CONTINUE(line.get_value_for(index) == ""sv); break;
 				case 3: CHECK_OR_CONTINUE(line.get_value_for(index) == "x"sv); break;
 				default: CHECK_OR_CONTINUE(false); break;
