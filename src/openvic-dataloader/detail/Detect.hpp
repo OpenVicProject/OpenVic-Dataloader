@@ -134,6 +134,7 @@ namespace ovdl::encoding_detect {
 	}
 
 	struct DetectorData {
+		// clang-format off
 		static constexpr std::array latin_ascii = std::to_array<ubyte>({
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,								  //
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,								  //
@@ -144,7 +145,9 @@ namespace ovdl::encoding_detect {
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,						  //
 			16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 0, 0, 0, 0, 0,					  //
 		});
+		// clang-format on
 
+		// clang-format off
 		static constexpr std::array non_latin_ascii = std::to_array<ubyte>({
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,								  //
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,								  //
@@ -155,7 +158,9 @@ namespace ovdl::encoding_detect {
 			0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,								  //
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,								  //
 		});
+		// clang-format on
 
+		// clang-format off
 		static constexpr std::array windows_1251 = std::to_array<ubyte>({
 			131, 130, 0, 2, 0, 0, 0, 0, 0, 0, 132, 0, 133, 130, 134, 135,					//
 			3, 0, 0, 0, 0, 0, 0, 0, 255, 0, 4, 0, 5, 2, 6, 7,								//
@@ -166,7 +171,9 @@ namespace ovdl::encoding_detect {
 			14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,					//
 			30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,					//
 		});
+		// clang-format on
 
+		// clang-format off
 		static constexpr std::array windows_1252 = std::to_array<ubyte>({
 			0, 255, 0, 60, 0, 0, 0, 0, 0, 0, 156, 0, 157, 255, 185, 255,					//
 			255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 29, 255, 57, 186,						//
@@ -177,6 +184,7 @@ namespace ovdl::encoding_detect {
 			30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,					//
 			60, 46, 47, 48, 49, 50, 51, 63, 52, 53, 54, 55, 56, 60, 60, 58,					//
 		});
+		// clang-format on
 
 		// clang-format off
 		static constexpr std::array cyrillic = std::to_array<ubyte>({

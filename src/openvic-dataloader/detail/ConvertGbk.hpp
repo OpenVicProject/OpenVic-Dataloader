@@ -65,7 +65,7 @@ namespace ovdl::convert::gbk {
 				auto iconv_err_handler = [&]() {
 					if (errno == EILSEQ && in_buffer && in_size >= 1) {
 						auto full_width_exclaim = [&] {
-							// Insert UTF-8 ！ (full width exclaimation mark)
+							// Insert UTF-8 ！ (full width exclamation mark)
 							*out_buffer++ = '\xEF';
 							*out_buffer++ = '\xBC';
 							*out_buffer++ = '\x81';
@@ -83,11 +83,11 @@ namespace ovdl::convert::gbk {
 								in_buffer += sizeof(char_type);
 								--in_size;
 								return true;
-							// Expect non-standard ！ (full width exclaimation mark), found in some localizations
+							// Expect non-standard ！ (full width exclamation mark), found in some localizations
 							case '\xA1':
 								full_width_exclaim();
 								return true;
-							// Expect nothing then non-standard ！ (full width exclaimation mark), found in some localizations
+							// Expect nothing then non-standard ！ (full width exclamation mark), found in some localizations
 							case '\xAD':
 								if (in_size >= 2 && in_buffer + 1 && in_buffer[1] == '\xA1') {
 									--out_size;
