@@ -55,40 +55,46 @@ jobs:
         include:
           - identifier: windows-debug
             os: windows-latest
-            name: 🏁 Windows Debug
+            name: 🏁 Windows Debug (compliance_type=error_replace)
             target: template_debug
             platform: windows
             arch: x86_64
+            compliance_type: error_replace
           - identifier: windows-release
             os: windows-latest
-            name: 🏁 Windows Release
+            name: 🏁 Windows Release (compliance_type=loose)
             target: template_release
             platform: windows
             arch: x86_64
+            compliance_type: loose
           - identifier: macos-debug
             os: macos-latest
-            name: 🍎 macOS (universal) Debug
+            name: 🍎 macOS (universal) Debug (compliance_type=error_replace)
             target: template_debug
             platform: macos
             arch: universal
+            compliance_type: error_replace
           - identifier: macos-release
             os: macos-latest
-            name: 🍎 macOS (universal) Release
+            name: 🍎 macOS (universal) Release (compliance_type=loose)
             target: template_release
             platform: macos
             arch: universal
+            compliance_type: loose
           - identifier: linux-debug
             os: ubuntu-latest
-            name: 🐧 Linux Debug
+            name: 🐧 Linux Debug (compliance_type=error_replace)
             target: template_debug
             platform: linux
             arch: x86_64
+            compliance_type: error_replace
           - identifier: linux-release
             os: ubuntu-latest
-            name: 🐧 Linux Release
+            name: 🐧 Linux Release (compliance_type=loose)
             target: template_release
             platform: linux
             arch: x86_64
+            compliance_type: loose
 
     steps:
       - name: Checkout project
@@ -127,7 +133,7 @@ jobs:
         with:
           platform: ${{ matrix.platform }}
           target: ${{ matrix.target }}
-          sconsflags: arch=${{ matrix.arch }} build_ovdl_library=yes run_ovdl_tests=yes
+          sconsflags: arch=${{ matrix.arch }} build_ovdl_library=yes run_ovdl_tests=yes compliance_type=${{ matrix.compliance_type }}
 
       - name: Delete compilation files
         if: ${{ matrix.platform == 'windows' }}
