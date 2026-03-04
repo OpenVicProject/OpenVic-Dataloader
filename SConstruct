@@ -26,14 +26,6 @@ opts.Add(
     )
 )
 
-opts.Add(
-    BoolVariable(
-        "ubuntu_gcc_invalid_char_hang_bug",
-        "Skips test section which triggers a hang build for gcc-12 on ubuntu-20",
-        False,
-    )
-)
-
 env.FinalizeOptions()
 
 env.exposed_includes = []

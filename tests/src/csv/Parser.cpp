@@ -880,9 +880,6 @@ TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTyp
 		}
 	}
 
-	// Blame Ubuntu 22's GCC-12 distribution for this crap
-	// Compiler bug hangs if it can see if there is any reference to \x8F in a character
-#if !defined(_OVDL_TEST_UBUNTU_GCC_12_BUG_)
 #if !defined(OPENVIC_DATALOADER_ENCODING_COMPLIANCE) || OPENVIC_DATALOADER_ENCODING_COMPLIANCE == 0
 	SECTION(";$NAME$ wurde in $PROV$ gebaut.;ID'\\x8F' DO;") {
 		static auto buffer = ";$NAME$ wurde in $PROV$ gebaut.;ID\x8F DO;"sv;
@@ -1125,6 +1122,5 @@ TEMPLATE_LIST_TEST_CASE("CSV Parse", "[csv-parse]", testing::EncodingFallbackTyp
 			}
 		}
 	}
-#endif
 #endif
 }
