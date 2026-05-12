@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 
 Import("env")
 
@@ -35,22 +34,25 @@ def build_lexy(env):
     include_path = "lexy/include"
     source_path = "lexy/src"
     lexy_env.Append(CPPPATH=[[lexy_env.Dir(p) for p in [source_path, include_path]]])
-    sources = env.GlobRecursive("*.cpp", [source_path])
+    # Mirror lexy's source tree into the per-config build dir.
+    build_root = (env.get("build_dir") or env.Dir("#").abspath).replace("\\", "/")
+    lexy_out = build_root + "/lexy/" + source_path
+    lexy_env.VariantDir(lexy_out, source_path, duplicate=True)
+    sources = env.GlobRecursive("*.cpp", [lexy_out])
     env.lexy_sources = sources
 
-    library_name = "liblexy_file" + env["LIBSUFFIX"]
-    library = lexy_env.StaticLibrary(target=os.path.join(source_path, library_name), source=sources)
+    library_name = "liblexy_file" + env.get("suffix", "") + env["LIBSUFFIX"]
+    library = lexy_env.StaticLibrary(target=lexy_out + "/" + library_name, source=sources)
     Default(library)
 
     include_dir = lexy_env.Dir(include_path)
-    source_dir = lexy_env.Dir(source_path)
     env.Append(CPPPATH=[include_dir])
     if env.get("is_msvc", False):
         env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
     else:
         env.Append(CXXFLAGS=["-isystem", include_dir])
     env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[source_dir])
+    env.Append(LIBPATH=[lexy_env.Dir(lexy_out)])
     env.Prepend(LIBS=[library_name])
 
 
@@ -121,11 +123,15 @@ def build_fmt(env):
     source_path = "fmt/src"
     paths = [include_path, source_path]
     fmt_env.Append(CPPPATH=[[fmt_env.Dir(p) for p in paths]])
-    sources = env.GlobRecursive("*.cc", paths, os.path.join(source_path, "fmt.cc"))
+    # Mirror fmt's source tree into the per-config build dir.
+    build_root = (env.get("build_dir") or env.Dir("#").abspath).replace("\\", "/")
+    fmt_out = build_root + "/fmt/" + source_path
+    fmt_env.VariantDir(fmt_out, source_path, duplicate=True)
+    sources = env.GlobRecursive("*.cc", [fmt_out], fmt_out + "/fmt.cc")
     env.lexy_sources = sources
 
-    library_name = "libfmt" + env["LIBSUFFIX"]
-    library = fmt_env.StaticLibrary(target=os.path.join(source_path, library_name), source=sources)
+    library_name = "libfmt" + env.get("suffix", "") + env["LIBSUFFIX"]
+    library = fmt_env.StaticLibrary(target=fmt_out + "/" + library_name, source=sources)
     Default(library)
 
     include_dir = fmt_env.Dir(include_path)
@@ -139,7 +145,7 @@ def build_fmt(env):
     else:
         env.Append(CXXFLAGS=["-isystem", include_dir])
     env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[fmt_env.Dir(source_path)])
+    env.Append(LIBPATH=[fmt_env.Dir(fmt_out)])
     env.Prepend(LIBS=[library_name])
 
     env.exposed_includes += env.fmt["INCPATH"]
@@ -171,11 +177,15 @@ def build_vmcontainer(env):
     source_path = "vmcontainer/lib/src"
     paths = [include_path, source_path]
     vmcontainer_env.Append(CPPPATH=[[vmcontainer_env.Dir(p) for p in paths]])
-    sources = env.GlobRecursive("*.cpp", paths)
+    # Mirror vmcontainer's source tree into the per-config build dir.
+    build_root = (env.get("build_dir") or env.Dir("#").abspath).replace("\\", "/")
+    vmcontainer_out = build_root + "/vmcontainer/" + source_path
+    vmcontainer_env.VariantDir(vmcontainer_out, source_path, duplicate=True)
+    sources = env.GlobRecursive("*.cpp", [vmcontainer_out])
     env.vmcontainer_sources = sources
 
-    library_name = "libvmcontainer" + env["LIBSUFFIX"]
-    library = vmcontainer_env.StaticLibrary(target=os.path.join(source_path, library_name), source=sources)
+    library_name = "libvmcontainer" + env.get("suffix", "") + env["LIBSUFFIX"]
+    library = vmcontainer_env.StaticLibrary(target=vmcontainer_out + "/" + library_name, source=sources)
     Default(library)
 
     include_dir = vmcontainer_env.Dir(include_path)
@@ -189,7 +199,7 @@ def build_vmcontainer(env):
     else:
         env.Append(CXXFLAGS=["-isystem", include_dir])
     env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[vmcontainer_env.Dir(source_path)])
+    env.Append(LIBPATH=[vmcontainer_env.Dir(vmcontainer_out)])
     env.Prepend(LIBS=[library_name])
 
     env.exposed_includes += env.vmcontainer["INCPATH"]
