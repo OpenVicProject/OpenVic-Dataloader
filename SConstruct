@@ -65,11 +65,12 @@ env.openvic_dataloader = {}
 # tweak this if you want to use different folders, or more folders, to store your source code in.
 source_path = "src/openvic-dataloader"
 include_path = "include"
-# Mirror the dataloader source tree into the per-config build dir.
+# Out-of-source build: variant tree holds object files only, not copies of the
+# source. Compile diagnostics therefore reference original source paths.
 dataloader_variant = build_dir + "/" + source_path
-env.VariantDir(dataloader_variant, source_path, duplicate=True)
-env.Append(CPPPATH=[[env.Dir(p) for p in [include_path, dataloader_variant]]])
-sources = env.GlobRecursive("*.cpp", [dataloader_variant])
+env.VariantDir(dataloader_variant, source_path, duplicate=False)
+env.Append(CPPPATH=[[env.Dir(p) for p in [include_path, dataloader_variant, source_path]]])
+sources = env.GlobRecursiveVariant("*.cpp", source_path, dataloader_variant)
 env.dataloader_sources = sources
 
 library = None
@@ -109,10 +110,10 @@ if env["build_ovdl_headless"]:
     headless_env = env.Clone()
     headless_src = "src/headless"
     headless_variant = build_dir + "/" + headless_src
-    headless_env.VariantDir(headless_variant, headless_src, duplicate=True)
+    headless_env.VariantDir(headless_variant, headless_src, duplicate=False)
     headless_env.Append(CPPDEFINES=["OPENVIC_DATALOADER_HEADLESS"])
-    headless_env.Append(CPPPATH=[headless_env.Dir(headless_variant)])
-    headless_env.headless_sources = env.GlobRecursive("*.cpp", [headless_variant])
+    headless_env.Append(CPPPATH=[headless_env.Dir(headless_variant), headless_env.Dir(headless_src)])
+    headless_env.headless_sources = env.GlobRecursiveVariant("*.cpp", headless_src, headless_variant)
     if not env["build_ovdl_library"]:
         headless_env.headless_sources += sources
     headless_program = headless_env.Program(
