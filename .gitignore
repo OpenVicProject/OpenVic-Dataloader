@@ -80,4 +80,4 @@ tests/bin/*
 compile_commands.json
 
 # Out-of-source build directory
-build/
+/build/
