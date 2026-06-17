@@ -22,6 +22,15 @@ jobs:
             arch: x86_64
             test-bin-suffix: .md.exe
 
+          - identifier: windows-debug-mingw
+            os: windows-latest
+            name: 🏁 Windows Debug (MinGW)
+            target: template_debug
+            platform: windows
+            arch: x86_64
+            mingw: true
+            test-bin-suffix: .md.exe
+
           - identifier: windows-debug-replace
             os: windows-latest
             name: 🏁 Windows Debug (Replace Error UTF Compliance)
@@ -37,6 +46,15 @@ jobs:
             target: template_release
             platform: windows
             arch: x86_64
+            test-bin-suffix: .md.exe
+
+          - identifier: windows-release-mingw
+            os: windows-latest
+            name: 🏁 Windows Release (MinGW)
+            target: template_release
+            platform: windows
+            arch: x86_64
+            mingw: true
             test-bin-suffix: .md.exe
 
           - identifier: macos-debug
@@ -97,6 +115,10 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      - name: Setup MinGW for Windows/MinGW build
+        if: matrix.platform == 'windows' && (matrix.mingw || false)
+        uses: egor-tensin/setup-mingw@ef0952fadae6794e225c0c1654887408bcadbf64
 
       - name: Build
         uses: ./.github/actions/openvic-dl-build

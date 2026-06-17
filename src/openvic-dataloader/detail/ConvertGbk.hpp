@@ -11,12 +11,14 @@
 #include <lexy/input/buffer.hpp>
 #include <lexy/input/file.hpp>
 
-#ifdef _WIN32
+#if __has_include(<iconv.h>)
+#include <iconv.h>
+#elif defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
-#elif defined(__unix__) || defined(__APPLE__) || __has_include(<iconv.h>)
-#include <iconv.h>
+#elif defined(__unix__) || defined(__APPLE__)
+#error "<iconv.h> not found on POSIX system"
 #endif
 
 namespace ovdl::convert::gbk {
@@ -42,7 +44,7 @@ namespace ovdl::convert::gbk {
 					default: break;
 				}
 
-#if defined(__unix__) || defined(__APPLE__) || __has_include(<iconv.h>)
+#if __has_include(<iconv.h>)
 				iconv_t cd = ::iconv_open("UTF-8", "WINDOWS-936");
 				if (cd == (iconv_t)-1) {
 					return lexy::buffer<Encoding, MemoryResource> { resource };
@@ -102,7 +104,7 @@ namespace ovdl::convert::gbk {
 					}
 					return false;
 				};
-#if defined(_WIN32)
+#if !__has_include(<iconv.h>) && defined(_WIN32)
 				auto iconv_mimic = [&]() -> int64_t {
 					static constexpr size_t CP_GBK = 936;
 					static constexpr size_t MB_CHAR_MAX = 16;
@@ -205,7 +207,7 @@ namespace ovdl::convert::gbk {
 						}
 					}
 				}
-#elif defined(__unix__) || defined(__APPLE__) || __has_include(<iconv.h>)
+#elif __has_include(<iconv.h>)
 				const auto end = in_buffer + size;
 				while (in_size > 0 && out_size > 0 && in_buffer != end) {
 					if (::iconv(cd, &in_buffer, &in_size, &out_buffer, &out_size) == -1) {
