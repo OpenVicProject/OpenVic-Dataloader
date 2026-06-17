@@ -22,7 +22,7 @@ jobs:
             arch: x86_64
             test-bin-suffix: .md.exe
 
-          - identifier: windows-debug
+          - identifier: windows-debug-replace
             os: windows-latest
             name: 🏁 Windows Debug (Replace Error UTF Compliance)
             target: template_debug
@@ -46,7 +46,7 @@ jobs:
             platform: macos
             arch: universal
 
-          - identifier: macos-debug
+          - identifier: macos-debug-replace
             os: macos-latest
             name: 🍎 macOS (universal) Debug (Replace Error UTF Compliance)
             target: template_debug
@@ -68,7 +68,7 @@ jobs:
             platform: linux
             arch: x86_64
 
-          - identifier: linux-debug
+          - identifier: linux-debug-replace
             os: ubuntu-22.04
             name: 🐧 Linux Debug (Replace Error UTF Compliance)
             target: template_debug
@@ -76,7 +76,7 @@ jobs:
             compliance_type: error_replace
             arch: x86_64
 
-          - identifier: linux-debug
+          - identifier: linux-debug-error
             os: ubuntu-22.04
             name: 🐧 Linux Debug (Build Error UTF Compliance)
             target: template_debug
