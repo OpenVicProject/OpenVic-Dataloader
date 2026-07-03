@@ -81,3 +81,9 @@ compile_commands.json
 
 # Out-of-source build directory
 /build/
+
+# SCons
+.sconf_temp
+.sconsign*.dblite
+.scons_env.json
+.scons_node_count

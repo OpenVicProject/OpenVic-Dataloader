@@ -5,7 +5,8 @@ Import("env")
 
 def build_lexy(env):
     env.Append(CPPDEFINES=["LEXY_HAS_UNICODE_DATABASE=1"])
-    lexy_env = env.Clone()
+
+    lexy_env, _ = env.BuildDependencyLibrary(target="lexy_file", src_dir="lexy/src", include_dir="lexy/include")
 
     # Require C++20
     if lexy_env.get("is_msvc", False):
@@ -31,47 +32,23 @@ def build_lexy(env):
                 ]
             )
 
-    include_path = "lexy/include"
-    source_path = "lexy/src"
-    lexy_env.Append(CPPPATH=[[lexy_env.Dir(p) for p in [source_path, include_path]]])
-    # Mirror lexy's source tree into the per-config build dir.
-    build_root = (env.get("build_dir") or env.Dir("#").abspath).replace("\\", "/")
-    lexy_out = build_root + "/lexy/" + source_path
-    lexy_env.VariantDir(lexy_out, source_path, duplicate=True)
-    sources = env.GlobRecursive("*.cpp", [lexy_out])
-    env.lexy_sources = sources
-
-    library_name = "liblexy_file" + env.get("suffix", "") + env["LIBSUFFIX"]
-    library = lexy_env.StaticLibrary(target=lexy_out + "/" + library_name, source=sources)
-    Default(library)
-
-    include_dir = lexy_env.Dir(include_path)
-    env.Append(CPPPATH=[include_dir])
-    if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
-    else:
-        env.Append(CXXFLAGS=["-isystem", include_dir])
-    env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[lexy_env.Dir(lexy_out)])
-    env.Prepend(LIBS=[library_name])
-
 
 def build_dryad(env):
-    include_path = "dryad/include"
-    include_dir = env.Dir(include_path)
-    env.dryad = {}
-    env.dryad["INCPATH"] = [include_dir]
-    env.Append(CPPPATH=env.dryad["INCPATH"])
+    include_dir = env.AddLibraryIncludes("dryad/include")
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
+        env.AppendUnique(CXXFLAGS=[f"/external:I{env.Dir(include_dir)}", "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", include_dir])
-
-    env.exposed_includes += env.dryad["INCPATH"]
+        env.Append(CXXFLAGS=["-isystem", env.Dir(include_dir)])
 
 
 def build_fmt(env):
-    fmt_env = env.Clone()
+    fmt_env, _ = env.BuildDependencyLibrary(
+        target="fmt",
+        src_dir="fmt/src",
+        include_dir="fmt/include",
+        glob="*.cc",
+        exclude="fmt.cc",
+    )
 
     # Require C++20
     if fmt_env.get("is_msvc", False):
@@ -119,90 +96,21 @@ def build_fmt(env):
                 ]
             )
 
-    include_path = "fmt/include"
-    source_path = "fmt/src"
-    paths = [include_path, source_path]
-    fmt_env.Append(CPPPATH=[[fmt_env.Dir(p) for p in paths]])
-    # Mirror fmt's source tree into the per-config build dir.
-    build_root = (env.get("build_dir") or env.Dir("#").abspath).replace("\\", "/")
-    fmt_out = build_root + "/fmt/" + source_path
-    fmt_env.VariantDir(fmt_out, source_path, duplicate=True)
-    sources = env.GlobRecursive("*.cc", [fmt_out], fmt_out + "/fmt.cc")
-    env.lexy_sources = sources
-
-    library_name = "libfmt" + env.get("suffix", "") + env["LIBSUFFIX"]
-    library = fmt_env.StaticLibrary(target=fmt_out + "/" + library_name, source=sources)
-    Default(library)
-
-    include_dir = fmt_env.Dir(include_path)
-
-    env.fmt = {}
-    env.fmt["INCPATH"] = [include_dir]
-
-    env.Append(CPPPATH=env.fmt["INCPATH"])
-    if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
-    else:
-        env.Append(CXXFLAGS=["-isystem", include_dir])
-    env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[fmt_env.Dir(fmt_out)])
-    env.Prepend(LIBS=[library_name])
-
-    env.exposed_includes += env.fmt["INCPATH"]
-
 
 def build_range_v3(env):
-    include_path = "range-v3/include"
-    sources = env.GlobRecursive("*.cpp", [include_path])
-    env.range_v3_sources = sources
-
-    include_dir = env.Dir(include_path)
-
-    env.range_v3 = {}
-    env.range_v3["INCPATH"] = [include_dir]
-
-    env.Append(CPPPATH=env.range_v3["INCPATH"])
+    include_dir = env.AddLibraryIncludes("range-v3/include")
     if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
+        env.AppendUnique(CXXFLAGS=[f"/external:I{env.Dir(include_dir)}", "/external:W0"])
     else:
-        env.Append(CXXFLAGS=["-isystem", include_dir])
-
-    env.exposed_includes += env.range_v3["INCPATH"]
+        env.Append(CXXFLAGS=["-isystem", env.Dir(include_dir)])
 
 
 def build_vmcontainer(env):
-    vmcontainer_env = env.Clone()
-
-    include_path = "vmcontainer/lib/include"
-    source_path = "vmcontainer/lib/src"
-    paths = [include_path, source_path]
-    vmcontainer_env.Append(CPPPATH=[[vmcontainer_env.Dir(p) for p in paths]])
-    # Mirror vmcontainer's source tree into the per-config build dir.
-    build_root = (env.get("build_dir") or env.Dir("#").abspath).replace("\\", "/")
-    vmcontainer_out = build_root + "/vmcontainer/" + source_path
-    vmcontainer_env.VariantDir(vmcontainer_out, source_path, duplicate=True)
-    sources = env.GlobRecursive("*.cpp", [vmcontainer_out])
-    env.vmcontainer_sources = sources
-
-    library_name = "libvmcontainer" + env.get("suffix", "") + env["LIBSUFFIX"]
-    library = vmcontainer_env.StaticLibrary(target=vmcontainer_out + "/" + library_name, source=sources)
-    Default(library)
-
-    include_dir = vmcontainer_env.Dir(include_path)
-
-    env.vmcontainer = {}
-    env.vmcontainer["INCPATH"] = [include_dir]
-
-    env.Append(CPPPATH=env.vmcontainer["INCPATH"])
-    if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/external:I", include_dir, "/external:W0"])
-    else:
-        env.Append(CXXFLAGS=["-isystem", include_dir])
-    env.Append(CXXFLAGS=[""])
-    env.Append(LIBPATH=[vmcontainer_env.Dir(vmcontainer_out)])
-    env.Prepend(LIBS=[library_name])
-
-    env.exposed_includes += env.vmcontainer["INCPATH"]
+    env.BuildDependencyLibrary(
+        target="vmcontainer",
+        src_dir="vmcontainer/lib/src",
+        include_dir="vmcontainer/lib/include",
+    )
 
 
 build_dryad(env)
