@@ -17,118 +17,88 @@ jobs:
           - identifier: windows-debug
             os: windows-latest
             name: 🏁 Windows Debug
+            preset: windows-x64-md
+            configuration: Debug
             target: template_debug
-            platform: windows
-            arch: x86_64
-            test-bin-suffix: .md.exe
-
-          - identifier: windows-debug-mingw
-            os: windows-latest
-            name: 🏁 Windows Debug (MinGW)
-            target: template_debug
-            platform: windows
-            arch: x86_64
-            mingw: true
-            test-bin-suffix: .md.exe
 
           - identifier: windows-debug-replace
             os: windows-latest
             name: 🏁 Windows Debug (Replace Error UTF Compliance)
+            preset: windows-x64-md
+            configuration: Debug
             target: template_debug
-            platform: windows
-            arch: x86_64
             compliance_type: error_replace
-            test-bin-suffix: .md.exe
 
           - identifier: windows-release
             os: windows-latest
             name: 🏁 Windows Release
+            preset: windows-x64-md
+            configuration: Release
             target: template_release
-            platform: windows
-            arch: x86_64
-            test-bin-suffix: .md.exe
-
-          - identifier: windows-release-mingw
-            os: windows-latest
-            name: 🏁 Windows Release (MinGW)
-            target: template_release
-            platform: windows
-            arch: x86_64
-            mingw: true
-            test-bin-suffix: .md.exe
 
           - identifier: macos-debug
             os: macos-latest
             name: 🍎 macOS (universal) Debug
+            preset: macos-universal
+            configuration: Debug
             target: template_debug
-            platform: macos
-            arch: universal
 
           - identifier: macos-debug-replace
             os: macos-latest
             name: 🍎 macOS (universal) Debug (Replace Error UTF Compliance)
+            preset: macos-universal
+            configuration: Debug
             target: template_debug
-            platform: macos
             compliance_type: error_replace
-            arch: universal
 
           - identifier: macos-release
             os: macos-latest
             name: 🍎 macOS (universal) Release
+            preset: macos-universal
+            configuration: Release
             target: template_release
-            platform: macos
-            arch: universal
 
           - identifier: linux-debug
             os: ubuntu-22.04
             name: 🐧 Linux Debug
+            preset: linux-x64
+            configuration: Debug
             target: template_debug
-            platform: linux
-            arch: x86_64
 
           - identifier: linux-debug-replace
             os: ubuntu-22.04
             name: 🐧 Linux Debug (Replace Error UTF Compliance)
+            preset: linux-x64
+            configuration: Debug
             target: template_debug
-            platform: linux
             compliance_type: error_replace
-            arch: x86_64
 
           - identifier: linux-debug-error
             os: ubuntu-22.04
             name: 🐧 Linux Debug (Build Error UTF Compliance)
+            preset: linux-x64
+            configuration: Debug
             target: template_debug
-            platform: linux
             compliance_type: error
-            arch: x86_64
 
           - identifier: linux-release
             os: ubuntu-22.04
             name: 🐧 Linux Release
+            preset: linux-x64
+            configuration: Release
             target: template_release
-            platform: linux
-            arch: x86_64
 
     steps:
       - name: Checkout project
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          submodules: recursive
           persist-credentials: false
-
-      - name: Setup MinGW for Windows/MinGW build
-        if: matrix.platform == 'windows' && (matrix.mingw || false)
-        uses: egor-tensin/setup-mingw@0ea9f5370e9405e1b4cc436a2668226b02450eb2
 
       - name: Build
         uses: ./.github/actions/openvic-dl-build
         with:
           identifier: ${{ matrix.identifier }}
+          preset: ${{ matrix.preset }}
+          configuration: ${{ matrix.configuration }}
           target: ${{ matrix.target }}
-          platform: ${{ matrix.platform }}
-          arch: ${{ matrix.arch }}
           compliance-type: ${{ matrix.compliance_type || 'loose' }}
-
-      - name: Run tests
-        run: |
-          ./tests/bin/openvic-dataloader.tests.${{ matrix.platform }}.${{ matrix.target }}.${{ matrix.arch }}${{ matrix.test-bin-suffix || '' }}
