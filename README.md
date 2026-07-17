@@ -7,19 +7,16 @@ Repo of the OpenVic-Dataloader Library for [OpenVic](https://github.com/OpenVicP
 For detailed instructions, view the OpenVic Contributor Quickstart Guide [here](https://github.com/OpenVicProject/OpenVic/blob/master/docs/contribution-quickstart-guide.md)
 
 ## Required
-* [scons](https://scons.org/)
+* [CMake](https://cmake.org/) 3.28+
+* [Ninja](https://ninja-build.org/)
 
 ## Build Instructions
-1. Install [scons](https://scons.org/) for your system.
-2. Run the command `git submodule update --init --recursive` to retrieve all related submodules.
-3. Run `scons build_ovdl_library=yes` in the project root, you should see a libopenvic-dataloader file in `bin`.
+1. Pick a configure preset from `CMakePresets.json` (`windows-x64-md`, `windows-x64-mt`, `linux-x64`, `macos-universal`).
+2. Run `cmake --preset <preset>` in the project root (dependencies are fetched automatically; no submodules needed).
+3. Run `cmake --build --preset <preset>-debug` (or `<preset>-release`). The static library, headless executable, and unit tests land in `out/build/<preset>/bin/<Config>/`.
+4. Run the tests with `ctest --preset <preset>-debug`.
+
+The headless executable and tests are built by default in standalone builds; disable with `-DOPENVIC_DL_BUILD_HEADLESS=OFF` / `-DOPENVIC_DL_BUILD_TESTS=OFF`. Encoding compliance is selected with `-DOPENVIC_DATALOADER_COMPLIANCE=<loose|error_replace|error>`.
 
 ## Link Instructions
-1. Call `ovdl_env = SConscript("openvic-dataloader/SConstruct")`
-2. Use the values stored in the `ovdl_env.openvic_dataloader` to link and compile against:
-
-| Variable Name | Description                               | Correlated ENV variable   |
-| ---           | ---                                       | ---                       |
-| `LIBPATH`     | Library path list                         | `env["LIBPATH"]`          |
-| `LIBS`        | Library files names in the library paths  | `env["LIBS"]`             |
-| `INCPATH`     | Library include files                     | `env["CPPPATH"]`          |
+Use CMake: `add_subdirectory(openvic-dataloader)` and link against `openvic::dataloader`.
