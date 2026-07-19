@@ -118,7 +118,7 @@ jobs:
 
       - name: Setup MinGW for Windows/MinGW build
         if: matrix.platform == 'windows' && (matrix.mingw || false)
-        uses: egor-tensin/setup-mingw@ef0952fadae6794e225c0c1654887408bcadbf64
+        uses: egor-tensin/setup-mingw@0ea9f5370e9405e1b4cc436a2668226b02450eb2
 
       - name: Build
         uses: ./.github/actions/openvic-dl-build
