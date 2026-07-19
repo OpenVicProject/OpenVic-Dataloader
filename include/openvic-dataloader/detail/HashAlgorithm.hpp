@@ -10,7 +10,7 @@ namespace ovdl::detail {
 		static constexpr std::uint64_t fnv_prime = 1099511628211ull;
 
 	public:
-		explicit DefaultHash() : _hash(fnv_basis) {}
+		explicit DefaultHash() {}
 
 		DefaultHash(DefaultHash&&) = default;
 		DefaultHash& operator=(DefaultHash&&) = default;
@@ -48,6 +48,6 @@ namespace ovdl::detail {
 		}
 
 	private:
-		std::uint64_t _hash;
+		std::uint64_t _hash = fnv_basis;
 	};
 }
