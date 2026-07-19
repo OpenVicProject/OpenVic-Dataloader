@@ -73,6 +73,33 @@ env.Append(CPPPATH=[[env.Dir(p) for p in [include_path, dataloader_variant, sour
 sources = env.GlobRecursiveVariant("*.cpp", source_path, dataloader_variant)
 env.dataloader_sources = sources
 
+gen_commit_info = env.CommandNoCache(
+    dataloader_variant + "/gen/commit_info.gen.hpp",
+    env.Value(env.get_git_info("ovdl")),
+    env.Run(env.git_builder),
+    name_prefix="ovdl",
+)
+gen_license_info = env.CommandNoCache(
+    dataloader_variant + "/gen/license_info.gen.hpp",
+    ["COPYRIGHT", "LICENSE"],
+    env.Run(env.license_builder),
+    name_prefix="ovdl",
+)
+gen_author_info = env.CommandNoCache(
+    dataloader_variant + "/gen/author_info.gen.hpp",
+    "AUTHORS.md",
+    env.Run(env.author_builder),
+    name_prefix="ovdl",
+    sections={
+        "Senior Developers": "AUTHORS_SENIOR_DEVELOPERS",
+        "Developers": "AUTHORS_DEVELOPERS",
+        "Contributors": "AUTHORS_CONTRIBUTORS",
+        "Consultants": "AUTHORS_CONSULTANTS",
+    },
+)
+gen_files = gen_commit_info + gen_license_info + gen_author_info
+Default(gen_commit_info, gen_license_info, gen_author_info)
+
 library = None
 env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
 library_name = "libopenvic-dataloader{}{}".format(suffix, env["LIBSUFFIX"])
