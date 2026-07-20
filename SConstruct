@@ -67,26 +67,26 @@ source_path = "src/openvic-dataloader"
 include_path = "include"
 # Out-of-source build: variant tree holds object files only, not copies of the
 # source. Compile diagnostics therefore reference original source paths.
-dataloader_variant = build_dir + "/" + source_path
+dataloader_variant = build_dir + "/" + source_path  # forward slashes so VariantDir matches
+dataloader_variant_parent = build_dir + "/" + include_path  # variant of "src/"
 env.VariantDir(dataloader_variant, source_path, duplicate=False)
-env.Append(CPPPATH=[[env.Dir(p) for p in [include_path, dataloader_variant, source_path]]])
-sources = env.GlobRecursiveVariant("*.cpp", source_path, dataloader_variant)
-env.dataloader_sources = sources
+
+env.Append(CPPPATH=[[env.Dir(p) for p in [dataloader_variant, dataloader_variant_parent, source_path, include_path]]])
 
 gen_commit_info = env.CommandNoCache(
-    dataloader_variant + "/gen/commit_info.gen.hpp",
+    dataloader_variant_parent + "/openvic-dataloader/gen/commit_info.gen.hpp",
     env.Value(env.get_git_info("ovdl")),
     env.Run(env.git_builder),
     name_prefix="ovdl",
 )
 gen_license_info = env.CommandNoCache(
-    dataloader_variant + "/gen/license_info.gen.hpp",
+    dataloader_variant_parent + "/openvic-dataloader/gen/license_info.gen.hpp",
     ["COPYRIGHT", "LICENSE"],
     env.Run(env.license_builder),
     name_prefix="ovdl",
 )
 gen_author_info = env.CommandNoCache(
-    dataloader_variant + "/gen/author_info.gen.hpp",
+    dataloader_variant_parent + "/openvic-dataloader/gen/author_info.gen.hpp",
     "AUTHORS.md",
     env.Run(env.author_builder),
     name_prefix="ovdl",
@@ -99,6 +99,9 @@ gen_author_info = env.CommandNoCache(
 )
 gen_files = gen_commit_info + gen_license_info + gen_author_info
 Default(gen_commit_info, gen_license_info, gen_author_info)
+
+sources = env.GlobRecursiveVariant("*.cpp", source_path, dataloader_variant)
+env.dataloader_sources = sources
 
 library = None
 env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
@@ -127,7 +130,13 @@ if env["build_ovdl_library"]:
 
     env.openvic_dataloader["LIBPATH"] = env["LIBPATH"]
     env.openvic_dataloader["LIBS"] = env["LIBS"]
-    env.openvic_dataloader["INCPATH"] = [env.Dir(include_path)] + env.exposed_includes
+    # Variant parent for generated headers (gen/*.gen.hpp); source parent for
+    # authored headers (MSVC's preprocessor needs both physically in -I).
+    env.openvic_dataloader["INCPATH"] = [
+        env.Dir(dataloader_variant_parent),
+        env.Dir(include_path),
+    ] + env.exposed_includes
+    env.openvic_dataloader["GEN_FILES"] = gen_files
 
 headless_program = None
 env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
