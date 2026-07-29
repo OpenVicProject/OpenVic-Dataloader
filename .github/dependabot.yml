@@ -6,11 +6,20 @@ updates:
       interval: "daily"
     allow:
       - dependency-name: "scripts"
+    labels:
+      - dependencies
+      - "deps:submodules"
   - package-ecosystem: "pre-commit"
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - dependencies
+      - "deps:pre-commit"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - dependencies
+      - "deps:github actions"
