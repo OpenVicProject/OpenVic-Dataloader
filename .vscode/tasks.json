@@ -4,28 +4,28 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "configure",
             "group": "build",
             "type": "shell",
-            "command": "scons",
+            "command": "cmake",
             "args": [
-                // enable for debugging with breakpoints
-                //"dev_build=yes",
+                "--preset",
+                "windows-x64-md"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "dev_build",
+            "label": "build",
             "group": "build",
             "type": "shell",
-            "command": "scons",
+            "command": "cmake",
             "args": [
-                // enable for debugging with breakpoints
-                "dev_build=yes",
-                "debug_symbols=yes"
+                "--build",
+                "--preset",
+                "windows-x64-md-debug"
             ],
             "dependsOn": [
-                "build"
+                "configure"
             ],
             "problemMatcher": "$msCompile"
         },
@@ -33,9 +33,13 @@
             "label": "clean",
             "group": "build",
             "type": "shell",
-            "command": "scons",
+            "command": "cmake",
             "args": [
-                "--clean"
+                "--build",
+                "--preset",
+                "windows-x64-md-debug",
+                "--target",
+                "clean"
             ],
             "problemMatcher": "$msCompile"
         },
