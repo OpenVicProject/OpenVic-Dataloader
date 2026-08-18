@@ -92,13 +92,13 @@ runs:
         # Arguments are evaluated by Javascript's eval function
         configurePresetAdditionalArgs: |
           [
-            `-DGODOTCPP_TARGET=$[env.INPUTS_TARGET]`,
-            `-DOPENVIC_DATALOADER_COMPLIANCE=$[env.INPUTS_COMPLIANCE_TYPE]`,
-            $[env.INPUTS_ENABLE_CACHE] ? `-DCMAKE_C_COMPILER_LAUNCHER=ccache` : ``,
-            $[env.INPUTS_ENABLE_CACHE] ? `-DCMAKE_CXX_COMPILER_LAUNCHER=ccache` : ``,
-            $[env.INPUTS_ENABLE_CACHE] && `$[env.RUNNER_OS]` == 'Windows' ? `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>` : ``
-          ].concat(`$[env.INPUTS_CMAKE_ARGS]`.split(/\s+/)).filter((v) => v.length > 0)
-        buildPresetCmdString: "[`--build`, `--preset`, `$[env.BUILD_PRESET_NAME]-` + `$[env.INPUTS_CONFIGURATION]`.toLowerCase()]"
+            `-DGODOTCPP_TARGET=${process.env.INPUTS_TARGET}`,
+            `-DOPENVIC_DATALOADER_COMPLIANCE=${process.env.INPUTS_COMPLIANCE_TYPE}`,
+            process.env.INPUTS_ENABLE_CACHE == 'true' ? `-DCMAKE_C_COMPILER_LAUNCHER=ccache` : ``,
+            process.env.INPUTS_ENABLE_CACHE == 'true' ? `-DCMAKE_CXX_COMPILER_LAUNCHER=ccache` : ``,
+            process.env.INPUTS_ENABLE_CACHE == 'true' && process.env.RUNNER_OS == 'Windows' ? `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>` : ``
+          ].concat(process.env.INPUTS_CMAKE_ARGS.split(/\s+/)).filter((v) => v.length > 0)
+        buildPresetCmdString: "[`--build`, `--preset`, `${process.env.BUILD_PRESET_NAME}-${process.env.INPUTS_CONFIGURATION.toLowerCase()}`]"
 
     - name: Build and Test
       uses: lukka/run-cmake@5d55ea7949e25f69f0ecb516d8d572297e03a956 # v10.9
@@ -118,14 +118,14 @@ runs:
         # Arguments are evaluated by Javascript's eval function
         configurePresetAdditionalArgs: |
           [
-            `-DGODOTCPP_TARGET=$[env.INPUTS_TARGET]`,
-            `-DOPENVIC_DATALOADER_COMPLIANCE=$[env.INPUTS_COMPLIANCE_TYPE]`,
-            $[env.INPUTS_ENABLE_CACHE] ? `-DCMAKE_C_COMPILER_LAUNCHER=ccache` : ``,
-            $[env.INPUTS_ENABLE_CACHE] ? `-DCMAKE_CXX_COMPILER_LAUNCHER=ccache` : ``,
-            $[env.INPUTS_ENABLE_CACHE] && `$[env.RUNNER_OS]` == 'Windows' ? `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>` : ``
-          ].concat(`$[env.INPUTS_CMAKE_ARGS]`.split(/\s+/)).filter((v) => v.length > 0)
-        buildPresetCmdString: "[`--build`, `--preset`, `$[env.BUILD_PRESET_NAME]-` + `$[env.INPUTS_CONFIGURATION]`.toLowerCase()]"
-        testPresetCmdString: "[`--preset`, `$[env.BUILD_PRESET_NAME]-` + `$[env.INPUTS_CONFIGURATION]`.toLowerCase()]"
+            `-DGODOTCPP_TARGET=${process.env.INPUTS_TARGET}`,
+            `-DOPENVIC_DATALOADER_COMPLIANCE=${process.env.INPUTS_COMPLIANCE_TYPE}`,
+            process.env.INPUTS_ENABLE_CACHE == 'true' ? `-DCMAKE_C_COMPILER_LAUNCHER=ccache` : ``,
+            process.env.INPUTS_ENABLE_CACHE == 'true' ? `-DCMAKE_CXX_COMPILER_LAUNCHER=ccache` : ``,
+            process.env.INPUTS_ENABLE_CACHE == 'true' && process.env.RUNNER_OS == 'Windows' ? `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>` : ``
+          ].concat(process.env.INPUTS_CMAKE_ARGS.split(/\s+/)).filter((v) => v.length > 0)
+        buildPresetCmdString: "[`--build`, `--preset`, `${process.env.BUILD_PRESET_NAME}-${process.env.INPUTS_CONFIGURATION.toLowerCase()}`]"
+        testPresetCmdString: "[`--preset`, `${process.env.BUILD_PRESET_NAME}-${process.env.INPUTS_CONFIGURATION.toLowerCase()}`]"
 
     - name: Upload library artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
