@@ -142,6 +142,8 @@ if(APPLE)
     # converter uses iconv. PUBLIC: executables linking this static library
     # need them on their own link lines.
     target_link_libraries(openvic-dataloader PUBLIC "-framework CoreFoundation" iconv)
+elseif(MINGW)
+    target_link_libraries(openvic-dataloader PUBLIC iconv)
 endif()
 set_target_properties(openvic-dataloader PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
 
