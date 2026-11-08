@@ -22,7 +22,7 @@ namespace ovdl::detail {
 				_hash ^= ptr[i];
 				_hash *= fnv_prime;
 			}
-			return static_cast<std ::remove_reference_t<decltype(*this)>&&>(*this);
+			return static_cast<std::remove_reference_t<decltype(*this)>&&>(*this);
 		}
 
 		template<typename T>
@@ -31,7 +31,7 @@ namespace ovdl::detail {
 			static_assert(!std::is_floating_point_v<T>,
 				"you shouldn't use floats as keys for a hash table");
 			hash_bytes(reinterpret_cast<unsigned char*>(&value), sizeof(T));
-			return static_cast<std ::remove_reference_t<decltype(*this)>&&>(*this);
+			return static_cast<std::remove_reference_t<decltype(*this)>&&>(*this);
 		}
 
 		template<typename CharT>
@@ -40,7 +40,7 @@ namespace ovdl::detail {
 				hash_scalar(*str);
 				++str;
 			}
-			return static_cast<std ::remove_reference_t<decltype(*this)>&&>(*this);
+			return static_cast<std::remove_reference_t<decltype(*this)>&&>(*this);
 		}
 
 		std::uint64_t finish() && {
