@@ -78,8 +78,8 @@ set(RANGE_V3_PERF OFF)
 set(RANGE_V3_DOCS OFF)
 openvic_declare_dep(range-v3
     REPO spartan322/range-v3
-    SHA 96b8c210ca9c783caaac3a50bb508600e28c9247
-    SHA256 fc8e9ce8e0baf54e68a7259e357674ace8d12c552c503ee9206434bfd0a1ea64
+    SHA 9e535d569c8e8e863069c36321ffd1a47856ae01
+    SHA256 72b21ab2e15eb75444437289d6148497c1e786767199b0b831f1ecaf224b3023
 )
 FetchContent_MakeAvailable(range-v3)
 
